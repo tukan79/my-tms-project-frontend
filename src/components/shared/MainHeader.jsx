@@ -2,8 +2,8 @@
 import React from 'react';
 import { Plus, Upload, Download } from 'lucide-react';
 import { useDashboard } from '../../contexts/DashboardContext.jsx';
-import { useAuth } from '../../contexts/AuthContext.jsx';
-import { importerConfig } from '../../../../server/config/importerConfig.js';
+import { useAuth } from '../../contexts/AuthContext.jsx'; // Assuming this is needed, if not, it can be removed if unused.
+import { importerConfig } from '../../config/importerConfig.js';
 
 const MainHeader = ({ viewConfig }) => {
   const { user } = useAuth(); // Pobieramy użytkownika bezpośrednio z AuthContext
