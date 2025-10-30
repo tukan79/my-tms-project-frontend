@@ -13,6 +13,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist', // Domyślna wartość, ale dobrze jest ją mieć jawnie
+    emptyOutDir: true, // Czyści katalog 'dist' przed każdą budową
   },
   server: {
     host: true, // Umożliwia dostęp do serwera deweloperskiego z innych urządzeń w sieci
