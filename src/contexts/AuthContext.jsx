@@ -79,10 +79,6 @@ export const AuthProvider = ({ children }) => {
         const savedToken = localStorage.getItem('token');
         console.log('💾 Token verification:', savedToken ? 'SUCCESS' : 'FAILED');
 
-        // Ręczne ustawienie nagłówka nie jest konieczne, ponieważ interceptor to zrobi,
-        // ale jeśli chcemy to zrobić, musimy to zrobić na właściwej instancji `api`.
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
         const { user: newUser } = response.data;
         localStorage.setItem('user', JSON.stringify(newUser));
         setToken(token);
