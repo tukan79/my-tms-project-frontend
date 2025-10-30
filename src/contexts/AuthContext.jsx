@@ -59,27 +59,30 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     setLoading(true);
-    console.log('🔐 Attempting login to:', import.meta.env.VITE_API_BASE_URL);
+    console.log('🔐 Attempting login...');
     try {
       const response = await api.post('/api/auth/login', { email, password });
       console.log('✅ Login response:', response.data);
       
-      // KLUCZOWA ZMIANA: Użyj accessToken zamiast token
-      const token = response.data.accessToken; // TO JEST POPRAWNE POLE!
+      // KLUCZOWA ZMIANA: Użyj TYLKO accessToken
+      const token = response.data.accessToken;
       
-      console.log('🔑 Extracted token from accessToken:', token ? `YES (${token.substring(0, 20)}...)` : 'NO');
+      console.log('🔑 Token from accessToken:', token ? `YES (${token.substring(0, 20)}...)` : 'NO');
       
       if (token) {
+        // ZAPISZ TOKEN
         localStorage.setItem('token', token);
-        console.log('✅ Token saved to localStorage');
         
+        // ZAPISZ USER DATA
         const userData = response.data.user;
         localStorage.setItem('user', JSON.stringify(userData));
+        
+        console.log('✅ Token and user saved to localStorage');
+        
         setToken(token);
         setUser(userData);
         setIsAuthenticated(true);
         
-        console.log('✅ User authenticated:', userData.email);
         return userData;
       } else {
         console.error('❌ No accessToken found in response');
