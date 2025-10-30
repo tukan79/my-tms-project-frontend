@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
         console.log('💾 Token verification:', savedToken ? 'SUCCESS' : 'FAILED');
 
         // Ręczne ustawienie nagłówka nie jest konieczne, ponieważ interceptor to zrobi,
-        // ale dodajemy dla pewności i zgodności z Twoją sugestią.
+        // ale jeśli chcemy to zrobić, musimy to zrobić na właściwej instancji `api`.
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
         const { user: newUser } = response.data;
