@@ -59,15 +59,36 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     setLoading(true);
+    console.log('🔐 Attempting login to:', import.meta.env.VITE_API_BASE_URL);
     try {
       const response = await api.post('/api/auth/login', { email, password });
-      const { token: newToken, user: newUser } = response.data;
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      setToken(newToken);
-      setUser(newUser);
-      setIsAuthenticated(true);
-      return newUser;
+      console.log('✅ Login response:', response.data);
+
+      // Ekstrakcja tokena - sprawdź strukturę odpowiedzi
+      const token = response.data.token ||
+                    response.data.accessToken ||
+                    response.data.access_token;
+
+      console.log('🔑 Extracted token:', token ? 'YES' : 'NO');
+
+      if (token) {
+        localStorage.setItem('token', token);
+        console.log('✅ Token saved to localStorage');
+
+        // Potwierdź zapisanie
+        const savedToken = localStorage.getItem('token');
+        console.log('💾 Token verification:', savedToken ? 'SUCCESS' : 'FAILED');
+
+        const { user: newUser } = response.data;
+        localStorage.setItem('user', JSON.stringify(newUser));
+        setToken(token);
+        setUser(newUser);
+        setIsAuthenticated(true);
+        return newUser;
+      }
+      console.error('❌ No token found in response');
+      console.log('📋 Full response:', response.data);
+      throw new Error('No token found in login response');
     } catch (error) {
       console.error('Login error:', error);
       throw error; // Rzucamy błąd dalej, aby formularz logowania mógł go obsłużyć

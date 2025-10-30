@@ -35,6 +35,11 @@ import MainHeader from './components/shared/MainHeader.jsx'; // Import nowego ko
 import BugReportButton from './components/shared/BugReportButton.jsx'; // Import przycisku do zgłaszania błędów
 import { generateViewConfig } from './config/viewConfig.jsx';
 
+// Tymczasowy debug
+console.log('🌐 Environment variables:');
+console.log('VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
+console.log('Mode:', import.meta.env.MODE);
+
 
 
 const DashboardContent = () => {
