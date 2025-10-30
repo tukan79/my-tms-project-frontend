@@ -42,13 +42,11 @@ const MainHeader = ({ viewConfig }) => {
   const getViewName = () => viewNames[currentView] || '';
   const exportableViews = ['drivers', 'trucks', 'trailers', 'customers', 'users'];
   
-  // Funkcja pomocnicza do sprawdzania uprawnień na podstawie ról
-  const hasPermission = (allowedRoles) => user && allowedRoles.includes(user.role);
-
   // Używamy czytelnych flag do zarządzania logiką warunkową
-  const canImport = importerConfig[currentView] && hasPermission(['admin']);
-  const canExport = exportableViews.includes(currentView) && hasPermission(['admin']);
+  const canImport = importerConfig[currentView] && user?.role === 'admin';
+  const canExport = exportableViews.includes(currentView) && user?.role === 'admin';
   const canAdd = viewConfig[currentView]?.FormComponent;
+
 
   return (
     <header className="main-header">

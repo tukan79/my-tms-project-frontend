@@ -145,7 +145,7 @@ const EditOrderPopOut = () => {
   return <AddOrderForm {...editData} onSuccess={handleSuccess} onCancel={() => window.close()} />;
 };
 
-const ProtectedRoute = () => {
+const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
@@ -153,7 +153,7 @@ const ProtectedRoute = () => {
     return <div className="loading">Verifying authorization...</div>;
   }
 
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
 const PopOutWindow = ({ view }) => {
@@ -173,12 +173,13 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        {/* Grupowanie chronionych tras wewnątrz jednego ProtectedRoute */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/*" element={<Dashboard />} />
-          <Route path="/planit/popout" element={<PopOutWindow />} />
-          <Route path="/orders/:orderId/edit" element={<DashboardProvider><EditOrderPopOut /></DashboardProvider>} />
-        </Route>
+        <Route
+          path="/*"
+          element={<ProtectedRoute><Dashboard /></ProtectedRoute>}
+        />
+        {/* Upraszczamy trasy dla wyskakującego okna do jednej */}
+        <Route path="/planit/popout" element={<ProtectedRoute><PopOutWindow /></ProtectedRoute>} />
+        <Route path="/orders/:orderId/edit" element={<ProtectedRoute><DashboardProvider><EditOrderPopOut /></DashboardProvider></ProtectedRoute>} />
       </Routes>
     </ToastProvider>
   );
