@@ -63,32 +63,28 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/api/auth/login', { email, password });
       console.log('✅ Login response:', response.data);
-
-      // Ekstrakcja tokena - sprawdź strukturę odpowiedzi
-      const token = response.data.token || // KLUCZOWE: Zapisz token do localStorage
-                    response.data.accessToken ||
-                    response.data.access_token;
-
-      console.log('🔑 Extracted token:', token ? 'YES' : 'NO');
-
+      
+      // KLUCZOWA ZMIANA: Użyj accessToken zamiast token
+      const token = response.data.accessToken; // TO JEST POPRAWNE POLE!
+      
+      console.log('🔑 Extracted token from accessToken:', token ? `YES (${token.substring(0, 20)}...)` : 'NO');
+      
       if (token) {
         localStorage.setItem('token', token);
-        console.log('✅ Token saved:', token.substring(0, 20) + '...');
-
-        // Potwierdź zapisanie
-        const savedToken = localStorage.getItem('token');
-        console.log('💾 Token verification:', savedToken ? 'SUCCESS' : 'FAILED');
-
-        const { user: newUser } = response.data;
-        localStorage.setItem('user', JSON.stringify(newUser));
+        console.log('✅ Token saved to localStorage');
+        
+        const userData = response.data.user;
+        localStorage.setItem('user', JSON.stringify(userData));
         setToken(token);
-        setUser(newUser);
+        setUser(userData);
         setIsAuthenticated(true);
-        return newUser;
+        
+        console.log('✅ User authenticated:', userData.email);
+        return userData;
       } else {
-        console.error('❌ No token in response:', response.data);
+        console.error('❌ No accessToken found in response');
+        throw new Error('No authentication token received');
       }
-      throw new Error('No token found in login response');
     } catch (error) {
       console.error('Login error:', error);
       throw error; // Rzucamy błąd dalej, aby formularz logowania mógł go obsłużyć

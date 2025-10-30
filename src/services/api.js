@@ -12,56 +12,16 @@ const api = axios.create({
   timeout: 10000,
 });
 
-// Dodajemy "interceptor", który będzie przechwytywał każde zapytanie
-// i dodawał do niego nagłówek autoryzacyjny z tokenem.
-// Interceptor do automatycznego dodawania tokena do WSZYSTKICH zapytań
+// Interceptor do automatycznego dodawania tokena
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-
-    console.log('🔄 Interceptor - Making request to:', config.url);
-    console.log('🔑 Token found:', !!token);
-
+    const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('✅ Token added to headers for:', config.url);
-    } else {
-      console.log('❌ No token found for request:', config.url);
     }
-
     return config;
   },
   (error) => {
-    console.error('❌ Request interceptor error:', error);
-    return Promise.reject(error);
-  }
-);
-
-// Interceptor do obsługi odpowiedzi - szczególnie błędów 401
-api.interceptors.response.use(
-  (response) => {
-    console.log('✅ Response received for:', response.config.url, response.status);
-    return response;
-  },
-  (error) => {
-    console.error('❌ Response error:', error.response?.status, error.config?.url);
-
-    // Jeśli serwer odpowie statusem 401 lub 403, oznacza to problem z autoryzacją.
-    // Jeśli otrzymamy 401 Unauthorized, automatycznie wyloguj
-    if (error.response && [401, 403].includes(error.response.status)) {
-      console.log('🚪 401 Unauthorized - triggering logout');
-
-      // Usuń token z localStorage
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-
-      // Zamiast twardego przekierowania, emitujemy niestandardowy event.
-      // Aplikacja (np. AuthProvider) będzie mogła na niego zareagować.
-      // Wyślij globalny event żeby AuthContext się zaktualizował
-      if (!window.location.pathname.endsWith('/login')) {
-        window.dispatchEvent(new Event('auth-error'));
-      }
-    }
     return Promise.reject(error);
   }
 );
