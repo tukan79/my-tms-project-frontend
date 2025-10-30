@@ -1,6 +1,6 @@
 //app.jsx
 import React, { useMemo, useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Printer } from 'lucide-react';
 import DriverList from './components/list/DriverList.jsx';
 import AddDriverForm from './components/forms/AddDriverForm.jsx';
@@ -145,7 +145,7 @@ const EditOrderPopOut = () => {
   return <AddOrderForm {...editData} onSuccess={handleSuccess} onCancel={() => window.close()} />;
 };
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
@@ -153,7 +153,7 @@ const ProtectedRoute = ({ children }) => {
     return <div className="loading">Verifying authorization...</div>;
   }
 
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 const PopOutWindow = ({ view }) => {
@@ -173,13 +173,12 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route
-          path="/*"
-          element={<ProtectedRoute><Dashboard /></ProtectedRoute>}
-        />
-        {/* Upraszczamy trasy dla wyskakującego okna do jednej */}
-        <Route path="/planit/popout" element={<ProtectedRoute><PopOutWindow /></ProtectedRoute>} />
-        <Route path="/orders/:orderId/edit" element={<ProtectedRoute><DashboardProvider><EditOrderPopOut /></DashboardProvider></ProtectedRoute>} />
+        {/* Grupowanie chronionych tras wewnątrz jednego ProtectedRoute */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/*" element={<Dashboard />} />
+          <Route path="/planit/popout" element={<PopOutWindow />} />
+          <Route path="/orders/:orderId/edit" element={<DashboardProvider><EditOrderPopOut /></DashboardProvider>} />
+        </Route>
       </Routes>
     </ToastProvider>
   );

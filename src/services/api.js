@@ -29,12 +29,10 @@ api.interceptors.response.use(
   (error) => {
     // Jeśli serwer odpowie statusem 401 lub 403, oznacza to problem z autoryzacją.
     if (error.response && [401, 403].includes(error.response.status)) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      // Przekierowujemy na stronę logowania, aby użytkownik mógł się ponownie zalogować.
-      // Sprawdzamy, czy już nie jesteśmy na stronie logowania, aby uniknąć pętli przekierowań.
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      // Zamiast twardego przekierowania, emitujemy niestandardowy event.
+      // Aplikacja (np. AuthProvider) będzie mogła na niego zareagować.
+      if (!window.location.pathname.endsWith('/login')) {
+        window.dispatchEvent(new Event('auth-error'));
       }
     }
     return Promise.reject(error);

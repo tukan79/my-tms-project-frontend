@@ -46,6 +46,17 @@ export const AuthProvider = ({ children }) => {
     verifyToken();
   }, [token]); // Dependency array is correct
 
+  // Nasłuchuj na globalny event błędu autoryzacji z interceptora
+  useEffect(() => {
+    const handleAuthError = () => {
+      console.log('Auth error detected, logging out.');
+      logout();
+    };
+
+    window.addEventListener('auth-error', handleAuthError);
+    return () => window.removeEventListener('auth-error', handleAuthError);
+  }, []); // Pusta tablica zależności, aby hook uruchomił się tylko raz
+
   const login = async (email, password) => {
     setLoading(true);
     try {
