@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }) => {
       console.log('✅ Login response:', response.data);
 
       // Ekstrakcja tokena - sprawdź strukturę odpowiedzi
-      const token = response.data.token ||
+      const token = response.data.token || // KLUCZOWE: Zapisz token do localStorage
                     response.data.accessToken ||
                     response.data.access_token;
 
@@ -73,11 +73,15 @@ export const AuthProvider = ({ children }) => {
 
       if (token) {
         localStorage.setItem('token', token);
-        console.log('✅ Token saved to localStorage');
+        console.log('✅ Token saved:', token.substring(0, 20) + '...');
 
         // Potwierdź zapisanie
         const savedToken = localStorage.getItem('token');
         console.log('💾 Token verification:', savedToken ? 'SUCCESS' : 'FAILED');
+
+        // Ręczne ustawienie nagłówka nie jest konieczne, ponieważ interceptor to zrobi,
+        // ale dodajemy dla pewności i zgodności z Twoją sugestią.
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
         const { user: newUser } = response.data;
         localStorage.setItem('user', JSON.stringify(newUser));
@@ -85,9 +89,9 @@ export const AuthProvider = ({ children }) => {
         setUser(newUser);
         setIsAuthenticated(true);
         return newUser;
+      } else {
+        console.error('❌ No token in response:', response.data);
       }
-      console.error('❌ No token found in response');
-      console.log('📋 Full response:', response.data);
       throw new Error('No token found in login response');
     } catch (error) {
       console.error('Login error:', error);
