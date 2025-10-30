@@ -4,10 +4,17 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/', // Zapewnia, że ścieżki do zasobów są generowane poprawnie
   plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(new URL(import.meta.url).pathname, '../src'),
     },
+  },
+  build: {
+    outDir: 'dist', // Domyślna wartość, ale dobrze jest ją mieć jawnie
+  },
+  server: {
+    host: true, // Umożliwia dostęp do serwera deweloperskiego z innych urządzeń w sieci
   },
 });
