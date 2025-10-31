@@ -1,8 +1,10 @@
 // plik AddTruckForm.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { X } from 'lucide-react';
 import api from '../../services/api';
+import { useForm } from '../../hooks/useForm.js';
+import { useToast } from '../../contexts/ToastContext.jsx';
 
 const AddTruckForm = ({ onSuccess, onCancel, itemToEdit }) => {
   const isEditMode = Boolean(itemToEdit); // Use the renamed prop
@@ -19,46 +21,22 @@ const AddTruckForm = ({ onSuccess, onCancel, itemToEdit }) => {
     is_active: true
   };
 
-  const [formData, setFormData] = useState(initialFormData);
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
+  const { showToast } = useToast();
 
-  useEffect(() => {
-    if (isEditMode && itemToEdit) {
-      // Mapujemy dane do edycji, zamieniając `null` na `''`, aby uniknąć ostrzeżeń Reacta.
-      const sanitizedData = Object.keys(initialFormData).reduce((acc, key) => {
-        // Używamy ??, aby obsłużyć zarówno null, jak i undefined.
-        acc[key] = itemToEdit[key] ?? initialFormData[key];
-        return acc;
-      }, {});
-      setFormData(sanitizedData);
-    } else {
-      setFormData(initialFormData);
-    }
-  }, [itemToEdit, isEditMode]);
-
-  const validateForm = useCallback((data) => {
+  const validate = (data) => {
     const newErrors = {};
     if (!data.registration_plate) newErrors.registration_plate = 'Registration plate is required.';
     if (!data.brand) newErrors.brand = 'Brand is required.';
     if (!data.model) newErrors.model = 'Model is required.';
     if (data.type_of_truck === 'rigid') {
-      if (!data.total_weight) newErrors.total_weight = 'Total weight is required for rigid trucks.';
-      if (!data.pallet_capacity) newErrors.pallet_capacity = 'Pallet capacity is required for rigid trucks.';
-      if (!data.max_payload_kg) newErrors.max_payload_kg = 'Max payload is required for rigid trucks.';
+      if (!data.total_weight) newErrors.total_weight = 'Total weight is required.';
+      if (!data.pallet_capacity) newErrors.pallet_capacity = 'Pallet capacity is required.';
+      if (!data.max_payload_kg) newErrors.max_payload_kg = 'Max payload is required.';
     }
     return newErrors;
-  }, []);
+  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const validationErrors = validateForm(formData);
-    setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) {
-      return;
-    }
-    setLoading(true);
-
+  const performSubmit = async (formData) => {
     const dataToSend = {
       ...formData,
       production_year: formData.production_year ? Number(formData.production_year) : null,
@@ -66,34 +44,29 @@ const AddTruckForm = ({ onSuccess, onCancel, itemToEdit }) => {
       pallet_capacity: formData.type_of_truck === 'rigid' && formData.pallet_capacity ? Number(formData.pallet_capacity) : null,
       max_payload_kg: formData.type_of_truck === 'rigid' && formData.max_payload_kg ? Number(formData.max_payload_kg) : null,
     };
-
+  
     const request = isEditMode
       ? api.put(`/api/trucks/${itemToEdit.id}`, dataToSend)
       : api.post('/api/trucks', dataToSend);
-
+  
     try {
       await request;
+      showToast(`Vehicle ${isEditMode ? 'updated' : 'added'} successfully!`, 'success');
       onSuccess();
-      onCancel(); // Close form on success
     } catch (error) {
       const errorMessage = error.response?.data?.error || `An error occurred while ${isEditMode ? 'updating' : 'adding'} the vehicle.`;
-      setErrors({ form: errorMessage });
-      console.error(`Błąd ${isEditMode ? 'aktualizacji' : 'dodawania'} pojazdu:`, error);
-    } finally {
-      setLoading(false);
+      showToast(errorMessage, 'error');
+      throw new Error(errorMessage); // Re-throw to be caught by useForm
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    const newFormData = { ...formData, [name]: type === 'checkbox' ? checked : value };
-    setFormData(newFormData);
-
-    if (errors[name] || (formData.type_of_truck === 'rigid' && errors[name])) {
-      const validationErrors = validateForm(newFormData);
-      setErrors(validationErrors);
-    }
-  };
+  const {
+    formData,
+    errors,
+    loading,
+    handleChange,
+    handleSubmit,
+  } = useForm({ initialState: initialFormData, validate, onSubmit: performSubmit, itemToEdit });
 
   return (
     <div className="card">
@@ -104,7 +77,7 @@ const AddTruckForm = ({ onSuccess, onCancel, itemToEdit }) => {
         </button>
       </div>
       {errors.form && <div className="error-message">{errors.form}</div>}
-      <form onSubmit={handleSubmit} className="form">
+      <form onSubmit={handleSubmit} className="form" noValidate>
         <div className="form-group">
           <label>Brand:</label>
           <input 
@@ -228,11 +201,11 @@ const AddTruckForm = ({ onSuccess, onCancel, itemToEdit }) => {
           </label>
         </div>
         <div className="form-actions">
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? (isEditMode ? 'Saving...' : 'Adding...') : (isEditMode ? 'Save Changes' : 'Add Vehicle')}
-          </button>
           <button type="button" onClick={onCancel} className="btn-secondary" disabled={loading}>
             Cancel
+          </button>
+          <button type="submit" className="btn-primary" disabled={loading}>
+            {loading ? (isEditMode ? 'Saving...' : 'Adding...') : (isEditMode ? 'Save Changes' : 'Add Vehicle')}
           </button>
         </div>
       </form>
