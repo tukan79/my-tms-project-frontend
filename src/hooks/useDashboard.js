@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useApiResource } from './useApiResource';
 import { useBroadcastChannel } from './useBroadcastChannel.js';
