@@ -12,9 +12,10 @@ export const useTableData = (initialData = [], { initialSortKey, filterKeys = []
   const [filterText, setFilterText] = useState('');
 
   const sortedData = useMemo(() => {
-    if (!initialData) return [];
+    // Zabezpieczenie: Upewniamy się, że initialData jest zawsze tablicą.
+    const dataToProcess = initialData || [];
     
-    let sortableData = [...initialData];
+    let sortableData = [...dataToProcess];
     if (sortConfig.key !== null) {
       sortableData.sort((a, b) => {
         const valA = getNestedValue(a, sortConfig.key);
