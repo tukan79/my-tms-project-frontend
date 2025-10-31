@@ -126,13 +126,13 @@ export const useDataFetching = (role) => {
       resources[view].fetchData();
     }
   };
-
+// po
   // Użyj useMemo, aby uniknąć ponownego tworzenia obiektu 'data' przy każdym renderowaniu.
   // Use useMemo to avoid re-creating the 'data' object on every render.
   // Zależności to teraz bezpośrednio dane z każdego zasobu, co zapewnia stabilność.
   const data = useMemo(() => 
     Object.fromEntries(Object.entries(resources).map(([key, resource]) => [key, resource.data])),
-    [...Object.values(resources).map(r => r.data)]
+    [resources] // Depend on the stable 'resources' object reference instead.
   );
 
   // Tworzymy obiekt z akcjami (CRUD) dla każdego zasobu, aby można było je łatwo przekazać do komponentów.
