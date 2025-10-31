@@ -132,7 +132,9 @@ export const useDataFetching = (role) => {
   // Zależności to teraz bezpośrednio dane z każdego zasobu, co zapewnia stabilność.
   const data = useMemo(() => 
     Object.fromEntries(Object.entries(resources).map(([key, resource]) => [key, resource.data])),
-    [resources] // Depend on the stable 'resources' object reference instead.
+    // Tworzymy płaską tablicę zależności zawierającą wszystkie obiekty `data`.
+    // To jest bardziej jawne dla Reacta i zapobiega błędom porównywania.
+    Object.values(resources).map(r => r.data)
   );
 
   // Tworzymy obiekt z akcjami (CRUD) dla każdego zasobu, aby można było je łatwo przekazać do komponentów.
