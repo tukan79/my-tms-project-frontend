@@ -16,35 +16,26 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user')) || null);
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Dodajemy brakujący stan
-  const hasVerified = React.useRef(false); // Ref to prevent double-execution in StrictMode
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const verifyToken = async () => {
-      // In React's StrictMode, effects run twice in development.
-      // This check prevents the verification API call from being made a second time.
-      if (hasVerified.current) {
-        return;
-      }
-
       if (token) {
         try {
           // Wykonujemy zapytanie do backendu, aby zweryfikować token
           await api.get('/api/auth/verify');
           setIsAuthenticated(true);
-          hasVerified.current = true; // Oznaczamy, że weryfikacja została wykonana
         } catch (error) {
           console.error('Token verification failed:', error);
           logout(); // Wyloguj, jeśli token jest nieprawidłowy
         }
-      } else {
-        hasVerified.current = true; // Jeśli nie ma tokenu, oznaczamy jako zweryfikowane (brak tokenu)
       }
       setLoading(false);
     };
 
+    // This effect should only run once on initial mount
     verifyToken();
-  }, [token]); // Dependency array is correct
+  }, []); // Empty dependency array ensures it runs only once
 
   // Nasłuchuj na globalny event błędu autoryzacji z interceptora
   useEffect(() => {
@@ -117,7 +108,6 @@ export const AuthProvider = ({ children }) => {
     register,
     isAuthenticated,
     loading,
-    api,
   };
 
   // Do not render children until the initial loading (token verification) is complete.
