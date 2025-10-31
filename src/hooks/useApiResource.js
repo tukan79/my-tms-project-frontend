@@ -6,6 +6,13 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Use a ref to hold the latest setData function to avoid stale closures in callbacks.
+  const setDataRef = useRef(setData);
+  useEffect(() => {
+    setDataRef.current = setData;
+  }, [setData]);
+
+
   // Używamy useRef do przechowywania stabilnych funkcji
   const resourceUrlRef = useRef(resourceUrl);
   const resourceNameRef = useRef(resourceName);
@@ -27,7 +34,7 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
     setError(null);
     try {
       const response = await api.get(currentUrl);
-      setData(response.data);
+      setDataRef.current(response.data);
       return response.data;
     } catch (err) {
       const errorMessage = err.response?.data?.error || `Failed to fetch ${currentName}.`;
@@ -53,7 +60,7 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
     if (optimisticUpdate) {
       tempId = `temp-${Date.now()}`;
       const optimisticData = optimisticUpdate(resourceData, tempId);
-      setData(prevData => [...prevData, optimisticData]);
+      setDataRef.current(prevData => [...prevData, optimisticData]);
     }
 
     setIsLoading(true);
@@ -61,16 +68,16 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
     try {
       const response = await api.post(currentUrl, resourceData);
       if (optimisticUpdate) {
-        setData(prevData => 
+        setDataRef.current(prevData => 
           prevData.map(item => (item.id === tempId ? response.data : item))
         );
       } else {
-        setData(prevData => [...prevData, response.data]);
+        setDataRef.current(prevData => [...prevData, response.data]);
       }
       return response.data;
     } catch (err) {
       if (optimisticUpdate) {
-        setData(prevData => prevData.filter(item => item.id !== tempId));
+        setDataRef.current(prevData => prevData.filter(item => item.id !== tempId));
       }
       const errorMessage = err.response?.data?.error || `Failed to create ${currentName}.`;
       setError(errorMessage);
@@ -88,7 +95,7 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
     let deletedItem = null;
     let originalIndex = -1;
 
-    setData(currentData => {
+    setDataRef.current(currentData => {
       originalIndex = currentData.findIndex(item => item.id === resourceId);
       if (originalIndex === -1) return currentData;
       deletedItem = currentData[originalIndex];
@@ -102,7 +109,7 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
     try {
       await api.delete(`${currentUrl}/${resourceId}`);
     } catch (err) {
-      setData(currentData => {
+      setDataRef.current(currentData => {
         const newData = [...currentData];
         newData.splice(originalIndex, 0, deletedItem);
         return newData;
@@ -120,7 +127,7 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
     const currentName = resourceNameRef.current;
     
     let originalData = null;
-    setData(currentData => {
+    setDataRef.current(currentData => {
       originalData = [...currentData];
       return currentData.map(item =>
         item.id === resourceId ? { ...item, ...resourceData } : item
@@ -131,13 +138,13 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
     setError(null);
     try {
       const response = await api.put(`${currentUrl}/${resourceId}`, resourceData);
-      setData(prevData =>
+      setDataRef.current(prevData =>
         prevData.map(item => (item.id === resourceId ? response.data : item))
       );
       return response.data;
     } catch (err) {
       if (originalData) {
-        setData(originalData);
+        setDataRef.current(originalData);
       }
       const errorMessage = err.response?.data?.error || `Failed to update ${currentName}.`;
       setError(errorMessage);
