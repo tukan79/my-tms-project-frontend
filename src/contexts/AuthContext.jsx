@@ -36,9 +36,8 @@ export const AuthProvider = ({ children }) => {
 
     // This effect should only run once on initial mount
     verifyToken();
-    // Zmieniamy zależność na `token`, aby weryfikacja uruchamiała się ponownie,
-    // gdy token się zmieni (np. po zalogowaniu).
-  }, [token]);
+    // Pusta tablica zależności zapewnia, że weryfikacja tokenu uruchomi się tylko raz, przy pierwszym załadowaniu aplikacji.
+  }, []);
 
   // Nasłuchuj na globalny event błędu autoryzacji z interceptora
   useEffect(() => {
