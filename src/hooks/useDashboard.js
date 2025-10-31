@@ -79,33 +79,33 @@ export const useDashboardState = () => {
  * Fetches all necessary data for the dashboard based on user role.
  * Pobiera wszystkie niezbędne dane dla pulpitu na podstawie roli użytkownika.
  */
-export const useDataFetching = (enabled = true) => {
-  const { user, isAuthenticated } = useAuth();
-  const isAdmin = user?.role === 'admin';
-  const isDispatcher = user?.role === 'dispatcher';
+export const useDataFetching = (role) => {
+  const { isAuthenticated } = useAuth();
+  const isAdmin = role === 'admin';
+  const isDispatcher = role === 'dispatcher';
 
-  const refreshAll = () => {
+  // Używamy useMemo, aby uniknąć ponownego tworzenia obiektu `resources` przy każdym renderowaniu,
+  // chyba że zmienią się uprawnienia.
+  const resources = useMemo(() => ({
+    orders: useApiResource(isAuthenticated ? '/api/orders' : null),
+    drivers: useApiResource(isAuthenticated && isAdmin ? '/api/drivers' : null),
+    trucks: useApiResource(isAuthenticated && isAdmin ? '/api/trucks' : null),
+    trailers: useApiResource(isAuthenticated && isAdmin ? '/api/trailers' : null),
+    users: useApiResource(isAuthenticated && isAdmin ? '/api/users' : null),
+    assignments: useApiResource(isAuthenticated ? '/api/assignments' : null),
+    customers: useApiResource(isAuthenticated && (isAdmin || isDispatcher) ? '/api/customers' : null),
+    zones: useApiResource(isAuthenticated && (isAdmin || isDispatcher) ? '/api/zones' : null),
+    surcharges: useApiResource(isAuthenticated && isAdmin ? '/api/surcharge-types' : null),
+    invoices: useApiResource(isAuthenticated && isAdmin ? '/api/invoices' : null),
+    runs: useApiResource(isAuthenticated ? '/api/runs' : null, { initialFetch: false }),
+  }), [isAuthenticated, isAdmin, isDispatcher]);
+
+  const refreshAll = useCallback(() => {
     console.log('🔄 Refreshing all resources...');
-    if (enabled) Object.values(resources).forEach(resource => resource.fetchData && resource.fetchData());
-  };
-
+    Object.values(resources).forEach(resource => resource.fetchData && resource.fetchData());
+  }, [resources]);
+  
   useBroadcastChannel(refreshAll);
-
-  const resources = {
-    orders: useApiResource(enabled ? '/api/orders' : null, isAuthenticated),
-    drivers: useApiResource(enabled && isAdmin ? '/api/drivers' : null, isAuthenticated),
-    trucks: useApiResource(enabled && isAdmin ? '/api/trucks' : null, isAuthenticated),
-    trailers: useApiResource(enabled && isAdmin ? '/api/trailers' : null, isAuthenticated),
-    users: useApiResource(enabled && isAdmin ? '/api/users' : null, isAuthenticated),
-    assignments: useApiResource(enabled ? '/api/assignments' : null, isAuthenticated),
-    customers: useApiResource(enabled && (isAdmin || isDispatcher) ? '/api/customers' : null, isAuthenticated),
-    zones: useApiResource(enabled && (isAdmin || isDispatcher) ? '/api/zones' : null, isAuthenticated),
-    surcharges: useApiResource(enabled && isAdmin ? '/api/surcharge-types' : null, isAuthenticated),
-    invoices: useApiResource(enabled && isAdmin ? '/api/invoices' : null, isAuthenticated),
-    // Przywracamy endpoint dla akcji CRUD, ale wyłączamy początkowe pobieranie danych.
-    // Dane będą pobierane dynamicznie w PlanItContext.
-    runs: useApiResource(enabled ? '/api/runs' : null, isAuthenticated, { initialFetch: false }),
-  };
 
   // Destrukturyzacja zasobów w celu uzyskania stabilnych referencji do poszczególnych haków.
   // Destructuring resources to get stable references for individual hooks.

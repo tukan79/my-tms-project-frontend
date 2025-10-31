@@ -22,8 +22,9 @@ export const AuthProvider = ({ children }) => {
     const verifyToken = async () => {
       if (token) {
         try {
-          // Wykonujemy zapytanie do backendu, aby zweryfikować token
-          await api.get('/api/auth/verify');
+          // Zamiast dedykowanego endpointu /verify, próbujemy pobrać dane z chronionego zasobu.
+          // Jeśli to zapytanie się powiedzie (status 200), oznacza to, że token jest ważny.
+          await api.get('/api/users'); // Jeśli to zwróci 200, token jest OK
           setIsAuthenticated(true);
         } catch (error) {
           console.error('Token verification failed:', error);
@@ -35,7 +36,9 @@ export const AuthProvider = ({ children }) => {
 
     // This effect should only run once on initial mount
     verifyToken();
-  }, []); // Empty dependency array ensures it runs only once
+    // Zmieniamy zależność na `token`, aby weryfikacja uruchamiała się ponownie,
+    // gdy token się zmieni (np. po zalogowaniu).
+  }, [token]);
 
   // Nasłuchuj na globalny event błędu autoryzacji z interceptora
   useEffect(() => {

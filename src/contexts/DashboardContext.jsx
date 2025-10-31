@@ -16,11 +16,11 @@ export const useDashboard = () => {
 };
 
 export const DashboardProvider = ({ children }) => {
-  const state = useDashboardState();
-  const data = useDataFetching();
   const { user, logout } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const state = useDashboardState();
+  const dataFetching = useDataFetching(user?.role); // Przekazujemy rolę do hooka
 
   const handleLogout = () => {
     logout();
@@ -28,7 +28,7 @@ export const DashboardProvider = ({ children }) => {
   };
 
   const handleFormSuccess = () => {
-    data.refreshAll();
+    dataFetching.refreshAll(); // Używamy refreshAll z dataFetching
     state.handleCancelForm();
   };
 
@@ -44,7 +44,7 @@ export const DashboardProvider = ({ children }) => {
 
   const value = {
     ...state,
-    ...data,
+    ...dataFetching, // Przekazujemy cały obiekt z hooka
     user,
     handleLogout,
     handleFormSuccess,
