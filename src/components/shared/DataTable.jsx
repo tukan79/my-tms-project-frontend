@@ -41,10 +41,10 @@ const DataTable = ({
     return null;
   }
 
-  console.log('🔍 DataTable debug:', {
-    items,
-    itemsLength: items.length,
-    isArray: Array.isArray(items)
+  const safeItems = Array.isArray(items) ? items : [];
+  console.log('🔍 DataTable STEP 1 - Input:', {
+    items: safeItems.length,
+    safeItems: safeItems
   });
 
   const {
@@ -53,13 +53,24 @@ const DataTable = ({
     filterText,
     setFilterText,
     handleSort,
-  } = useTableData(items, {
+  } = useTableData(safeItems, {
     initialSortKey: initialSortKey,
     filterKeys, // Przekazujemy klucze do filtrowania
   });
 
+  console.log('🔍 DataTable STEP 2 - useTableData result:', {
+    sortedAndFilteredData,
+    isArray: Array.isArray(sortedAndFilteredData),
+    length: sortedAndFilteredData?.length
+  });
+
   // Zabezpieczenie: Gwarantujemy, że dane do wyświetlenia są zawsze tablicą.
   const safeSortedData = Array.isArray(sortedAndFilteredData) ? sortedAndFilteredData : [];
+
+  console.log('🔍 DataTable STEP 3 - Final safe data:', {
+    safeSortedData,
+    length: safeSortedData.length
+  });
 
   // Krok 1: Lokalny stan dla pola input, aby zapewnić natychmiastową odpowiedź UI.
   const [inputValue, setInputValue] = useState(filterText);

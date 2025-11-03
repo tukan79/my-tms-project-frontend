@@ -8,10 +8,17 @@ const getNestedValue = (obj, path) => {
 };
 
 export const useTableData = (initialData, { initialSortKey, filterKeys }) => {
+  console.log('🔍 useTableData STEP 1 - Input:', {
+    initialData,
+    initialDataIsArray: Array.isArray(initialData),
+    initialDataLength: initialData?.length
+  });
+
   const [sortConfig, setSortConfig] = useState({ key: initialSortKey, direction: 'ascending' });
   const [filterText, setFilterText] = useState('');
 
   const sortedData = useMemo(() => {
+    console.log('🔍 useTableData STEP 2 - Creating sortedData');
     // Zabezpieczenie: Gwarantujemy, że dane do sortowania są zawsze tablicą.
     const sortableData = Array.isArray(initialData) ? [...initialData] : [];
     if (sortConfig.key !== null) {
@@ -32,6 +39,8 @@ export const useTableData = (initialData, { initialSortKey, filterKeys }) => {
         return 0;
       });
     }
+
+    console.log('🔍 useTableData STEP 3 - sortedData result:', sortableData.length);
     return sortableData;
   }, [initialData, sortConfig]);
 
@@ -44,18 +53,31 @@ export const useTableData = (initialData, { initialSortKey, filterKeys }) => {
   }, [sortConfig]);
 
   const sortedAndFilteredData = useMemo(() => {
+    console.log('🔍 useTableData STEP 4 - Creating sortedAndFilteredData');
     // Dodatkowe zabezpieczenie: Upewniamy się, że `sortedData` jest tablicą przed filtrowaniem.
     const safeSortedData = Array.isArray(sortedData) ? sortedData : [];
 
-    if (!filterText) return safeSortedData;
+    if (!filterText) {
+      console.log('🔍 useTableData STEP 5 - No filter, returning:', safeSortedData.length);
+      return safeSortedData;
+    }
 
-    return safeSortedData.filter(item =>
+    const result = safeSortedData.filter(item =>
       (filterKeys || []).some(key => { // Zabezpieczenie: Użyj pustej tablicy, jeśli filterKeys jest undefined.
         const value = getNestedValue(item, key) ?? ''; // Zabezpieczenie przed null/undefined
         return value && String(value).toLowerCase().includes(filterText.toLowerCase());
       })
     );
+
+    console.log('🔍 useTableData STEP 6 - Filtered result:', result.length);
+    return result;
   }, [sortedData, filterText, filterKeys]);
+
+  console.log('🔍 useTableData STEP 7 - Final result:', {
+    sortedAndFilteredData,
+    isArray: Array.isArray(sortedAndFilteredData),
+    length: sortedAndFilteredData?.length
+  });
 
   return { sortedAndFilteredData, sortConfig, filterText, setFilterText, handleSort };
 };
