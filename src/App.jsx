@@ -57,6 +57,9 @@ const DashboardContent = () => {
     actions,
   } = useDashboard();
 
+  // DODAJ TĘ LINIĘ DO DEBUGOWANIA
+  console.log('📊 Dashboard data:', data, 'isLoading:', isLoading);
+
   // Zapewniamy domyślny pusty obiekt, aby uniknąć błędów, gdy `data` jest `undefined`.
   const { customers, surcharges } = data || {};
 

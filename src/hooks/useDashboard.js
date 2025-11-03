@@ -127,18 +127,17 @@ export const useDataFetching = (role) => {
     }
   };
 
-  // KLUCZOWA ZMIANA: Gwarantujemy, że `data` zawsze będzie obiektem
-  // z tablicami dla każdego zasobu. To eliminuje błędy `cannot read .length`
-  // w całej aplikacji.
-  const data = Object.fromEntries(
-    Object.keys(resources).map(key => {
-      const resource = resources[key];
-      // Używamy `resource.data` jeśli jest dostępne i jest tablicą.
-      // W przeciwnym razie (np. podczas ładowania, błędu, lub gdy API zwróci coś innego),
-      // zwracamy pustą tablicę.
-      const safeData = Array.isArray(resource.data) ? resource.data : [];
-      return [key, safeData];
-    })
+  // ZMIANA: Zwracamy `null` dopóki wszystkie dane nie zostaną załadowane.
+  // To zapobiega renderowaniu komponentów z niekompletnymi danymi.
+  const data = useMemo(() => {
+    // Jeśli którykolwiek zasób się ładuje i nie ma jeszcze danych, zwróć null.
+    if (Object.values(resources).some(r => r.isLoading && !r.data)) {
+      return null;
+    }
+    return Object.fromEntries(
+      Object.entries(resources).map(([key, resource]) => [key, resource.data || []])
+    );
+  }, [resources, ...Object.values(resources).map(r => r.data)]
   );
 
   const actions = Object.fromEntries(
