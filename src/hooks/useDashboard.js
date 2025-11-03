@@ -127,11 +127,18 @@ export const useDataFetching = (role) => {
     }
   };
 
-  // ZMIANA: Zamiast useMemo, tworzymy obiekty `data` i `actions` w każdym renderze.
-  // To jest bezpieczniejsze, ponieważ `resources` jest stabilne, a dane wewnątrz `resource.data`
-  // i tak powodują re-render. To zapobiega przekazywaniu `undefined` w dół drzewa komponentów.
+  // KLUCZOWA ZMIANA: Gwarantujemy, że `data` zawsze będzie obiektem
+  // z tablicami dla każdego zasobu. To eliminuje błędy `cannot read .length`
+  // w całej aplikacji.
   const data = Object.fromEntries(
-    Object.entries(resources).map(([key, resource]) => [key, resource.data ?? []])
+    Object.keys(resources).map(key => {
+      const resource = resources[key];
+      // Używamy `resource.data` jeśli jest dostępne i jest tablicą.
+      // W przeciwnym razie (np. podczas ładowania, błędu, lub gdy API zwróci coś innego),
+      // zwracamy pustą tablicę.
+      const safeData = Array.isArray(resource.data) ? resource.data : [];
+      return [key, safeData];
+    })
   );
 
   const actions = Object.fromEntries(
