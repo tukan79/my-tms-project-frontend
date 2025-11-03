@@ -154,6 +154,6 @@ export const useDataFetching = (role) => {
     ),
     [resources] // Zależność od `resources` jest wystarczająca, ponieważ referencja do obiektu jest stabilna.
   );
-  return { data, isLoading, anyError, handleRefresh, refreshAll, actions };
+  return { data: data || {}, isLoading, anyError, handleRefresh, refreshAll, actions: actions || {} };
 };
 // ostatnia zmiana (30.05.2024, 13:14:12)

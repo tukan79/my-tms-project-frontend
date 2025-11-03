@@ -47,7 +47,7 @@ export const useTableData = (initialData, { initialSortKey, filterKeys = [] }) =
     if (!filterText) return sortedData;
     return sortedData.filter(item =>
       filterKeys.some(key => {
-        const value = getNestedValue(item, key);
+        const value = getNestedValue(item, key) ?? ''; // Zabezpieczenie przed null/undefined
         return value && String(value).toLowerCase().includes(filterText.toLowerCase());
       })
     );

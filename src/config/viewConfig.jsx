@@ -37,12 +37,12 @@ export const generateViewConfig = ({
 
   const baseConfig = {
     runs: { 
-      Component: RunManager, 
-      props: { runs, trucks, trailers, drivers, onDataRefresh: refreshAll, onDeleteRequest: handleDeleteRequest, runActions: actions.runs } 
+      Component: RunManager,
+      props: { runs, trucks, trailers, drivers, onDataRefresh: refreshAll, onDeleteRequest: handleDeleteRequest, runActions: actions?.runs }
     },
     planit: { 
-      Component: PlanItPage, 
-      props: { orders, runs, assignments, drivers, trucks, trailers, zones, pallets: data?.pallets || [], onAssignmentCreated: refreshAll, onEdit: handleEditOrderFromAnywhere, surcharges, runActions: actions.runs, onDeleteRequest: handleDeleteRequest, bulkAssignOrders: actions.assignments.bulkCreate } 
+      Component: PlanItPage,
+      props: { orders, runs, assignments, drivers, trucks, trailers, zones, pallets: data?.pallets || [], onAssignmentCreated: refreshAll, onEdit: handleEditOrderFromAnywhere, surcharges, runActions: actions?.runs, onDeleteRequest: handleDeleteRequest, bulkAssignOrders: actions?.assignments?.bulkCreate }
     },
     finance: { 
       Component: FinancePage, 
