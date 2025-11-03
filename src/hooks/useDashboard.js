@@ -134,14 +134,17 @@ export const useDataFetching = (role) => {
   // ZMIANA: Zwracamy `null` dopóki wszystkie dane nie zostaną załadowane.
   // To zapobiega renderowaniu komponentów z niekompletnymi danymi.
   const data = useMemo(() => {
-    // Jeśli którykolwiek zasób się ładuje i nie ma jeszcze danych, zwróć null.
-    if (Object.values(resources).some(r => r.isLoading && !r.data)) {
-      return null;
-    }
-    return Object.fromEntries(
+    // Zawsze zwracaj obiekt. Jeśli dane nie są gotowe, będą to puste tablice.
+    // Komponenty wyższego rzędu (jak App.jsx) użyją `isLoading` do wyświetlenia stanu ładowania.
+    const dataObject = Object.fromEntries(
       Object.entries(resources).map(([key, resource]) => [key, resource.data || []])
     );
-  }, [resources, ...Object.values(resources).map(r => r.data)]
+
+    // Zwróć `null` tylko przy pierwszym ładowaniu, gdy żaden zasób nie ma jeszcze danych.
+    // To pozwala na wyświetlenie głównego ekranu ładowania w App.jsx.
+    const isAnyDataReady = Object.values(resources).some(r => r.data);
+    return isLoading && !isAnyDataReady ? null : dataObject;
+  }, [resources, isLoading, ...Object.values(resources).map(r => r.data)]
   );
 
   const actions = Object.fromEntries(
