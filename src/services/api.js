@@ -88,7 +88,7 @@ api.interceptors.response.use(
         console.error('❌ Token refresh failed:', refreshError);
         processQueue(refreshError, null);
         // Jeśli odświeżenie nie powiedzie się, wyloguj
-        window.dispatchEvent(new Event('auth-error'));
+        window.dispatchEvent(new CustomEvent('auth-error', { detail: refreshError }));
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

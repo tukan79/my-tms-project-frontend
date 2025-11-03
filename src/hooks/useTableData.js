@@ -12,8 +12,9 @@ export const useTableData = (initialData, { initialSortKey, filterKeys = [] }) =
   const [filterText, setFilterText] = useState('');
 
   const sortedData = useMemo(() => {
-    // Zabezpieczenie: Używamy pustej tablicy, jeśli initialData jest `undefined` lub `null`.
-    let sortableData = [...(initialData || [])];
+    // Zabezpieczenie: Upewniamy się, że dane do przetworzenia są zawsze tablicą.
+    const dataToProcess = Array.isArray(initialData) ? initialData : [];
+    let sortableData = [...dataToProcess];
     if (sortConfig.key !== null) {
       sortableData.sort((a, b) => {
         const valA = getNestedValue(a, sortConfig.key);
@@ -33,7 +34,7 @@ export const useTableData = (initialData, { initialSortKey, filterKeys = [] }) =
       });
     }
     return sortableData;
-  }, [initialData, sortConfig]); // Zależność od initialData i sortConfig
+  }, [initialData, sortConfig]);
 
   const handleSort = useCallback((key) => {
     let direction = 'ascending';
