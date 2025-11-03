@@ -2,6 +2,9 @@ import React from 'react';
 import { ExternalLink, Trash2 } from 'lucide-react';
 
 const PlanItAssignments = ({ assignments = [], onPopOut, onDeleteAssignment }) => {
+  // Zabezpieczenie: Gwarantujemy, że `assignments` jest zawsze tablicą.
+  const safeAssignments = Array.isArray(assignments) ? assignments : [];
+
   return (
     <div className="card planit-assignments-panel">
       <div className="planit-section-header">
@@ -11,7 +14,7 @@ const PlanItAssignments = ({ assignments = [], onPopOut, onDeleteAssignment }) =
         </button>
       </div>
       <ul className="planit-list">
-        {assignments.map((assignment) => (
+        {safeAssignments.map((assignment) => (
           <li key={assignment.id} className="planit-list-item with-actions">
             <span className="planit-item-text">
               <strong>{assignment.order_number}</strong> → {assignment.run_text}
