@@ -1,16 +1,20 @@
+// PlanItOrders.jsx
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { FixedSizeList } from 'react-window';
 import { usePlanIt } from '../../contexts/PlanItContext.jsx';
-import { isPostcodeInZone } from '../../utils/postcode.js'; // Path is now correct
+import { isPostcodeInZone } from '../../utils/postcode.js';
 
 // Eksportujemy hook, aby można go było użyć w komponencie nadrzędnym
 export const useHomeZone = (zones) => {
-  return useMemo(() => zones.find(z => z.is_home_zone), [zones]);
+  const safeZones = Array.isArray(zones) ? zones : [];
+  return useMemo(() => safeZones.find(z => z.is_home_zone), [safeZones]);
 };
 
-// 3. Wydzielony komponent wiersza
+// Wydzielony komponent wiersza
 const OrderRow = React.memo(({ order, index, style, columns, isSelected, onSelect, onContextMenu, onMouseEnter, onMouseLeave }) => {
+  if (!order) return null;
+
   return (
     <Draggable draggableId={String(order.id)} index={index}>
       {(provided) => (
@@ -28,8 +32,10 @@ const OrderRow = React.memo(({ order, index, style, columns, isSelected, onSelec
           tabIndex={0}
           aria-selected={isSelected}
         >
-          {columns.map((col, i) => (
-            <div key={`${order.id}-${i}`} className="planit-grid-cell">{col.accessor(order)}</div>
+          {Array.isArray(columns) && columns.map((col, i) => (
+            <div key={`${order.id}-${i}`} className="planit-grid-cell">
+              {col.accessor ? col.accessor(order) : '-'}
+            </div>
           ))}
         </div>
       )}
@@ -37,7 +43,12 @@ const OrderRow = React.memo(({ order, index, style, columns, isSelected, onSelec
   );
 });
 
+OrderRow.displayName = 'OrderRow';
+
 const PlanItOrders = ({ orders, zones = [], homeZone, onPopOut }) => {
+  // ⚠️ ZABEZPIECZENIE - orders ZAWSZE POWINNO BYĆ TABLICĄ
+  const safeOrders = Array.isArray(orders) ? orders : [];
+
   // Pobieramy stan i funkcje z kontekstu
   const { selectedOrderIds, setSelectedOrderIds, setContextMenu } = usePlanIt();
 
@@ -49,9 +60,8 @@ const PlanItOrders = ({ orders, zones = [], homeZone, onPopOut }) => {
     position: { x: 0, y: 0 },
   });
   const [dateRange, setDateRange] = useState({
-    // Poprawka: Ustaw szerszy domyślny zakres dat dla lepszego UX.
-    start: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3 dni temu
-    end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],   // 3 dni do przodu
+    start: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   });
 
   const listContainerRef = useRef(null);
@@ -71,93 +81,98 @@ const PlanItOrders = ({ orders, zones = [], homeZone, onPopOut }) => {
   }, []);
 
   const allColumns = [
-    { header: 'Consignment #', accessor: (order) => order.order_number || order.customer_reference || `ID: ${order.id}` },
-    { header: 'Loading Company', accessor: (order) => order.sender_details?.name || '-' },
-    { header: 'Loading Address', accessor: (order) => order.sender_details?.address1 || '-' },
-    { header: 'Loading PC', accessor: (order) => order.sender_details?.postCode || '-' },
-    { header: 'Unloading Company', accessor: (order) => order.recipient_details?.name || '-' },
-    { header: 'Unloading Address', accessor: (order) => order.recipient_details?.address1 || '-' },
-    { header: 'Unloading PC', accessor: (order) => order.recipient_details?.postCode || '-' },
-    { header: 'Weight', accessor: (order) => order.totalKilos > 0 ? order.totalKilos : '-' },
-    { header: 'Spaces', accessor: (order) => order.totalSpaces > 0 ? order.totalSpaces : '-' },
+    { header: 'Consignment #', accessor: (order) => order?.order_number || order?.customer_reference || `ID: ${order?.id}` || 'N/A' },
+    { header: 'Loading Company', accessor: (order) => order?.sender_details?.name || '-' },
+    { header: 'Loading Address', accessor: (order) => order?.sender_details?.address1 || '-' },
+    { header: 'Loading PC', accessor: (order) => order?.sender_details?.postCode || '-' },
+    { header: 'Unloading Company', accessor: (order) => order?.recipient_details?.name || '-' },
+    { header: 'Unloading Address', accessor: (order) => order?.recipient_details?.address1 || '-' },
+    { header: 'Unloading PC', accessor: (order) => order?.recipient_details?.postCode || '-' },
+    { header: 'Weight', accessor: (order) => order?.totalKilos > 0 ? order.totalKilos : '-' },
+    { header: 'Spaces', accessor: (order) => order?.totalSpaces > 0 ? order.totalSpaces : '-' },
   ];
 
-  // Poprawka: Zamiast tworzyć różne zestawy kolumn, filtrujemy `allColumns` na podstawie aktywnej zakładki.
-  // To zapewnia, że wszystkie dane są dostępne, a jedynie widoczność jest kontrolowana.
   const columns = useMemo(() => {
     if (activeTab === 'delivery') {
-      // Dla "Delivery" pokazujemy kolumny 0 (Consignment) i od 4 do 8 (Unloading, Weight, Spaces)
       return [allColumns[0], ...allColumns.slice(4)];
     }
-    // Dla "Collections" pokazujemy kolumny od 0 do 3 (Consignment, Loading) i od 7 do 8 (Weight, Spaces)
     return [...allColumns.slice(0, 4), ...allColumns.slice(7)];
   }, [activeTab]);
 
-  // Obliczanie sumarycznych wartości dla wagi i miejsc paletowych
+  // ⚠️ ZABEZPIECZENIE - używamy safeOrders zamiast orders
   const allEnrichedOrders = useMemo(() => {
-    return orders.map(order => {
-      const cargo = order.cargo_details || {};
-      const totalKilos = cargo.total_kilos || 0; // Używamy istniejącego pola
-      const totalSpaces = cargo.total_spaces || 0; // Używamy nowego pola
+    return safeOrders.map(order => {
+      const cargo = order?.cargo_details || {};
+      const totalKilos = cargo.total_kilos || 0;
+      const totalSpaces = cargo.total_spaces || 0;
       return { ...order, totalKilos, totalSpaces };
     });
-  }, [orders]);
+  }, [safeOrders]);
 
   const filteredOrders = useMemo(() => {
     const isDateInRange = (order) => {
-        const { start, end } = dateRange;
-        if (!start || !end) return true;
-  
-        const dateField = activeTab === 'collections' ? order.loading_date_time : order.unloading_date_time;
-        if (!dateField) return false;
-        try {
-          const orderDate = new Date(dateField).toISOString().split('T')[0];
-          if (isNaN(new Date(orderDate).getTime())) return false;
-          return orderDate >= start && orderDate <= end;
-        } catch (error) {
-          console.warn('Invalid date format encountered during filtering:', dateField);
-          return false;
-        }
-      };
+      const { start, end } = dateRange;
+      if (!start || !end) return true;
+
+      const dateField = activeTab === 'collections' ? order?.loading_date_time : order?.unloading_date_time;
+      if (!dateField) return false;
+      try {
+        const orderDate = new Date(dateField).toISOString().split('T')[0];
+        if (isNaN(new Date(orderDate).getTime())) return false;
+        return orderDate >= start && orderDate <= end;
+      } catch (error) {
+        console.warn('Invalid date format encountered during filtering:', dateField);
+        return false;
+      }
+    };
 
     const dateFilteredOrders = allEnrichedOrders.filter(isDateInRange);
 
     if (activeTab === 'delivery') {
       if (!homeZone) return [];
-      return dateFilteredOrders.filter(order => isPostcodeInZone(order.recipient_details?.postCode, homeZone));
+      return dateFilteredOrders.filter(order => 
+        order?.recipient_details?.postCode && isPostcodeInZone(order.recipient_details.postCode, homeZone)
+      );
     }
     
     if (activeTab === 'collections') {
-      if (!homeZone) return allEnrichedOrders.filter(isDateInRange);
-      return dateFilteredOrders.filter(order => isPostcodeInZone(order.sender_details?.postCode, homeZone))
+      if (!homeZone) return dateFilteredOrders;
+      return dateFilteredOrders.filter(order => 
+        order?.sender_details?.postCode && isPostcodeInZone(order.sender_details.postCode, homeZone)
+      );
     }
     return dateFilteredOrders;
   }, [activeTab, allEnrichedOrders, homeZone, dateRange]);
 
-  // Używamy ref, aby przechować czas kliknięcia bez powodowania re-renderów
+  // ⚠️ ZABEZPIECZENIE - filteredOrders może być undefined
+  const safeFilteredOrders = Array.isArray(filteredOrders) ? filteredOrders : [];
+
   const handleClick = useCallback((e, clickedOrderId) => {
-    const { ctrlKey, metaKey } = e; // metaKey to Cmd na Mac
+    const { ctrlKey, metaKey } = e;
 
     if (ctrlKey || metaKey) {
-      // Dodaj/usuń z zaznaczenia
       setSelectedOrderIds(prev =>
-        prev.includes(clickedOrderId)
+        Array.isArray(prev) && prev.includes(clickedOrderId)
           ? prev.filter(id => id !== clickedOrderId)
-          : [...prev, clickedOrderId]
+          : [...(Array.isArray(prev) ? prev : []), clickedOrderId]
       );
     } else {
-      // Pojedyncze zaznaczenie
       setSelectedOrderIds([clickedOrderId]);
     }
   }, [setSelectedOrderIds]);
 
   const handleContextMenu = useCallback((e, orderId) => {
     e.preventDefault();
-    if (!selectedOrderIds.includes(orderId)) setSelectedOrderIds([orderId]);
+    const currentSelectedIds = Array.isArray(selectedOrderIds) ? selectedOrderIds : [];
+    if (!currentSelectedIds.includes(orderId)) {
+      setSelectedOrderIds([orderId]);
+    }
     setContextMenu({ visible: true, x: e.clientX, y: e.clientY });
   }, [selectedOrderIds, setSelectedOrderIds, setContextMenu]);
 
   const handleMouseEnter = useCallback((e, order) => {
+    if (!order) return;
+    
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltip({
       visible: true,
@@ -196,45 +211,50 @@ const PlanItOrders = ({ orders, zones = [], homeZone, onPopOut }) => {
       <div className="planit-list planit-table-grid">
         {/* Nagłówek siatki */}
         <div className="planit-grid-header">
-              {columns.map(col => <div key={col.header}>{col.header}</div>)}
+          {Array.isArray(columns) && columns.map(col => 
+            <div key={col.header}>{col.header}</div>
+          )}
         </div>
         <div className="planit-grid-body" ref={listContainerRef}>
           <Droppable
             droppableId="orders"
             mode="virtual"
-            renderClone={(provided, snapshot, rubric) => (
-              <OrderRow
-                order={filteredOrders[rubric.source.index]}
-                index={rubric.source.index}
-                style={{ margin: 0 }}
-                columns={columns}
-                isSelected={true}
-                onSelect={() => {}}
-                onContextMenu={() => {}}
-                onMouseEnter={() => {}}
-                onMouseLeave={() => {}}
-                provided={provided}
-              />
-            )}
+            renderClone={(provided, snapshot, rubric) => {
+              const order = safeFilteredOrders[rubric.source.index];
+              if (!order) return null;
+              return (
+                <OrderRow
+                  order={order}
+                  index={rubric.source.index}
+                  style={{ margin: 0 }}
+                  columns={columns}
+                  isSelected={true}
+                  onSelect={() => {}}
+                  onContextMenu={() => {}}
+                  onMouseEnter={() => {}}
+                  onMouseLeave={() => {}}
+                />
+              );
+            }}
           >
             {(provided) => (
               <FixedSizeList
-                height={size.height}
-                itemCount={filteredOrders.length}
+                height={size.height || 400}
+                itemCount={safeFilteredOrders.length}
                 itemSize={40}
-                width={size.width}
+                width={size.width || 800}
                 outerRef={provided.innerRef}
               >
                 {({ index, style }) => {
-                  const order = filteredOrders[index];
-                  if (!order) return null; // Zabezpieczenie
+                  const order = safeFilteredOrders[index];
+                  if (!order) return null;
                   return (
                     <OrderRow
                       order={order}
                       index={index}
                       style={style}
                       columns={columns}
-                      isSelected={selectedOrderIds.includes(order.id)}
+                      isSelected={Array.isArray(selectedOrderIds) && selectedOrderIds.includes(order.id)}
                       onSelect={handleClick}
                       onContextMenu={handleContextMenu}
                       onMouseEnter={handleMouseEnter}
@@ -260,4 +280,3 @@ const PlanItOrders = ({ orders, zones = [], homeZone, onPopOut }) => {
 };
 
 export default React.memo(PlanItOrders);
-// ostatnia zmiana (30.05.2024, 13:14:12)

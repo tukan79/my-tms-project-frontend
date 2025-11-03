@@ -5,6 +5,9 @@ import api from '../../services/api.js';
 import { useToast } from '../../contexts/ToastContext.jsx';
 
 const CustomerList = ({ items = [], onRefresh, onEdit }) => {
+  // Zabezpieczenie: Gwarantujemy, że `items` jest zawsze tablicą.
+  const safeItems = Array.isArray(items) ? items : [];
+
   const columns = [
     { key: 'customer_code', header: 'Code' },
     { key: 'name', header: 'Name' },
@@ -35,7 +38,7 @@ const CustomerList = ({ items = [], onRefresh, onEdit }) => {
 
   return (
     <DataTable
-      items={items}
+      items={safeItems}
       columns={columns}
       onEdit={onEdit}
       onDelete={handleDelete}

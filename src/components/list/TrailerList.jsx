@@ -5,6 +5,9 @@ import DataTable from '../shared/DataTable.jsx';
 import { useToast } from '../../contexts/ToastContext.jsx';
 
 const TrailerList = ({ items: trailers = [], onRefresh, onEdit }) => {
+  // Zabezpieczenie: Gwarantujemy, że `trailers` jest zawsze tablicą.
+  const safeTrailers = Array.isArray(trailers) ? trailers : [];
+
   const columns = [
     { key: 'registration_plate', header: 'Trailer Code', sortable: true },
     { key: 'description', header: 'Description', sortable: true },
@@ -35,7 +38,7 @@ const TrailerList = ({ items: trailers = [], onRefresh, onEdit }) => {
 
   return (
     <DataTable
-      items={trailers || []}
+      items={safeTrailers}
       columns={columns}
       onRefresh={onRefresh}
       onEdit={onEdit}

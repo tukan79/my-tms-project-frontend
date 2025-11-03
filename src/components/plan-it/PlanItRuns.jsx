@@ -26,12 +26,12 @@ const PlanItRuns = ({ runs = [], onPopOut, onDelete, onEdit, handleAddNewRun, se
   const handleDelete = React.useCallback((event, run) => {
     event.stopPropagation(); // Zatrzymujemy propagację, aby nie aktywować onClick na rodzicu
     onDelete(run); // Przekazujemy cały obiekt run
-  }, [onDelete]); // Dodajemy onDelete do zależności
+  }, [onDelete]);
 
   const handleEdit = React.useCallback((event, run) => {
     event.stopPropagation();
     onEdit(run);
-  }, [onEdit]); // Dodajemy onEdit do zależności
+  }, [onEdit]);
 
   return (
     <div className="card planit-section">
