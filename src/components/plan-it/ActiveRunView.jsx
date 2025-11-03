@@ -1,3 +1,4 @@
+// ActiveRunView.jsx
 import React, { memo } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { X, Trash2, Weight, LayoutGrid as PalletIcon, Play, CheckCircle, ArrowDownToLine, ArrowUpFromLine, FileText } from 'lucide-react';
