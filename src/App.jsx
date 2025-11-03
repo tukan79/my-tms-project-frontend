@@ -45,11 +45,19 @@ console.log('Mode:', import.meta.env.MODE);
 
 const DashboardContent = () => {
   const {
-    user, modalState, handleCloseModal, handleDeleteRequest, showToast,
-    data, refreshAll, actions,
+    user,
+    modalState,
+    handleCloseModal,
+    handleDeleteRequest,
+    showToast,
+    data,
+    isLoading, // Dodajemy isLoading z hooka useDashboard
+    anyError, // Dodajemy anyError z hooka useDashboard
+    refreshAll,
+    actions,
   } = useDashboard();
 
-  // Zapewniamy domyślny pusty obiekt, aby uniknąć błędu, gdy `data` jest `undefined` podczas początkowego renderowania.
+  // Zapewniamy domyślny pusty obiekt, aby uniknąć błędów, gdy `data` jest `undefined`.
   const { customers, surcharges } = data || {};
 
   // Nowa, dedykowana funkcja do edycji zlecenia z dowolnego miejsca w aplikacji
@@ -100,6 +108,25 @@ const DashboardContent = () => {
       document.body.classList.remove('main-app-body');
     };
   }, []);
+
+  // KLUCZOWA ZMIANA: Blokujemy renderowanie, dopóki dane nie będą gotowe.
+  // To zapobiega błędom "Cannot read properties of undefined".
+  if (isLoading && !data) {
+    return <div className="loading">Loading initial application data...</div>;
+  }
+
+  if (anyError) {
+    return (
+      <div className="error-container card">
+        <h2>Failed to load application data</h2>
+        <p>There was an error fetching essential data. Please try again.</p>
+        <p className="error-message">{anyError}</p>
+        <button onClick={() => refreshAll()} className="btn-primary">
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
