@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { X } from 'lucide-react';
 import api from '../../services/api.js';
 import { useToast } from '../../contexts/ToastContext.jsx';
+import { useForm } from '../../hooks/useForm.js';
 
 const AddTrailerForm = ({ onSuccess, onCancel, itemToEdit }) => {
-  const isEditMode = Boolean(itemToEdit); // Używamy spójnej nazwy propsa
   const initialFormData = {
     registration_plate: '',
     description: '',
@@ -19,26 +19,10 @@ const AddTrailerForm = ({ onSuccess, onCancel, itemToEdit }) => {
     status: 'active',
   };
 
-  const [formData, setFormData] = useState(initialFormData);
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
+  const isEditMode = Boolean(itemToEdit);
   const { showToast } = useToast();
-
-  useEffect(() => {
-    if (isEditMode && itemToEdit) {
-      // Mapujemy dane do edycji, zamieniając `null` na `''`, aby uniknąć ostrzeżeń Reacta.
-      const sanitizedData = Object.keys(initialFormData).reduce((acc, key) => {
-        // Używamy ??, aby obsłużyć zarówno null, jak i undefined.
-        acc[key] = itemToEdit[key] ?? initialFormData[key];
-        return acc;
-      }, {});
-      setFormData(sanitizedData);
-    } else {
-      setFormData(initialFormData);
-    }
-  }, [itemToEdit, isEditMode]);
-
-  const validateForm = useCallback((data) => {
+  
+  const validate = (data) => {
     const newErrors = {};
     if (!data.registration_plate) newErrors.registration_plate = 'Trailer Code is required.';
     if (!data.description) newErrors.description = 'Description is required.';
@@ -46,16 +30,9 @@ const AddTrailerForm = ({ onSuccess, onCancel, itemToEdit }) => {
     if (!data.max_payload_kg) newErrors.max_payload_kg = 'Max Payload is required.';
     if (!data.max_spaces) newErrors.max_spaces = 'Max Pallet Spaces is required.';
     return newErrors;
-  }, []);
+  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const validationErrors = validateForm(formData);
-    setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
-
-    setLoading(true);
-    
+  const performSubmit = async (formData) => {
     const dataToSend = {
       ...formData,
       // Ensure numeric fields are sent as numbers
@@ -66,33 +43,28 @@ const AddTrailerForm = ({ onSuccess, onCancel, itemToEdit }) => {
       height_m: formData.height_m ? Number(formData.height_m) : null,
       weight_kg: formData.weight_kg ? Number(formData.weight_kg) : null,
     };
-
+    
     const endpoint = isEditMode ? `/api/trailers/${itemToEdit.id}` : '/api/trailers';
     const method = isEditMode ? 'put' : 'post';
 
     try {
       await api[method](endpoint, dataToSend);
       showToast(`Trailer ${isEditMode ? 'updated' : 'added'} successfully!`, 'success');
-      onSuccess(); // Używamy spójnej nazwy funkcji zwrotnej
+      onSuccess();
     } catch (err) {
       const errorMessage = err.response?.data?.error || `An error occurred while ${isEditMode ? 'updating' : 'adding'} the trailer.`;
-      setErrors({ form: errorMessage });
       showToast(errorMessage, 'error');
-      console.error(`Błąd ${isEditMode ? 'aktualizacji' : 'dodawania'} naczepy:`, err);
-    } finally {
-      setLoading(false);
+      throw new Error(errorMessage);
     }
   };
 
-  const handleChange = useCallback((e) => {
-    const { name, value } = e.target;
-    const newFormData = { ...formData, [name]: value };
-    setFormData(newFormData);
-    if (errors[name]) {
-      const validationErrors = validateForm(newFormData);
-      setErrors(validationErrors);
-    }
-  }, [formData, errors, validateForm]);
+  const {
+    formData,
+    errors,
+    loading,
+    handleChange,
+    handleSubmit,
+  } = useForm({ initialState: initialFormData, validate, onSubmit: performSubmit, itemToEdit });
 
   return (
     <div className="card">

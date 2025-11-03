@@ -1,50 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { X } from 'lucide-react';
 import api from '../../services/api.js';
 import { useToast } from '../../contexts/ToastContext.jsx';
+import { useForm } from '../../hooks/useForm.js';
 
 const initialFormData = {
   zone_name: '',
   postcode_patterns: '',
   is_home_zone: false,
 };
-
 const AddZoneForm = ({ onSuccess, onCancel, itemToEdit }) => {
   const isEditMode = Boolean(itemToEdit);
-  const [formData, setFormData] = useState(initialFormData);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    if (isEditMode && itemToEdit) {
-      setFormData({
-        zone_name: itemToEdit.zone_name || '',
-        postcode_patterns: (itemToEdit.postcode_patterns || []).join('; '),
-        is_home_zone: itemToEdit.is_home_zone || false,
-      });
-    } else {
-      setFormData(initialFormData);
-    }
-  }, [itemToEdit, isEditMode]);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+  const validate = (data) => {
+    const newErrors = {};
+    if (!data.zone_name) newErrors.zone_name = 'Zone name is required.';
+    if (!data.postcode_patterns) newErrors.postcode_patterns = 'Postcode patterns are required.';
+    return newErrors;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.zone_name || !formData.postcode_patterns) {
-      setError('Zone name and postcode patterns are required.');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-
+  const performSubmit = async (formData) => {
     const payload = {
       ...formData,
       postcode_patterns: formData.postcode_patterns.split(';').map(p => p.trim()).filter(Boolean),
@@ -53,17 +29,29 @@ const AddZoneForm = ({ onSuccess, onCancel, itemToEdit }) => {
     const request = isEditMode
       ? api.put(`/api/zones/${itemToEdit.id}`, payload)
       : api.post('/api/zones', payload);
-
     try {
       await request;
       showToast(`Zone ${isEditMode ? 'updated' : 'created'} successfully!`, 'success');
       onSuccess();
     } catch (err) {
-      setError(err.response?.data?.error || 'An unexpected error occurred.');
-    } finally {
-      setLoading(false);
+      const errorMessage = err.response?.data?.error || 'An unexpected error occurred.';
+      showToast(errorMessage, 'error');
+      throw new Error(errorMessage);
     }
   };
+
+  const {
+    formData,
+    errors,
+    loading,
+    handleChange,
+    handleSubmit,
+  } = useForm({
+    initialState: initialFormData,
+    validate,
+    onSubmit: performSubmit,
+    itemToEdit: itemToEdit ? { ...itemToEdit, postcode_patterns: (itemToEdit.postcode_patterns || []).join('; ') } : null,
+  });
 
   return (
     <div className="card">
@@ -71,7 +59,7 @@ const AddZoneForm = ({ onSuccess, onCancel, itemToEdit }) => {
         <h2>{isEditMode ? 'Edit Zone' : 'Add New Zone'}</h2>
         <button onClick={onCancel} className="btn-icon"><X size={20} /></button>
       </div>
-      {error && <div className="error-message">{error}</div>}
+      {errors.form && <div className="error-message">{errors.form}</div>}
       <form onSubmit={handleSubmit} className="form">
         <div className="form-group">
           <label>Zone Name *</label>

@@ -1,63 +1,33 @@
-import { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { X } from 'lucide-react';
 import api from '../../services/api.js';
 import { useToast } from '../../contexts/ToastContext.jsx';
+import { useForm } from '../../hooks/useForm.js';
 
 const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
   const isEditMode = Boolean(itemToEdit);
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     email: '',
     first_name: '',
     last_name: '',
     password: '',
     role: 'dispatcher',
-  });
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
+  };
+
   const { showToast } = useToast();
 
-  useEffect(() => {
-    if (isEditMode && itemToEdit) {
-      setFormData({
-        email: itemToEdit.email,
-        first_name: itemToEdit.first_name || '',
-        last_name: itemToEdit.last_name || '',
-        password: '',
-        role: itemToEdit.role,
-      });
-    } else {
-      setFormData({ email: '', password: '', role: 'dispatcher', first_name: '', last_name: '' });
-    }
-  }, [itemToEdit, isEditMode]);
-
-  const validateForm = useCallback((data, isEdit) => {
+  const validate = (data) => {
     const newErrors = {};
     if (!data.email) newErrors.email = 'Email is required.';
     if (!data.first_name) newErrors.first_name = 'First name is required.';
     if (!data.last_name) newErrors.last_name = 'Last name is required.';
-    if (!isEdit && (!data.password || data.password.length < 6)) {
+    if (!isEditMode && (!data.password || data.password.length < 6)) {
       newErrors.password = 'Password must be at least 6 characters long.';
     }
     return newErrors;
-  }, []);
+  };
 
-  const handleChange = useCallback((e) => {
-    const { name, value } = e.target;
-    const newFormData = { ...formData, [name]: value };
-    setFormData(newFormData);
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: undefined }));
-    }
-  }, [formData, errors]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const validationErrors = validateForm(formData, isEditMode);
-    setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
-
-    setLoading(true);
-
+  const performSubmit = async (formData) => {
     try {
       if (isEditMode) {
         await api.put(`/api/users/${itemToEdit.id}`, { 
@@ -70,16 +40,21 @@ const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
         await api.post('/api/users', formData);
         showToast('User created successfully!', 'success');
       }
-      onSuccess(); // Używamy spójnej nazwy funkcji zwrotnej
-      onCancel(); // Zamknij formularz po sukcesie
+      onSuccess();
     } catch (err) {
       const errorMessage = err.response?.data?.error || 'An error occurred.';
-      setErrors({ form: errorMessage });
       showToast(errorMessage, 'error');
-    } finally {
-      setLoading(false);
+      throw new Error(errorMessage);
     }
   };
+
+  const {
+    formData,
+    errors,
+    loading,
+    handleChange,
+    handleSubmit,
+  } = useForm({ initialState: initialFormData, validate, onSubmit: performSubmit, itemToEdit });
 
   return (
     <div className="card">
