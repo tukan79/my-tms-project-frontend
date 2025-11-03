@@ -25,7 +25,9 @@ const ViewRenderer = ({ viewConfig }) => {
     return <ErrorBoundary><currentViewConfig.Component {...currentViewConfig.props} /></ErrorBoundary>;
   }
 
-  const dataForView = viewConfig[currentView]?.data;
+  // Zabezpieczenie: Gwarantujemy, że dane dla widoku są zawsze tablicą.
+  // To zapobiega błędom, gdy `currentViewConfig.data` jest `undefined`.
+  const safeDataForView = Array.isArray(currentViewConfig?.data) ? currentViewConfig.data : [];
 
   if (anyError) {
     return (
@@ -56,10 +58,10 @@ const ViewRenderer = ({ viewConfig }) => {
     }
 
     const listProps = {
-      items: currentViewConfig.data,
+      items: safeDataForView, // Używamy zabezpieczonych danych
       onRefresh: () => handleRefresh(currentView),
       onEdit: handleEditClick,
-      isLoading: isLoading && !Array.isArray(dataForView), // Przekazujemy stan ładowania
+      isLoading: isLoading && !Array.isArray(safeDataForView), // Sprawdzamy zabezpieczone dane
       onDelete: handleDeleteRequest,
       currentUser: user,
       ...(currentView === 'orders' && { drivers, trucks, trailers, zones }),
