@@ -23,15 +23,15 @@ const CapacityIndicator = ({ current, max, label, icon }) => {
 };
 
 const PlanItRuns = ({ runs = [], onPopOut, onDelete, onEdit, handleAddNewRun, selectedDate, onDateChange, activeRunId, onRunSelect, isLoading }) => {
-  const handleDelete = (event, run) => {
+  const handleDelete = React.useCallback((event, run) => {
     event.stopPropagation(); // Zatrzymujemy propagację, aby nie aktywować onClick na rodzicu
     onDelete(run); // Przekazujemy cały obiekt run
-  };
+  }, [onDelete]);
 
-  const handleEdit = (event, run) => {
+  const handleEdit = React.useCallback((event, run) => {
     event.stopPropagation();
     onEdit(run);
-  };
+  }, [onEdit]);
 
   return (
     <div className="card planit-section">
