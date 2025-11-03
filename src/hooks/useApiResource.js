@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import api from '../services/api';
 
 export const useApiResource = (resourceUrl, resourceName = 'resource') => {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState(null); // Zmiana na null, aby odróżnić stan początkowy od pustej tablicy
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -34,11 +34,12 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
     setError(null);
     try {
       const response = await api.get(currentUrl);
-      setDataRef.current(response.data);
+      setDataRef.current(Array.isArray(response.data) ? response.data : []); // Zapewnij, że to zawsze tablica
       return response.data;
     } catch (err) {
       const errorMessage = err.response?.data?.error || `Failed to fetch ${currentName}.`;
       setError(errorMessage);
+      setDataRef.current([]); // W przypadku błędu, ustaw pustą tablicę
     } finally {
       setIsLoading(false);
     }
@@ -48,6 +49,8 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
   useEffect(() => {
     if (resourceUrl) {
       fetchData();
+    } else {
+      setDataRef.current([]); // Jeśli nie ma URL, ustaw pustą tablicę
     }
   }, [resourceUrl]); // ⚠️ TYLKO resourceUrl - fetchData jest stabilne
 

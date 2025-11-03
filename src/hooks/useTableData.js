@@ -12,9 +12,9 @@ export const useTableData = (initialData, { initialSortKey, filterKeys = [] }) =
   const [filterText, setFilterText] = useState('');
 
   const sortedData = useMemo(() => {
-    // Zabezpieczenie: Upewniamy się, że initialData jest zawsze tablicą.
+    // Zabezpieczenie: Upewniamy się, że dane do przetworzenia są zawsze tablicą.
     const dataToProcess = Array.isArray(initialData) ? initialData : [];
-    
+
     let sortableData = [...dataToProcess];
     if (sortConfig.key !== null) {
       sortableData.sort((a, b) => {

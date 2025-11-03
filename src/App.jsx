@@ -24,6 +24,7 @@ import api from './services/api.js';
 import AddZoneForm from './components/forms/AddZoneForm.jsx';
 import SurchargeTypesManager from './components/SurchargeTypesManager.jsx';
 import ConfirmationModal from './components/shared/ConfirmationModal.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx'; // Importuj ErrorBoundary
 import { DashboardProvider, useDashboard } from './contexts/DashboardContext.jsx'; // Importujemy Provider i hook
 import LoginPage from './pages/LoginPage.jsx';
 import { ToastProvider } from './contexts/ToastContext.jsx';
@@ -122,7 +123,9 @@ const DashboardContent = () => {
 const Dashboard = () => {
   return (
     <DashboardProvider>
-      <DashboardContent />
+      <ErrorBoundary>
+        <DashboardContent />
+      </ErrorBoundary>
     </DashboardProvider>
   );
 };

@@ -26,9 +26,6 @@ const ViewRenderer = ({ viewConfig }) => {
   }
 
   const dataForView = viewConfig[currentView]?.data;
-  if (isLoading && (!dataForView || dataForView.length === 0)) {
-    return <div className="loading">Loading data...</div>;
-  }
 
   if (anyError) {
     return (
@@ -62,6 +59,7 @@ const ViewRenderer = ({ viewConfig }) => {
       items: currentViewConfig.data,
       onRefresh: () => handleRefresh(currentView),
       onEdit: handleEditClick,
+      isLoading: isLoading && !Array.isArray(dataForView), // Przekazujemy stan ładowania
       onDelete: handleDeleteRequest,
       currentUser: user,
       ...(currentView === 'orders' && { drivers, trucks, trailers, zones }),

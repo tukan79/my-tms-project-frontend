@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { ArrowUp, ArrowDown, Edit, Trash2 } from 'lucide-react';
+import SkeletonRow from './SkeletonRow.jsx'; // Importujemy nowy komponent
 import { useTableData } from '../../hooks/useTableData';
 
 // Funkcja pomocnicza do pobierania wartości z zagnieżdżonych obiektów
@@ -87,8 +88,7 @@ const DataTable = ({
       />
 
       <div className="table-wrapper">
-        {sortedAndFilteredData.length > 0 ? (
-          <table className="data-table">
+        <table className="data-table">
             <thead>
               <tr>
                 {columns.map((col) => (
@@ -111,62 +111,53 @@ const DataTable = ({
                 {(onEdit || onDelete || customActions.length > 0) && <th>Actions</th>}
               </tr>
             </thead>
-            <tbody>
-              {sortedAndFilteredData.map(item => (
-                <tr 
-                  key={item.id}
-                  onContextMenu={onContextMenu ? (e) => onContextMenu(e, item) : undefined}
-                  style={onContextMenu ? { cursor: 'context-menu' } : {}}
-                >
-                  {columns.map(col => (
-                    <td key={`${item.id}-${col.key}`}>
-                      {col.render ? col.render(item) : getNestedValue(item, col.key)}
-                    </td>
-                  ))}
-                  {(onEdit || onDelete || customActions.length > 0) && (
-                    <td className="actions-cell">
-                      {currentUser && currentUser.id === item.id ? (
-                        <span className="text-muted" aria-label="Current user">This is you</span>
-                      ) : (
-                        <>
-                          {onEdit && (
-                            <button 
-                              onClick={() => onEdit(item)} 
-                              className="btn-icon" 
-                              title="Edit"
-                              aria-label={`Edit ${item.name || 'item'}`}
-                            >
-                              <Edit size={16} />
-                            </button>
-                          )}
-                          {onDelete && (
-                            <button 
-                              onClick={() => onDelete(item)} 
-                              className="btn-icon btn-danger" 
-                              title="Delete"
-                              aria-label={`Delete ${item.name || 'item'}`}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-                        </>
-                      )}
-                      {customActions.map((action, index) => (
-                        <button 
-                          key={index} 
-                          onClick={() => action.onClick(item)} 
-                          className="btn-icon" 
-                          title={action.title}
-                          aria-label={action.title}
-                        >
-                          {action.icon}
-                        </button>
-                      ))}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
+          <tbody>
+            {isLoading ? (
+              // Wyświetl 10 szkieletowych wierszy podczas ładowania
+              Array.from({ length: 10 }).map((_, i) => (
+                <SkeletonRow key={i} columns={columns} hasActions={onEdit || onDelete || customActions.length > 0} />
+              ))
+            ) : sortedAndFilteredData.length > 0 ? (
+                sortedAndFilteredData.map(item => (
+                  <tr 
+                    key={item.id}
+                    onContextMenu={onContextMenu ? (e) => onContextMenu(e, item) : undefined}
+                    style={onContextMenu ? { cursor: 'context-menu' } : {}}
+                  >
+                    {columns.map(col => (
+                      <td key={`${item.id}-${col.key}`}>
+                        {col.render ? col.render(item) : getNestedValue(item, col.key)}
+                      </td>
+                    ))}
+                    {(onEdit || onDelete || customActions.length > 0) && (
+                      <td className="actions-cell">
+                        {currentUser && currentUser.id === item.id ? (
+                          <span className="text-muted" aria-label="Current user">This is you</span>
+                        ) : (
+                          <>
+                            {onEdit && (
+                              <button onClick={() => onEdit(item)} className="btn-icon" title="Edit" aria-label={`Edit ${item.name || 'item'}`}>
+                                <Edit size={16} />
+                              </button>
+                            )}
+                            {onDelete && (
+                              <button onClick={() => onDelete(item)} className="btn-icon btn-danger" title="Delete" aria-label={`Delete ${item.name || 'item'}`}>
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </>
+                        )}
+                        {customActions.map((action, index) => (
+                          <button key={index} onClick={() => action.onClick(item)} className="btn-icon" title={action.title} aria-label={action.title}>
+                            {action.icon}
+                          </button>
+                        ))}
+                      </td>
+                    )}
+                  </tr>
+                ))
+            ) : null}
+          </tbody>
             {footerData && (
               <tfoot>
                 <tr>
@@ -181,8 +172,8 @@ const DataTable = ({
                 </tr>
               </tfoot>
             )}
-          </table>
-        ) : (
+        </table>
+        {!isLoading && sortedAndFilteredData.length === 0 && (
           <p className="no-results-message" aria-live="polite">
             {filterText ? 'No results match the search criteria.' : 'No data in the database.'}
           </p>
