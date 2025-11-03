@@ -16,7 +16,7 @@ export const useAssignments = ({ initialAssignments = [], orders = [], enrichedR
 
   React.useEffect(() => {
     // Ten useEffect powinien synchronizować stan wewnętrzny z danymi przychodzącymi z góry.
-    setAssignments(initialAssignments);
+    setAssignments(initialAssignments || []);
   }, [initialAssignments, setAssignments]); // Uruchom ponownie, gdy zmienią się `initialAssignments`.
 
   const { postMessage } = useBroadcastChannel();

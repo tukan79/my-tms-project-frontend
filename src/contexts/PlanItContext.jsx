@@ -106,7 +106,7 @@ export const PlanItProvider = ({ children, initialData = {}, runActions, onAssig
   // POPRAWKA: Upewniamy się, że przekazujemy poprawne assignments
   const assignmentsData = useMemo(() => {
     return {
-      initialAssignments: initialAssignmentsFromData, // ZMIANA: initialAssignmentsFromData
+      initialAssignments: initialAssignmentsFromData || [], // ZMIANA: Zapewniamy, że to zawsze tablica
       orders,
       enrichedRuns,
       onDataRefresh: triggerRefresh, // ZMIANA: triggerRefresh zamiast onAssignmentCreated

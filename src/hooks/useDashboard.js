@@ -131,10 +131,14 @@ export const useDataFetching = (role) => {
   // Use useMemo to avoid re-creating the 'data' object on every render.
   // Zależności to teraz bezpośrednio dane z każdego zasobu, co zapewnia stabilność.
   const data = useMemo(() => 
-    Object.fromEntries(Object.entries(resources).map(([key, resource]) => [key, resource.data])),
-    // Zmieniamy zależność na bardziej stabilną. Zamiast mapować `r.data`,
-    // co może być `undefined`, mapujemy cały obiekt `resource`, który jest stabilny.
-    Object.values(resources)
+    Object.fromEntries(
+      Object.entries(resources).map(([key, resource]) => [key, resource.data])
+    ),
+    [
+      // Zapewnia stabilność, ponieważ `data` jest przebudowywane tylko wtedy,
+      // gdy faktycznie zmienią się dane z któregokolwiek zasobu.
+      ...Object.values(resources).map(r => r.data),
+    ]
   );
 
   // Tworzymy obiekt z akcjami (CRUD) dla każdego zasobu, aby można było je łatwo przekazać do komponentów.
