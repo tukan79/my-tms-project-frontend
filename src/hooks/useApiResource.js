@@ -195,3 +195,4 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
     setData: stableSetData 
   };
 };
+// ostatnia zmiana (30.05.2024, 13:14:12)

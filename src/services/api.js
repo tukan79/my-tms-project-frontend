@@ -100,3 +100,5 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// ostatnia zmiana (30.05.2024, 13:14:12)

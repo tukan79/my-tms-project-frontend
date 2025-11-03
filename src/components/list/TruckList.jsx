@@ -48,3 +48,4 @@ const TruckList = ({ items: trucks = [], onRefresh, onEdit }) => {
 };
 
 export default TruckList;
+// ostatnia zmiana (30.05.2024, 13:14:12)

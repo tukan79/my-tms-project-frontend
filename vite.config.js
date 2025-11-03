@@ -19,3 +19,4 @@ export default defineConfig({
     host: true, // Umożliwia dostęp do serwera deweloperskiego z innych urządzeń w sieci
   },
 });
+// ostatnia zmiana (30.05.2024, 13:14:12)

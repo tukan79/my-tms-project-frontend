@@ -214,3 +214,4 @@ const AddTruckForm = ({ onSuccess, onCancel, itemToEdit }) => {
 };
 
 export default AddTruckForm;
+// ostatnia zmiana (30.05.2024, 13:14:12)

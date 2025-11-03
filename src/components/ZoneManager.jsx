@@ -305,3 +305,4 @@ const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
 };
 
 export default ZoneManager;
+// ostatnia zmiana (30.05.2024, 13:14:12)

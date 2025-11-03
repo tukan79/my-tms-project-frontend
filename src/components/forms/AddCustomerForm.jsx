@@ -149,3 +149,4 @@ const AddCustomerForm = ({ onSuccess, onCancel, itemToEdit }) => {
 };
 
 export default AddCustomerForm;
+// ostatnia zmiana (30.05.2024, 13:14:12)

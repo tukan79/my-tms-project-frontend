@@ -31,3 +31,4 @@ const PricingPage = ({ customers = [], zones = [], onRefresh }) => {
 };
 
 export default PricingPage;
+// ostatnia zmiana (30.05.2024, 13:14:12)

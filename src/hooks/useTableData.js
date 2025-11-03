@@ -57,3 +57,4 @@ export const useTableData = (initialData, { initialSortKey, filterKeys = [] }) =
 
   return { sortedAndFilteredData, sortConfig, filterText, setFilterText, handleSort };
 };
+// ostatnia zmiana (30.05.2024, 13:14:12)

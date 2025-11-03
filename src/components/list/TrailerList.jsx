@@ -48,3 +48,4 @@ const TrailerList = ({ items: trailers = [], onRefresh, onEdit }) => {
 };
 
 export default TrailerList;
+// ostatnia zmiana (30.05.2024, 13:14:12)

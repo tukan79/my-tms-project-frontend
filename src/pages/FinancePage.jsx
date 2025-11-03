@@ -340,3 +340,4 @@ const FinancePage = ({ orders = [], customers = [], surcharges: surchargeTypes =
 };
 
 export default FinancePage;
+// ostatnia zmiana (30.05.2024, 13:14:12)

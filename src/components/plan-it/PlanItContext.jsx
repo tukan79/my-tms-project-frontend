@@ -269,3 +269,4 @@ export const PlanItProvider = ({ children, initialData = {}, runActions, onAssig
 
   return <PlanItContext.Provider value={value}>{children}</PlanItContext.Provider>;
 };
+// ostatnia zmiana (30.05.2024, 13:14:12)

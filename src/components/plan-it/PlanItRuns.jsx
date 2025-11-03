@@ -101,3 +101,4 @@ const PlanItRuns = ({ runs = [], onPopOut, onDelete, onEdit, handleAddNewRun, se
 };
 
 export default memo(PlanItRuns);
+// ostatnia zmiana (30.05.2024, 13:14:12)

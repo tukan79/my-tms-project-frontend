@@ -103,3 +103,4 @@ const AddRateEntryForm = ({ zones = [], onSubmit, onCancel, itemToEdit }) => {
 };
 
 export default AddRateEntryForm;
+// ostatnia zmiana (30.05.2024, 13:14:12)

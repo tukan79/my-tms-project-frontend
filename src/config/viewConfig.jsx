@@ -87,3 +87,4 @@ export const generateViewConfig = ({
 
   return finalConfig;
 };
+// ostatnia zmiana (30.05.2024, 13:14:12)

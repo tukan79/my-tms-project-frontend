@@ -27,3 +27,4 @@ export const isPostcodeInZone = (postcode, zone) => {
     return postcodeOutward.startsWith(prefix);
   });
 };
+// ostatnia zmiana (30.05.2024, 13:14:12)

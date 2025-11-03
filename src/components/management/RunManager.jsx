@@ -133,3 +133,4 @@ const RunManager = ({ runs = [], trucks = [], trailers = [], drivers = [], onDat
 };
 
 export default RunManager;
+// ostatnia zmiana (30.05.2024, 13:14:12)

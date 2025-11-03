@@ -72,3 +72,4 @@ const ViewRenderer = ({ viewConfig }) => {
 };
 
 export default ViewRenderer;
+// ostatnia zmiana (30.05.2024, 13:14:12)

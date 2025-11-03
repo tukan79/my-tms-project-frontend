@@ -90,3 +90,4 @@ const MainHeader = ({ viewConfig }) => {
 };
 
 export default MainHeader;
+// ostatnia zmiana (30.05.2024, 13:14:12)

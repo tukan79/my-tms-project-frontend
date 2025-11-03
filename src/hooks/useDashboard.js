@@ -156,3 +156,4 @@ export const useDataFetching = (role) => {
   );
   return { data, isLoading, anyError, handleRefresh, refreshAll, actions };
 };
+// ostatnia zmiana (30.05.2024, 13:14:12)

@@ -70,3 +70,4 @@ const ZoneList = ({ items: zones = [], onRefresh, onEdit, onDelete }) => {
 };
 
 export default ZoneList;
+// ostatnia zmiana (30.05.2024, 13:14:12)

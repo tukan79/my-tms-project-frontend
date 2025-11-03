@@ -49,3 +49,4 @@ const CustomerList = ({ items = [], onRefresh, onEdit }) => {
 };
 
 export default CustomerList;
+// ostatnia zmiana (30.05.2024, 13:14:12)

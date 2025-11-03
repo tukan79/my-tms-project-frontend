@@ -32,3 +32,4 @@ const PlanItAssignments = ({ assignments = [], onPopOut, onDeleteAssignment }) =
 };
 
 export default PlanItAssignments;
+// ostatnia zmiana (30.05.2024, 13:14:12)

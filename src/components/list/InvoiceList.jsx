@@ -82,3 +82,4 @@ const InvoiceList = ({ invoices = [] }) => {
 };
 
 export default InvoiceList;
+// ostatnia zmiana (30.05.2024, 13:14:12)

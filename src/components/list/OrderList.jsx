@@ -146,3 +146,4 @@ const OrderList = ({ items: orders = [], zones = [], onRefresh, onEdit }) => {
 };
 
 export default OrderList;
+// ostatnia zmiana (30.05.2024, 13:14:12)

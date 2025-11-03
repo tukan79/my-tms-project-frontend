@@ -185,3 +185,4 @@ const ActiveRunView = ({ run, assignedOrders = [], onDeselect, onDeleteAssignmen
 };
 
 export default memo(ActiveRunView);
+// ostatnia zmiana (30.05.2024, 13:14:12)

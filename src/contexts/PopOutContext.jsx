@@ -26,3 +26,4 @@ export const PopOutProvider = ({ children }) => {
     <PopOutContext.Provider value={popOutData}>{children}</PopOutContext.Provider>
   );
 };
+// ostatnia zmiana (30.05.2024, 13:14:12)
