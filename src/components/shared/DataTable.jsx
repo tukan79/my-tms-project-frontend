@@ -58,6 +58,9 @@ const DataTable = ({
     filterKeys, // Przekazujemy klucze do filtrowania
   });
 
+  // Zabezpieczenie: Gwarantujemy, że dane do wyświetlenia są zawsze tablicą.
+  const safeSortedData = Array.isArray(sortedAndFilteredData) ? sortedAndFilteredData : [];
+
   // Krok 1: Lokalny stan dla pola input, aby zapewnić natychmiastową odpowiedź UI.
   const [inputValue, setInputValue] = useState(filterText);
 
@@ -82,7 +85,7 @@ const DataTable = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minHeight: 0 }}>
-      <h2>{title} ({sortedAndFilteredData.length})</h2>
+      <h2>{title} ({safeSortedData.length})</h2>
       <input
         type="text"
         placeholder={filterPlaceholder}
@@ -123,8 +126,8 @@ const DataTable = ({
               Array.from({ length: 10 }).map((_, i) => (
                 <SkeletonRow key={i} columns={columns} hasActions={onEdit || onDelete || customActions.length > 0} />
               ))
-            ) : sortedAndFilteredData.length > 0 ? (
-                sortedAndFilteredData.map(item => (
+            ) : safeSortedData.length > 0 ? (
+                safeSortedData.map(item => (
                   <tr 
                     key={item.id}
                     onContextMenu={onContextMenu ? (e) => onContextMenu(e, item) : undefined}
@@ -179,7 +182,7 @@ const DataTable = ({
               </tfoot>
             )}
         </table>
-        {!isLoading && sortedAndFilteredData.length === 0 && (
+        {!isLoading && safeSortedData.length === 0 && (
           <p className="no-results-message" aria-live="polite">
             {filterText ? 'No results match the search criteria.' : 'No data in the database.'}
           </p>
