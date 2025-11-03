@@ -6,6 +6,10 @@ import { useToast } from '../../contexts/ToastContext.jsx';
 
 const InvoiceList = ({ invoices = [] }) => {
   const { showToast } = useToast();
+
+  // Ensure that `invoices` is always an array to prevent errors in child components.
+  const safeInvoices = Array.isArray(invoices) ? invoices : [];
+
   const columns = [
     {
       key: 'invoice_number',
@@ -66,7 +70,7 @@ const InvoiceList = ({ invoices = [] }) => {
 
   return (
     <DataTable
-      items={invoices}
+      items={safeInvoices}
       columns={columns}
       title="Generated Invoices"
       filterPlaceholder="Filter invoices..."

@@ -4,6 +4,9 @@ import DataTable from '../shared/DataTable.jsx';
 import { useToast } from '../../contexts/ToastContext.jsx';
 
 const UserList = ({ items: users = [], onRefresh, onEdit, currentUser }) => {
+  // Ensure that `users` is always an array to prevent errors in child components.
+  const safeUsers = Array.isArray(users) ? users : [];
+
   const columns = [
     { key: 'name', header: 'Name', sortable: true, render: (user) => `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email },
     { key: 'email', header: 'Email', sortable: true },
@@ -32,7 +35,7 @@ const UserList = ({ items: users = [], onRefresh, onEdit, currentUser }) => {
   
   return (
     <DataTable
-      items={users}
+      items={safeUsers}
       columns={columns}
       onRefresh={onRefresh}
       onEdit={onEdit}

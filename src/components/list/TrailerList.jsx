@@ -1,3 +1,4 @@
+// plik TrailerList.jsx
 import React from 'react';
 import api from '../../services/api.js';
 import DataTable from '../shared/DataTable.jsx';

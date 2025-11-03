@@ -1,3 +1,4 @@
+// plik RunManager.jsx
 import React, { useState, useMemo, useCallback } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import AddRunForm from '../forms/AddRunForm.jsx';
@@ -8,6 +9,12 @@ const RunManager = ({ runs = [], trucks = [], trailers = [], drivers = [], onDat
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [editingRun, setEditingRun] = useState(null);
   const { showToast } = useToast();
+
+  // Safeguard against undefined props during render cycles.
+  const safeRuns = Array.isArray(runs) ? runs : [];
+  const safeTrucks = Array.isArray(trucks) ? trucks : [];
+  const safeTrailers = Array.isArray(trailers) ? trailers : [];
+  const safeDrivers = Array.isArray(drivers) ? drivers : [];
 
   const handleAddNewRun = useCallback(() => {
     setEditingRun(null);
@@ -38,16 +45,16 @@ const RunManager = ({ runs = [], trucks = [], trailers = [], drivers = [], onDat
     handleCancelForm();
   }, [onDataRefresh, handleCancelForm]);
 
-  const driverMap = useMemo(() => new Map(drivers.map(d => [d.id, `${d.first_name} ${d.last_name}`])), [drivers]);
-  const truckMap = useMemo(() => new Map(trucks.map(t => [t.id, t.registration_plate])), [trucks]);
-  const trailerMap = useMemo(() => new Map(trailers.map(t => [t.id, t.registration_plate])), [trailers]);
+  const driverMap = useMemo(() => new Map(safeDrivers.map(d => [d.id, `${d.first_name} ${d.last_name}`])), [safeDrivers]);
+  const truckMap = useMemo(() => new Map(safeTrucks.map(t => [t.id, t.registration_plate])), [safeTrucks]);
+  const trailerMap = useMemo(() => new Map(safeTrailers.map(t => [t.id, t.registration_plate])), [safeTrailers]);
 
-  const enrichedRuns = useMemo(() => runs.map(run => ({
+  const enrichedRuns = useMemo(() => safeRuns.map(run => ({
     ...run,
     driverName: driverMap.get(run.driver_id) || 'N/A',
     truckPlate: truckMap.get(run.truck_id) || 'N/A',
     trailerPlate: run.trailer_id ? trailerMap.get(run.trailer_id) : 'N/A',
-  })), [runs, driverMap, truckMap, trailerMap]);
+  })), [safeRuns, driverMap, truckMap, trailerMap]);
 
   const columns = [
     {

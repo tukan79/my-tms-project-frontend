@@ -4,6 +4,9 @@ import api from '../../services/api.js'; // Poprawiona ścieżka
 import { useToast } from '../../contexts/ToastContext.jsx'; // Poprawiona ścieżka
 
 const ZoneList = ({ items: zones = [], onRefresh, onEdit, onDelete }) => {
+  // Ensure that `zones` is always an array to prevent errors in child components.
+  const safeZones = Array.isArray(zones) ? zones : [];
+
   const [expandedZones, setExpandedZones] = useState({});
 
   const toggleZoneExpansion = (zoneId) => {
@@ -57,7 +60,7 @@ const ZoneList = ({ items: zones = [], onRefresh, onEdit, onDelete }) => {
 
   return (
     <DataTable
-      items={zones}
+      items={safeZones}
       columns={columns}
       onRefresh={onRefresh}
       onEdit={onEdit}
