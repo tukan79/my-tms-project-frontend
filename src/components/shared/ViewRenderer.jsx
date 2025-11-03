@@ -67,6 +67,13 @@ const ViewRenderer = ({ viewConfig }) => {
       ...(currentView === 'orders' && { drivers, trucks, trailers, zones }),
     };
 
+    console.log('🔄 Rendering ListComponent:', {
+      view: currentView,
+      component: currentViewConfig.ListComponent.name,
+      itemsCount: safeDataForView.length,
+      listProps
+    });
+
     return <ErrorBoundary onReset={() => handleRefresh(currentView)}><currentViewConfig.ListComponent {...listProps} /></ErrorBoundary>;
   }
 
@@ -74,4 +81,4 @@ const ViewRenderer = ({ viewConfig }) => {
 };
 
 export default ViewRenderer;
-// ostatnia zmiana (30.05.2024, 13:14:12)
+// ostatnia zmiana (30.05.2024, 20:14:12)
