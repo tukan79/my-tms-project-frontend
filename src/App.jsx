@@ -108,15 +108,27 @@ const DashboardContent = () => {
   };
 
   // Generowanie konfiguracji widoków za pomocą nowej funkcji
-  const viewConfig = useMemo(() => generateViewConfig({
-    user,
-    data,
-    actions,
-    refreshAll,
-    handleDeleteRequest,
-    handleEditOrderFromAnywhere,
-    handlePrintLabels,
-  }), [user, data, actions, refreshAll, handleDeleteRequest, handleEditOrderFromAnywhere, handlePrintLabels]);
+  const viewConfig = useMemo(() => {
+    const config = generateViewConfig({
+      user,
+      data,
+      actions,
+      refreshAll,
+      handleDeleteRequest,
+      handleEditOrderFromAnywhere,
+      handlePrintLabels,
+    });
+
+    console.log('🔍 ViewConfig structure:', {
+      configKeys: Object.keys(config),
+      // Sprawdź każdy view
+      ordersConfig: config.orders,
+      runsConfig: config.runs,
+      planitConfig: config.planit,
+    });
+
+    return config;
+  }, [user, data, actions, refreshAll, handleDeleteRequest, handleEditOrderFromAnywhere, handlePrintLabels]);
 
   // Dodajemy klasę do body tylko dla głównej aplikacji, aby uniknąć problemów ze scrollowaniem w pop-outach
   useEffect(() => {
