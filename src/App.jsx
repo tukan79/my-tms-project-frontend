@@ -127,8 +127,9 @@ const DashboardContent = () => {
   }, []);
 
   // KLUCZOWA ZMIANA: Blokujemy renderowanie, dopóki dane nie będą gotowe.
-  // To zapobiega błędom "Cannot read properties of undefined".
-  if (isLoading && !data) {
+  // Uproszczona i bardziej niezawodna logika: jeśli `data` jest `null`,
+  // oznacza to, że dane początkowe wciąż się ładują.
+  if (data === null) {
     return <div className="loading">Loading initial application data...</div>;
   }
 

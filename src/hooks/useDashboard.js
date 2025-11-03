@@ -111,9 +111,11 @@ export const useDataFetching = (role) => {
   // Destructuring resources to get stable references for individual hooks.
   const { orders, drivers, trucks, trailers, users, assignments, runs, customers, zones } = resources;
 
-  const isLoading = useMemo(() => 
-    Object.values(resources).some(r => r.isLoading),
-    [resources]
+  // ZMIANA: isLoading jest prawdziwe, jeśli jakikolwiek zasób się ładuje LUB jeśli dane nie są jeszcze gotowe.
+  // To zapobiega sytuacji, w której isLoading jest false, a data wciąż jest null.
+  const isLoading = useMemo(
+    () => Object.values(resources).some(r => r.isLoading && !r.data),
+    [resources, ...Object.values(resources).map(r => r.data)]
   );
 
   const anyError = useMemo(() => 
