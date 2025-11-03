@@ -56,7 +56,7 @@ export const generateViewConfig = ({
     },
     planit: { 
       Component: PlanItPage,
-      props: { orders, runs, assignments, drivers, trucks, trailers, zones, pallets: data?.pallets || [], onAssignmentCreated: refreshAll, onEdit: handleEditOrderFromAnywhere, surcharges, runActions: actions?.runs, onDeleteRequest: handleDeleteRequest, bulkAssignOrders: actions?.assignments?.bulkCreate }
+      props: { orders, runs, assignments: Array.isArray(assignments) ? assignments : [], drivers, trucks, trailers, zones, pallets: data?.pallets || [], onAssignmentCreated: refreshAll, onEdit: handleEditOrderFromAnywhere, surcharges, runActions: actions?.runs, onDeleteRequest: handleDeleteRequest, bulkAssignOrders: actions?.assignments?.bulkCreate }
     },
     finance: { 
       Component: FinancePage, 

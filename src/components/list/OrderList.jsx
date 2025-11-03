@@ -8,6 +8,12 @@ import { isPostcodeInZone } from '../../utils/postcode.js';
 const OrderList = ({ items: orders = [], zones = [], onRefresh, onEdit }) => {
   const { showToast } = useToast();
 
+  console.log('🔍 OrderList safeOrders check:', {
+    orders,
+    safeOrders: Array.isArray(orders) ? orders : [],
+    safeOrdersLength: (Array.isArray(orders) ? orders : []).length
+  });
+
   // Zabezpieczenie: Gwarantujemy, że `orders` jest zawsze tablicą.
   const safeOrders = Array.isArray(orders) ? orders : [];
 
@@ -81,10 +87,14 @@ const OrderList = ({ items: orders = [], zones = [], onRefresh, onEdit }) => {
   };
 
   const filteredOrders = React.useMemo(() => {
-    let filtered = [...safeOrders];
+    // Potrójne zabezpieczenie: Gwarantujemy, że operujemy na tablicy, nawet jeśli `safeOrders` jest `undefined`.
+    const superSafeOrders = Array.isArray(safeOrders) ? safeOrders : [];
+    let filtered = [...superSafeOrders];
 
     // Filtrowanie po zakładkach
-    const homeZone = zones.find(z => z.is_home_zone);
+    // Zabezpieczenie: Gwarantujemy, że `zones` jest tablicą przed użyciem `find`.
+    const safeZones = Array.isArray(zones) ? zones : [];
+    const homeZone = safeZones.find(z => z.is_home_zone);
     if (activeTab === 'delivery' && homeZone) {
       filtered = filtered.filter(order => isPostcodeInZone(order.recipient_details?.postCode, homeZone));
     } else if (activeTab === 'collections' && homeZone) {
@@ -101,13 +111,17 @@ const OrderList = ({ items: orders = [], zones = [], onRefresh, onEdit }) => {
         // Fix: Use loading_date_time for 'collections' and unloading_date_time for 'delivery'.
         const dateField = activeTab === 'collections' ? order.loading_date_time : order.unloading_date_time;
         if (!dateField) return false;
-        const orderDate = new Date(dateField).toISOString().split('T')[0];
-        return orderDate >= start && orderDate <= end;
+        try {
+          const orderDate = new Date(dateField).toISOString().split('T')[0];
+          return orderDate >= start && orderDate <= end;
+        } catch {
+          return false;
+        }
       });
     }
 
     return filtered;
-  }, [safeOrders, zones, activeTab, dateRange]);
+  }, [safeOrders, zones, activeTab, dateRange]); // Zależności pozostają te same
 
   return (
     <div className="card">
