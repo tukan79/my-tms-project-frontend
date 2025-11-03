@@ -58,12 +58,12 @@ OrderRow.displayName = 'OrderRow';
  */
 const useFilteredOrders = ({ orders, activeTab, selectedDate, homeZone }) => {
   const allEnrichedOrders = useMemo(() => {
-    return orders.map(order => ({
+    return safeOrders.map(order => ({
       ...order,
       totalKilos: order.cargo_details?.total_kilos || 0,
       totalSpaces: order.cargo_details?.total_spaces || 0,
     }));
-  }, [orders]);
+  }, [safeOrders]);
 
   return useMemo(() => {
     const dateFiltered = allEnrichedOrders.filter(order => {
