@@ -57,8 +57,22 @@ const DashboardContent = () => {
     actions,
   } = useDashboard();
 
-  // DODAJ TĘ LINIĘ DO DEBUGOWANIA
-  console.log('📊 Dashboard data:', data, 'isLoading:', isLoading);
+  console.log('🔍 COMPLETE Dashboard data structure:', {
+    data,
+    isLoading,
+    // Sprawdź WSZYSTKIE properties
+    orders: data?.orders?.length,
+    drivers: data?.drivers?.length,
+    trucks: data?.trucks?.length,
+    trailers: data?.trailers?.length,
+    users: data?.users?.length,
+    assignments: data?.assignments?.length,
+    customers: data?.customers?.length,
+    zones: data?.zones?.length,
+    surcharges: data?.surcharges?.length,
+    invoices: data?.invoices?.length,
+    runs: data?.runs?.length,
+  });
 
   // Zapewniamy domyślny pusty obiekt, aby uniknąć błędów, gdy `data` jest `undefined`.
   const { customers, surcharges } = data || {};
