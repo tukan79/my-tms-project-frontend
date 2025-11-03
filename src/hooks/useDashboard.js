@@ -126,34 +126,23 @@ export const useDataFetching = (role) => {
       resources[view].fetchData();
     }
   };
-// po
-  // Użyj useMemo, aby uniknąć ponownego tworzenia obiektu 'data' przy każdym renderowaniu.
-  // Use useMemo to avoid re-creating the 'data' object on every render.
-  // Zależności to teraz bezpośrednio dane z każdego zasobu, co zapewnia stabilność.
-  const data = useMemo(() => 
-    Object.fromEntries(
-      Object.entries(resources).map(([key, resource]) => [key, resource.data])
-    ),
-    [
-      // Zapewnia stabilność, ponieważ `data` jest przebudowywane tylko wtedy,
-      // gdy faktycznie zmienią się dane z któregokolwiek zasobu.
-      ...Object.values(resources).map(r => r.data),
-    ]
+
+  // ZMIANA: Zamiast useMemo, tworzymy obiekty `data` i `actions` w każdym renderze.
+  // To jest bezpieczniejsze, ponieważ `resources` jest stabilne, a dane wewnątrz `resource.data`
+  // i tak powodują re-render. To zapobiega przekazywaniu `undefined` w dół drzewa komponentów.
+  const data = Object.fromEntries(
+    Object.entries(resources).map(([key, resource]) => [key, resource.data ?? []])
   );
 
-  // Tworzymy obiekt z akcjami (CRUD) dla każdego zasobu, aby można było je łatwo przekazać do komponentów.
-  // We create an object with actions (CRUD) for each resource so they can be easily passed to components.
-  const actions = useMemo(() =>
-    Object.fromEntries(
-      Object.entries(resources).map(([key, resource]) => [key, { 
-        create: resource.createResource, 
-        update: resource.updateResource, 
-        delete: resource.deleteResource,
-        bulkCreate: resource.bulkCreate, // Expose the new bulkCreate action
-      }])
-    ),
-    [resources] // Zależność od `resources` jest wystarczająca, ponieważ referencja do obiektu jest stabilna.
+  const actions = Object.fromEntries(
+    Object.entries(resources).map(([key, resource]) => [key, {
+      create: resource.createResource,
+      update: resource.updateResource,
+      delete: resource.deleteResource,
+      bulkCreate: resource.bulkCreate,
+    }])
   );
-  return { data: data ?? {}, isLoading, anyError, handleRefresh, refreshAll, actions: actions ?? {} };
+
+  return { data, isLoading, anyError, handleRefresh, refreshAll, actions };
 };
 // ostatnia zmiana (30.05.2024, 13:14:12)

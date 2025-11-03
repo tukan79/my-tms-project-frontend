@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import api from '../services/api';
 
 export const useApiResource = (resourceUrl, resourceName = 'resource') => {
-  const [data, setData] = useState(null); // Zmiana na null, aby odróżnić stan początkowy od pustej tablicy
+  const [data, setData] = useState([]); // Zmiana na [], aby zawsze zwracać tablicę
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 

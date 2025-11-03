@@ -12,9 +12,8 @@ export const useTableData = (initialData, { initialSortKey, filterKeys = [] }) =
   const [filterText, setFilterText] = useState('');
 
   const sortedData = useMemo(() => {
-    // Zabezpieczenie: Upewniamy się, że dane do przetworzenia są zawsze tablicą.
-    const dataToProcess = Array.isArray(initialData) ? initialData : [];
-    let sortableData = [...dataToProcess];
+    // Zabezpieczenie: Używamy pustej tablicy, jeśli initialData jest `undefined` lub `null`.
+    let sortableData = [...(initialData || [])];
     if (sortConfig.key !== null) {
       sortableData.sort((a, b) => {
         const valA = getNestedValue(a, sortConfig.key);
