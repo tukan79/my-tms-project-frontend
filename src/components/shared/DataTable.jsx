@@ -124,7 +124,11 @@ const DataTable = ({
             {isLoading ? (
               // Wyświetl 10 szkieletowych wierszy podczas ładowania
               Array.from({ length: 10 }).map((_, i) => (
-                <SkeletonRow key={i} columns={columns} hasActions={onEdit || onDelete || customActions.length > 0} />
+                <SkeletonRow 
+                  key={i} 
+                  columns={Array.isArray(columns) ? columns : []} // Zabezpieczenie na poziomie przekazywania propsa
+                  hasActions={onEdit || onDelete || customActions.length > 0} 
+                />
               ))
             ) : safeSortedData.length > 0 ? (
                 safeSortedData.map(item => (
