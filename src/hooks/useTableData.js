@@ -7,13 +7,13 @@ const getNestedValue = (obj, path) => {
   return path.split('.').reduce((acc, part) => acc && acc[part], obj);
 };
 
-export const useTableData = (initialData, { initialSortKey, filterKeys = [] }) => {
+export const useTableData = (initialData, { initialSortKey, filterKeys }) => {
   const [sortConfig, setSortConfig] = useState({ key: initialSortKey, direction: 'ascending' });
   const [filterText, setFilterText] = useState('');
 
   const sortedData = useMemo(() => {
-    // Zabezpieczenie: Upewniamy się, że dane do sortowania są zawsze tablicą.
-    const sortableData = Array.isArray(initialData) ? [...initialData] : [];
+    // Uproszczenie: initialData jest już zabezpieczone w DataTable.
+    const sortableData = [...initialData];
     if (sortConfig.key !== null) {
       sortableData.sort((a, b) => {
         const valA = getNestedValue(a, sortConfig.key);
@@ -46,7 +46,7 @@ export const useTableData = (initialData, { initialSortKey, filterKeys = [] }) =
   const sortedAndFilteredData = useMemo(() => {
     if (!filterText) return sortedData;
     return sortedData.filter(item =>
-      filterKeys.some(key => {
+      (filterKeys || []).some(key => { // Zabezpieczenie: Użyj pustej tablicy, jeśli filterKeys jest undefined.
         const value = getNestedValue(item, key) ?? ''; // Zabezpieczenie przed null/undefined
         return value && String(value).toLowerCase().includes(filterText.toLowerCase());
       })

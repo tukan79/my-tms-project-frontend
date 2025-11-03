@@ -8,6 +8,9 @@ import { isPostcodeInZone } from '../../utils/postcode.js';
 const OrderList = ({ items: orders = [], zones = [], onRefresh, onEdit }) => {
   const { showToast } = useToast();
 
+  // Zabezpieczenie: Gwarantujemy, że `orders` jest zawsze tablicą.
+  const safeOrders = Array.isArray(orders) ? orders : [];
+
   const [activeTab, setActiveTab] = React.useState('all'); // 'all', 'delivery', 'collections'
   const [dateRange, setDateRange] = React.useState({
     start: new Date().toISOString().split('T')[0],
@@ -78,7 +81,7 @@ const OrderList = ({ items: orders = [], zones = [], onRefresh, onEdit }) => {
   };
 
   const filteredOrders = React.useMemo(() => {
-    let filtered = [...orders];
+    let filtered = [...safeOrders];
 
     // Filtrowanie po zakładkach
     const homeZone = zones.find(z => z.is_home_zone);
@@ -104,7 +107,7 @@ const OrderList = ({ items: orders = [], zones = [], onRefresh, onEdit }) => {
     }
 
     return filtered;
-  }, [orders, zones, activeTab, dateRange]);
+  }, [safeOrders, zones, activeTab, dateRange]);
 
   return (
     <div className="card">

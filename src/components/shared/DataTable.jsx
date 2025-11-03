@@ -19,7 +19,7 @@ const getNestedValue = (obj, path) => {
 };
 
 const DataTable = ({
-  items,
+  items = [],
   columns = [],
   onRefresh,
   onEdit,
@@ -35,8 +35,17 @@ const DataTable = ({
   onContextMenu,
   footerData, // Nowy prop dla danych stopki
 }) => {
-  // Zabezpieczenie: Używamy pustej tablicy, jeśli `items` jest `undefined` lub `null`.
-  const safeItems = Array.isArray(items) ? items : [];
+  // Walidacja props - items ma już domyślną wartość [], więc jest bezpieczne.
+  if (!Array.isArray(columns)) {
+    console.error('DataTable: columns must be an array');
+    return null;
+  }
+
+  console.log('🔍 DataTable debug:', {
+    items,
+    itemsLength: items.length,
+    isArray: Array.isArray(items)
+  });
 
   const {
     sortedAndFilteredData,
@@ -44,7 +53,7 @@ const DataTable = ({
     filterText,
     setFilterText,
     handleSort,
-  } = useTableData(safeItems, {
+  } = useTableData(items, {
     initialSortKey: initialSortKey,
     filterKeys, // Przekazujemy klucze do filtrowania
   });
