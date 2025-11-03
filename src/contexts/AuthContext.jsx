@@ -57,14 +57,16 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/api/auth/login', { email, password });
       console.log('✅ Login response:', response.data);
       
-      // KLUCZOWA ZMIANA: Użyj TYLKO accessToken
       const token = response.data.accessToken;
+      const refreshToken = response.data.refreshToken;
       
       console.log('🔑 Token from accessToken:', token ? `YES (${token.substring(0, 20)}...)` : 'NO');
       
       if (token) {
         // ZAPISZ TOKEN
         localStorage.setItem('token', token);
+        // ZAPISZ REFRESH TOKEN
+        if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
         
         // ZAPISZ USER DATA
         const userData = response.data.user;
@@ -100,6 +102,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('refreshToken');
   };
 
   const value = {
