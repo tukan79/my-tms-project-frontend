@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import api from '../services/api';
 
 export const useApiResource = (resourceUrl, resourceName = 'resource') => {
-  const [data, setData] = useState([]); // Zmiana na [], aby zawsze zwracać tablicę
+  const [data, setData] = useState([]); // ZAWSZE inicjujemy pustą tablicą
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -34,7 +34,7 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
     setError(null);
     try {
       const response = await api.get(currentUrl);
-      setDataRef.current(Array.isArray(response.data) ? response.data : []); // Zapewnij, że to zawsze tablica
+      setDataRef.current(Array.isArray(response.data) ? response.data : []); // Zapewniamy, że stanem jest zawsze tablica
       return response.data;
     } catch (err) {
       const errorMessage = err.response?.data?.error || `Failed to fetch ${currentName}.`;

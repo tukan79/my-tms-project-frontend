@@ -35,11 +35,8 @@ const DataTable = ({
   onContextMenu,
   footerData, // Nowy prop dla danych stopki
 }) => {
-  // Walidacja props
-  if (!Array.isArray(items) || !Array.isArray(columns)) {
-    console.error('DataTable: items and columns must be arrays');
-    return null;
-  }
+  // Zabezpieczenie: Używamy pustej tablicy, jeśli `items` jest `undefined` lub `null`.
+  const safeItems = Array.isArray(items) ? items : [];
 
   const {
     sortedAndFilteredData,
@@ -47,7 +44,7 @@ const DataTable = ({
     filterText,
     setFilterText,
     handleSort,
-  } = useTableData(items, {
+  } = useTableData(safeItems, {
     initialSortKey: initialSortKey,
     filterKeys, // Przekazujemy klucze do filtrowania
   });
