@@ -7,13 +7,13 @@ const getNestedValue = (obj, path) => {
   return path.split('.').reduce((acc, part) => acc && acc[part], obj);
 };
 
-export const useTableData = (initialData = [], { initialSortKey, filterKeys = [] }) => {
+export const useTableData = (initialData, { initialSortKey, filterKeys = [] }) => {
   const [sortConfig, setSortConfig] = useState({ key: initialSortKey, direction: 'ascending' });
   const [filterText, setFilterText] = useState('');
 
   const sortedData = useMemo(() => {
     // Zabezpieczenie: Upewniamy się, że initialData jest zawsze tablicą.
-    const dataToProcess = initialData || [];
+    const dataToProcess = Array.isArray(initialData) ? initialData : [];
     
     let sortableData = [...dataToProcess];
     if (sortConfig.key !== null) {

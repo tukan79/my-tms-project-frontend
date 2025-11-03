@@ -18,7 +18,7 @@ const getNestedValue = (obj, path) => {
 };
 
 const DataTable = ({
-  items = [],
+  items,
   columns = [],
   onRefresh,
   onEdit,
@@ -47,7 +47,7 @@ const DataTable = ({
     setFilterText,
     handleSort,
   } = useTableData(items, {
-    initialSortKey,
+    initialSortKey: initialSortKey,
     filterKeys, // Przekazujemy klucze do filtrowania
   });
 
