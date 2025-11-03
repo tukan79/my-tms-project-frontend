@@ -6,6 +6,9 @@ import DataTable from '../shared/DataTable.jsx';
 import { useToast } from '../../contexts/ToastContext.jsx';
 
 const TruckList = ({ items: trucks = [], onRefresh, onEdit }) => {
+  // Ensure that `trucks` is always an array to prevent errors in child components.
+  const safeTrucks = Array.isArray(trucks) ? trucks : [];
+
   const columns = [
     { key: 'registration_plate', header: 'Registration', sortable: true },
     { key: 'brand', header: 'Brand', sortable: true },
@@ -34,7 +37,7 @@ const TruckList = ({ items: trucks = [], onRefresh, onEdit }) => {
 
   return (
     <DataTable
-      items={trucks || []}
+      items={safeTrucks}
       columns={columns}
       onRefresh={onRefresh}
       onEdit={onEdit}

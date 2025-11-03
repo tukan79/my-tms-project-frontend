@@ -4,6 +4,9 @@ import DataTable from '../shared/DataTable.jsx';
 import { useToast } from '../../contexts/ToastContext.jsx';
 
 const DriverList = ({ items: drivers = [], onRefresh, onEdit }) => {
+  // Ensure that `drivers` is always an array to prevent errors in child components.
+  const safeDrivers = Array.isArray(drivers) ? drivers : [];
+
   const columns = [
     { key: 'first_name', header: 'Name', sortable: true, render: (driver) => `${driver.first_name} ${driver.last_name}` },
     { key: 'license_number', header: 'Driver\'s License', sortable: true },
@@ -33,7 +36,7 @@ const DriverList = ({ items: drivers = [], onRefresh, onEdit }) => {
 
   return (
     <DataTable
-      items={drivers || []}
+      items={safeDrivers}
       columns={columns}
       onRefresh={onRefresh}
       onEdit={onEdit}
