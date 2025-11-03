@@ -80,6 +80,8 @@ export const useDashboardState = () => {
  * Pobiera wszystkie niezbędne dane dla pulpitu na podstawie roli użytkownika.
  */
 export const useDataFetching = (role) => {
+  console.log('🔍 User role for data fetching:', role);
+
   const { isAuthenticated } = useAuth();
   const isAdmin = role === 'admin';
   const isDispatcher = role === 'dispatcher';

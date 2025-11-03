@@ -35,6 +35,20 @@ export const generateViewConfig = ({
   const isDispatcher = user?.role === 'dispatcher';
   const { orders, drivers, trucks, trailers, users, assignments, runs, customers, zones, surcharges, invoices } = data || {};
 
+  console.log('🔍 viewConfig data check:', {
+    orders: Array.isArray(orders) ? orders.length : 'undefined',
+    drivers: Array.isArray(drivers) ? drivers.length : 'undefined',
+    trucks: Array.isArray(trucks) ? trucks.length : 'undefined',
+    trailers: Array.isArray(trailers) ? trailers.length : 'undefined',
+    users: Array.isArray(users) ? users.length : 'undefined',
+    assignments: Array.isArray(assignments) ? assignments.length : 'undefined',
+    runs: Array.isArray(runs) ? runs.length : 'undefined',
+    customers: Array.isArray(customers) ? customers.length : 'undefined',
+    zones: Array.isArray(zones) ? zones.length : 'undefined',
+    surcharges: Array.isArray(surcharges) ? surcharges.length : 'undefined',
+    invoices: Array.isArray(invoices) ? invoices.length : 'undefined',
+  });
+
   const baseConfig = {
     runs: { 
       Component: RunManager,
@@ -59,19 +73,19 @@ export const generateViewConfig = ({
   };
 
   const adminConfig = {
-    drivers: { ListComponent: DriverList, FormComponent: AddDriverForm, data: drivers },
-    trucks: { ListComponent: TruckList, FormComponent: AddTruckForm, data: trucks },
-    customers: { ListComponent: CustomerList, FormComponent: AddCustomerForm, data: customers },
-    trailers: { ListComponent: TrailerList, FormComponent: AddTrailerForm, data: trailers },
-    users: { ListComponent: UserList, FormComponent: AddUserForm, data: users },
+    drivers: { ListComponent: DriverList, FormComponent: AddDriverForm, data: Array.isArray(drivers) ? drivers : [] },
+    trucks: { ListComponent: TruckList, FormComponent: AddTruckForm, data: Array.isArray(trucks) ? trucks : [] },
+    customers: { ListComponent: CustomerList, FormComponent: AddCustomerForm, data: Array.isArray(customers) ? customers : [] },
+    trailers: { ListComponent: TrailerList, FormComponent: AddTrailerForm, data: Array.isArray(trailers) ? trailers : [] },
+    users: { ListComponent: UserList, FormComponent: AddUserForm, data: Array.isArray(users) ? users : [] },
   };
 
   const dispatcherConfig = {
     orders: { 
       ListComponent: OrderList, 
       FormComponent: AddOrderForm, 
-      formProps: { clients: customers, surcharges },
-      data: orders,
+      formProps: { clients: Array.isArray(customers) ? customers : [], surcharges: Array.isArray(surcharges) ? surcharges : [] },
+      data: Array.isArray(orders) ? orders : [],
       customActions: [
         { icon: <Printer size={16} />, onClick: handlePrintLabels, title: 'Print Pallet Labels' }
       ]
