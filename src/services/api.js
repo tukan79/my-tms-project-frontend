@@ -57,13 +57,18 @@ api.interceptors.response.use(
 
       try {
         console.log('🔄 Refreshing token...');
+        // Używamy `axios.post` z pełnym, jawnym URL, aby zagwarantować poprawną ścieżkę
         const { data } = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL}/auth/refresh-token`,
+          `${import.meta.env.VITE_API_BASE_URL}/api/auth/refresh`,
           {},
-          { withCredentials: true } // 👈 to klucz — cookie zostanie wysłane automatycznie
+          { withCredentials: true } // Kluczowe dla wysłania cookie z refreshToken
         );
 
         const newAccessToken = data.accessToken;
+        // Wyślij event, aby AuthContext mógł zaktualizować swój stan
+        window.dispatchEvent(new CustomEvent('token-refreshed', {
+          detail: { accessToken: newAccessToken }
+        }));
         localStorage.setItem('token', newAccessToken);
 
         console.log('✅ Token refreshed successfully.');

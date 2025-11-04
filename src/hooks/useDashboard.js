@@ -131,21 +131,17 @@ export const useDataFetching = (role) => {
     }
   };
 
-  // ZMIANA: Zwracamy `null` dopóki wszystkie dane nie zostaną załadowane.
-  // To zapobiega renderowaniu komponentów z niekompletnymi danymi.
   const data = useMemo(() => {
-    // Zawsze zwracaj obiekt. Jeśli dane nie są gotowe, będą to puste tablice.
-    // Komponenty wyższego rzędu (jak App.jsx) użyją `isLoading` do wyświetlenia stanu ładowania.
-    const dataObject = Object.fromEntries(
+    // Zawsze zwracaj obiekt. Jeśli dane zasobu nie są gotowe, jego wartością będzie `null`.
+    // Komponenty konsumujące hooka powinny sprawdzać, czy dane, których potrzebują, nie są nullem.
+    return Object.fromEntries(
       Object.entries(resources).map(([key, resource]) => [key, resource.data || []])
     );
-
-    // Zwróć `null` tylko przy pierwszym ładowaniu, gdy żaden zasób nie ma jeszcze danych.
-    // To pozwala na wyświetlenie głównego ekranu ładowania w App.jsx.
-    const isAnyDataReady = Object.values(resources).some(r => r.data);
-    return isLoading && !isAnyDataReady ? null : dataObject;
-  }, [resources, isLoading, ...Object.values(resources).map(r => r.data)]
+  }, [resources, ...Object.values(resources).map(r => r.data)]
   );
+
+  // Nowy, bardziej precyzyjny stan ładowania
+  const isInitialLoading = useMemo(() => data === null || Object.values(data).some(d => d === null), [data]);
 
   const actions = Object.fromEntries(
     Object.entries(resources).map(([key, resource]) => [key, {
@@ -156,6 +152,6 @@ export const useDataFetching = (role) => {
     }])
   );
 
-  return { data, isLoading, anyError, handleRefresh, refreshAll, actions };
+  return { data, isLoading: isInitialLoading, anyError, handleRefresh, refreshAll, actions };
 };
 // ostatnia zmiana (30.05.2024, 13:14:12)

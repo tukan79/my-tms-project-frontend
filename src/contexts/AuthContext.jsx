@@ -51,10 +51,8 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         console.error('Token verification failed:', error);
         
-        // Sprawdź czy to błąd 401 i spróbuj odświeżyć token
-        if (error.response?.status === 401) {
-          await attemptTokenRefresh();
-        } else {
+        // Jeśli weryfikacja nie powiedzie się (np. token wygasł), wyloguj
+        if (error.response?.status !== 401) { // Nie wylogowuj przy 401, interceptor to obsłuży
           logout();
         }
       } finally {
@@ -65,66 +63,27 @@ export const AuthProvider = ({ children }) => {
     verifyToken();
   }, []);
 
-  // Próba odświeżenia tokenu
-  const attemptTokenRefresh = async () => {
-    try {
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        throw new Error('No refresh token available');
-      }
-
-      const response = await api.post('/api/auth/refresh', { 
-        refreshToken 
-      });
-      
-      const newToken = response.data.accessToken;
-      const newRefreshToken = response.data.refreshToken;
-
-      localStorage.setItem('token', newToken);
-      if (newRefreshToken) {
-        localStorage.setItem('refreshToken', newRefreshToken);
-      }
-      
-      setToken(newToken);
+  // Nasłuchiwanie na zdarzenia odświeżenia i błędu tokenu z interceptora
+  useEffect(() => {
+    const handleTokenRefreshed = (event) => {
+      console.log('🔄 AuthContext: Token refreshed, updating state.');
+      setToken(event.detail.accessToken);
       setIsAuthenticated(true);
-      
-      console.log('✅ Token refreshed successfully');
-      return true;
-    } catch (error) {
-      console.error('❌ Token refresh failed:', error);
-      logout();
-      return false;
-    }
-  };
-
-  // Nasłuchiwanie na błędy autoryzacji
-  useEffect(() => {
-    const handleAuthError = async (event) => {
-      console.log('🔄 Auth error detected, attempting token refresh...');
-      
-      // Spróbuj odświeżyć token zamiast od razu wylogowywać
-      const refreshSuccess = await attemptTokenRefresh();
-      
-      if (!refreshSuccess && event.detail?.retry) {
-        // Jeśli odświeżenie nie powiodło się i mamy funkcję do ponowienia
-        event.detail.retry();
-      }
     };
 
-    window.addEventListener('auth-error', handleAuthError);
-    return () => window.removeEventListener('auth-error', handleAuthError);
-  }, []);
-
-  // Nasłuchuj na globalny event błędu autoryzacji z interceptora
-  useEffect(() => {
     const handleAuthError = () => {
-      console.log('Auth error detected, logging out.');
+      console.log('AuthContext: Auth error detected, logging out.');
       logout();
     };
 
+    window.addEventListener('token-refreshed', handleTokenRefreshed);
     window.addEventListener('auth-error', handleAuthError);
-    return () => window.removeEventListener('auth-error', handleAuthError);
-  }, []); // Pusta tablica zależności, aby hook uruchomił się tylko raz
+
+    return () => {
+      window.removeEventListener('token-refreshed', handleTokenRefreshed);
+      window.removeEventListener('auth-error', handleAuthError);
+    };
+  }, []);
 
   const login = async (email, password) => {
     setLoading(true);
@@ -213,18 +172,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Funkcja do wymuszenia odświeżenia tokenu
-  const refreshToken = async () => {
-    return await attemptTokenRefresh();
-  };
-
   const value = {
     user,
     token,
     login,
     logout,
     register,
-    refreshToken,
     isAuthenticated,
     loading,
   };
