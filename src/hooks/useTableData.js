@@ -7,11 +7,12 @@ const getNestedValue = (obj, path) => {
   return path.split('.').reduce((acc, part) => acc && acc[part], obj);
 };
 
-export const useTableData = (initialData, { initialSortKey, filterKeys }) => {
+export const useTableData = (initialData = [], { initialSortKey, filterKeys }) => {
   console.log('🔍 useTableData STEP 1 - Input:', {
     initialData,
     initialDataIsArray: Array.isArray(initialData),
-    initialDataLength: initialData?.length
+    // Poprawka: Bezpieczne sprawdzanie długości, aby uniknąć błędu, gdy initialData jest undefined.
+    initialDataLength: Array.isArray(initialData) ? initialData.length : 0
   });
 
   const [sortConfig, setSortConfig] = useState({ key: initialSortKey, direction: 'ascending' });

@@ -1,9 +1,9 @@
+// AuthContext.jsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import api from '../services/api'; // Import the configured axios instance
+import api from '../services/api';
 
 const AuthContext = createContext(null);
 
-// Dedykowany hak do używania kontekstu autoryzacji
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -13,96 +13,198 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user')) || null);
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user')) || null;
+    } catch {
+      return null;
+    }
+  });
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Poprawiona weryfikacja tokenu
   useEffect(() => {
     const verifyToken = async () => {
-      if (token) {
-        try {
-          // Zamiast dedykowanego endpointu /verify, próbujemy pobrać dane z chronionego zasobu.
-          // Jeśli to zapytanie się powiedzie (status 200), oznacza to, że token jest ważny.
-          await api.get('/api/users'); // Jeśli to zwróci 200, token jest OK
-          setIsAuthenticated(true);
-        } catch (error) {
-          console.error('Token verification failed:', error);
-          logout(); // Wyloguj, jeśli token jest nieprawidłowy
-        }
+      const storedToken = localStorage.getItem('token');
+      
+      if (!storedToken) {
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      try {
+        // Ustaw token przed weryfikacją
+        setToken(storedToken);
+        
+        // Prostsza weryfikacja - pobierz dane użytkownika
+        const response = await api.get('/api/users/me');
+        const userData = response.data;
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        // Aktualizuj dane w localStorage
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+      } catch (error) {
+        console.error('Token verification failed:', error);
+        
+        // Sprawdź czy to błąd 401 i spróbuj odświeżyć token
+        if (error.response?.status === 401) {
+          await attemptTokenRefresh();
+        } else {
+          logout();
+        }
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // This effect should only run once on initial mount
     verifyToken();
-    // Pusta tablica zależności zapewnia, że weryfikacja tokenu uruchomi się tylko raz, przy pierwszym załadowaniu aplikacji.
   }, []);
 
-  // Nasłuchuj na globalny event błędu autoryzacji z interceptora
-  useEffect(() => {
-    const handleAuthError = () => {
-      console.log('Auth error detected, logging out.');
+  // Próba odświeżenia tokenu
+  const attemptTokenRefresh = async () => {
+    try {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      const response = await api.post('/api/auth/refresh', { 
+        refreshToken 
+      });
+      
+      const newToken = response.data.accessToken;
+      const newRefreshToken = response.data.refreshToken;
+
+      localStorage.setItem('token', newToken);
+      if (newRefreshToken) {
+        localStorage.setItem('refreshToken', newRefreshToken);
+      }
+      
+      setToken(newToken);
+      setIsAuthenticated(true);
+      
+      console.log('✅ Token refreshed successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Token refresh failed:', error);
       logout();
+      return false;
+    }
+  };
+
+  // Nasłuchiwanie na błędy autoryzacji
+  useEffect(() => {
+    const handleAuthError = async (event) => {
+      console.log('🔄 Auth error detected, attempting token refresh...');
+      
+      // Spróbuj odświeżyć token zamiast od razu wylogowywać
+      const refreshSuccess = await attemptTokenRefresh();
+      
+      if (!refreshSuccess && event.detail?.retry) {
+        // Jeśli odświeżenie nie powiodło się i mamy funkcję do ponowienia
+        event.detail.retry();
+      }
     };
 
     window.addEventListener('auth-error', handleAuthError);
     return () => window.removeEventListener('auth-error', handleAuthError);
-  }, []); // Pusta tablica zależności, aby hook uruchomił się tylko raz
+  }, []);
 
   const login = async (email, password) => {
     setLoading(true);
     console.log('🔐 Attempting login...');
+    
     try {
       const response = await api.post('/api/auth/login', { email, password });
       console.log('✅ Login response:', response.data);
       
-      const token = response.data.accessToken;
-      const refreshToken = response.data.refreshToken;
+      const { accessToken, refreshToken, user: userData } = response.data;
       
-      console.log('🔑 Token from accessToken:', token ? `YES (${token.substring(0, 20)}...)` : 'NO');
-      
-      if (token) {
-        // ZAPISZ TOKEN
-        localStorage.setItem('token', token);
-        // ZAPISZ REFRESH TOKEN
-        if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
-        
-        // ZAPISZ USER DATA
-        const userData = response.data.user;
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        console.log('✅ Token and user saved to localStorage');
-        
-        setToken(token);
-        setUser(userData);
-        setIsAuthenticated(true);
-        
-        return userData;
-      } else {
-        console.error('❌ No accessToken found in response');
+      if (!accessToken) {
         throw new Error('No authentication token received');
       }
+
+      console.log('🔑 Token from accessToken:', `YES (${accessToken.substring(0, 20)}...)`);
+      
+      // ZAPISZ DANE
+      localStorage.setItem('token', accessToken);
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      // USTAW STAN
+      setToken(accessToken);
+      setUser(userData);
+      setIsAuthenticated(true);
+      
+      console.log('✅ Token and user saved to localStorage');
+      return userData;
+      
     } catch (error) {
-      console.error('Login error:', error);
-      throw error; // Rzucamy błąd dalej, aby formularz logowania mógł go obsłużyć
+      console.error('❌ Login error:', error);
+      
+      // Czyszczenie w przypadku błędu
+      logout();
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
   const register = async (userData) => {
-    const response = await api.post('/api/auth/register', userData);
-    return response.data;
+    try {
+      const response = await api.post('/api/auth/register', userData);
+      
+      // Auto-login after registration
+      if (response.data.accessToken) {
+        const { accessToken, refreshToken, user } = response.data;
+        
+        localStorage.setItem('token', accessToken);
+        if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        setToken(accessToken);
+        setUser(user);
+        setIsAuthenticated(true);
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
   };
 
   const logout = () => {
-    setToken(null);
-    setIsAuthenticated(false);
-    setUser(null);
+    console.log('🚪 Logging out...');
+    
+    // Czyszczenie localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('refreshToken');
+    
+    // Reset stanu
+    setToken(null);
+    setUser(null);
+    setIsAuthenticated(false);
+    
+    // Opcjonalnie: wywołaj endpoint logout na backendzie
+    try {
+      api.post('/api/auth/logout').catch(() => {}); // Ignoruj błędy
+    } catch (error) {
+      // Ignoruj błędy przy wylogowywaniu
+    }
+  };
+
+  // Funkcja do wymuszenia odświeżenia tokenu
+  const refreshToken = async () => {
+    return await attemptTokenRefresh();
   };
 
   const value = {
@@ -111,16 +213,16 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     register,
+    refreshToken,
     isAuthenticated,
     loading,
   };
 
-  // Do not render children until the initial loading (token verification) is complete.
-  // This prevents rendering the app in a temporary unauthenticated state.
   return (
-    <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
   );
 };
 
 export default AuthContext;
-// ostatnia zmiana (30.05.2024, 13:14:12)
