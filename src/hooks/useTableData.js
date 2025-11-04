@@ -11,8 +11,8 @@ export const useTableData = (initialData = [], { initialSortKey, filterKeys }) =
   console.log('🔍 useTableData STEP 1 - Input:', {
     initialData,
     initialDataIsArray: Array.isArray(initialData),
-    // Poprawka: Bezpieczne sprawdzanie długości, aby uniknąć błędu, gdy initialData jest undefined.
-    initialDataLength: Array.isArray(initialData) ? initialData.length : 0
+    // Poprawka: Bezpieczne sprawdzanie długości
+    initialDataLength: Array.isArray(initialData) ? initialData.length : 'undefined'
   });
 
   const [sortConfig, setSortConfig] = useState({ key: initialSortKey, direction: 'ascending' });

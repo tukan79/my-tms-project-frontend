@@ -21,9 +21,9 @@ const getNestedValue = (obj, path) => {
 const DataTable = ({
   items = [],
   columns = [],
-  onRefresh,
-  onEdit,
-  onDelete,
+  onRefresh = undefined,
+  onEdit = undefined,
+  onDelete = undefined,
   title = '',
   customActions = [],
   filterPlaceholder = "Search...",
@@ -33,7 +33,7 @@ const DataTable = ({
   isLoading = false,
   loadingText = "Loading...",
   onContextMenu,
-  footerData, // Nowy prop dla danych stopki
+  footerData = {}, // Zabezpieczenie: Domyślna pusta wartość
 }) => {
   // Walidacja props - items ma już domyślną wartość [], więc jest bezpieczne.
   if (!Array.isArray(columns)) {
@@ -96,7 +96,7 @@ const DataTable = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minHeight: 0 }}>
-      <h2>{title} ({safeSortedData.length})</h2>
+      <h2>{title} ({safeSortedData?.length ?? 0})</h2>
       <input
         type="text"
         placeholder={filterPlaceholder}
@@ -128,7 +128,7 @@ const DataTable = ({
                     </div>
                   </th>
                 ))}
-                {(onEdit || onDelete || customActions.length > 0) && <th>Actions</th>}
+                {(onEdit || onDelete || (Array.isArray(customActions) && customActions.length > 0)) && <th>Actions</th>}
               </tr>
             </thead>
           <tbody>
@@ -137,8 +137,8 @@ const DataTable = ({
               Array.from({ length: 10 }).map((_, i) => (
                 <SkeletonRow 
                   key={i} 
-                  columns={Array.isArray(columns) ? columns : []} // Zabezpieczenie na poziomie przekazywania propsa
-                  hasActions={onEdit || onDelete || customActions.length > 0} 
+                  columns={columns}
+                  hasActions={onEdit || onDelete || (Array.isArray(customActions) && customActions.length > 0)} 
                 />
               ))
             ) : safeSortedData.length > 0 ? (
@@ -153,7 +153,7 @@ const DataTable = ({
                         {col.render ? col.render(item) : getNestedValue(item, col.key)}
                       </td>
                     ))}
-                    {(onEdit || onDelete || customActions.length > 0) && (
+                    {(onEdit || onDelete || (Array.isArray(customActions) && customActions.length > 0)) && (
                       <td className="actions-cell">
                         {currentUser && currentUser.id === item.id ? (
                           <span className="text-muted" aria-label="Current user">This is you</span>
@@ -187,12 +187,12 @@ const DataTable = ({
                 <tr>
                   {columns.map(col => (
                     <td key={`footer-${col.key}`}>
-                      {footerData[col.key] ? (
+                      {footerData?.[col.key] ? (
                         <strong>{footerData[col.key]}</strong>
                       ) : null}
                     </td>
                   ))}
-                  {(onEdit || onDelete || customActions.length > 0) && <td></td>}
+                  {(onEdit || onDelete || (Array.isArray(customActions) && customActions.length > 0)) && <td></td>}
                 </tr>
               </tfoot>
             )}
