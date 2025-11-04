@@ -3,38 +3,39 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useNavigate, Link } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext.jsx';
 
+import '../Auth.css';
 const RegisterPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [error, setError] = useState(null);
-  const { register, loading } = useAuth(); // Używamy stanu ładowania z kontekstu
+  const { register, loading } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
-  const emailInputRef = useRef(null); // Ref dla pola email
+  const emailInputRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+
     try {
       await register({ email, password, firstName, lastName });
-      navigate('/login'); // Przekieruj na logowanie po udanej rejestracji
+      showToast('Account created successfully! You can now log in.', 'success');
+      navigate('/login');
     } catch (err) {
-      // Wyświetlamy bardziej szczegółowy błąd z API, jeśli jest dostępny
       const errorMessage = err.response?.data?.error || 'Registration failed. Please try again.';
-      setError(errorMessage);
-      setPassword(''); // Wyczyść pole hasła po nieudanej próbie
-      emailInputRef.current?.focus(); // Ustaw focus na polu email
-      console.error("Registration error:", err);
+      showToast(errorMessage, 'error');
+      setPassword('');
+      emailInputRef.current?.focus();
+      console.error('Registration error:', err);
     }
   };
 
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h2>Register</h2>
+        <h2>Create Account</h2>
+
         <form onSubmit={handleSubmit}>
-          {error && <div className="error-message">{error}</div>}
           <div className="form-grid" style={{ gap: '1rem' }}>
             <div className="form-group">
               <label htmlFor="firstName">First Name</label>
@@ -44,6 +45,7 @@ const RegisterPage = () => {
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 required
+                placeholder="John"
               />
             </div>
             <div className="form-group">
@@ -54,9 +56,11 @@ const RegisterPage = () => {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 required
+                placeholder="Doe"
               />
             </div>
           </div>
+
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
@@ -64,10 +68,12 @@ const RegisterPage = () => {
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              ref={emailInputRef} // Przypisz ref do inputa
+              ref={emailInputRef}
               required
+              placeholder="you@example.com"
             />
           </div>
+
           <div className="form-group">
             <label htmlFor="password">Password</label>
             <input
@@ -76,13 +82,21 @@ const RegisterPage = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              placeholder="********"
             />
           </div>
-          <button type="submit" className="btn-primary" disabled={loading}>
+
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={loading}
+            style={{ width: '100%', marginTop: '1rem' }}
+          >
             {loading ? 'Registering...' : 'Register'}
           </button>
         </form>
-        <p className="auth-switch">
+
+        <p className="auth-switch" style={{ marginTop: '1rem' }}>
           Already have an account? <Link to="/login">Login</Link>
         </p>
       </div>
@@ -91,4 +105,5 @@ const RegisterPage = () => {
 };
 
 export default RegisterPage;
-// ostatnia zmiana (30.05.2024, 13:14:12)
+
+// ostatnia zmiana (04.11.2025, 23:27)

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Papa from 'papaparse';
-import { X, UploadCloud, FileText, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, UploadCloud, FileText, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
 import api from '@/services/api';
 import { useToast } from '@/contexts/ToastContext.jsx';
 
@@ -9,17 +9,20 @@ const getNestedValue = (obj, path) => path.split('.').reduce((acc, part) => acc 
 const DataImporter = ({
   title,
   apiEndpoint,
-  postDataKey, // Klucz, pod którym dane mają być wysłane, np. 'trucks' dla { trucks: data }
+  postDataKey,
   dataMappingFn,
   previewColumns,
   onSuccess,
   onCancel,
+  refreshFn,              // 👈 callback np. fetchRates() albo fetchTrucks()
+  initialAutoRefresh = true, // 👈 startowy stan auto-refresh
 }) => {
   const [file, setFile] = useState(null);
   const [parsedData, setParsedData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [parsingErrors, setParsingErrors] = useState([]);
   const [error, setError] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(initialAutoRefresh);
   const { showToast } = useToast();
 
   const handleFileChange = (e) => {
@@ -37,7 +40,6 @@ const DataImporter = ({
           if (results.errors.length) {
             setError('Error parsing CSV file. Please check its structure.');
             setParsingErrors(results.errors);
-            // Logujemy szczegółowe błędy do konsoli deweloperskiej
             console.error("CSV Parsing Errors:", results.errors);
             setParsedData([]);
           } else {
@@ -72,7 +74,14 @@ const DataImporter = ({
         const errorMessages = result.errors.map(e => `Line ${e.line}: ${e.message}`).join('\n');
         setError(`Import completed with some issues:\n${errorMessages}`);
       }
-      onSuccess();
+      if (onSuccess) onSuccess();
+
+      // 👇 Auto-refresh jeśli aktywny
+      if (autoRefresh && typeof refreshFn === 'function') {
+        refreshFn();
+        showToast('Auto-refresh triggered after import.', 'info');
+      }
+
     } catch (err) {
       const errorMessage = err.response?.data?.error || 'Server error during import.';
       showToast(errorMessage, 'error');
@@ -88,31 +97,84 @@ const DataImporter = ({
     handleFileChange({ target: { files: e.dataTransfer.files } });
   };
 
+  const toggleAutoRefresh = () => {
+    setAutoRefresh(prev => !prev);
+    showToast(`Auto-refresh ${!autoRefresh ? 'enabled' : 'disabled'}`, 'info');
+  };
+
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2><UploadCloud size={24} /> {title}</h2>
-        <button onClick={onCancel} className="btn-icon"><X size={20} /></button>
+      {/* 🔹 Nagłówek z przełącznikiem */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="flex items-center gap-2">
+          <UploadCloud size={22} /> {title}
+        </h2>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleAutoRefresh}
+            className={`btn-small ${autoRefresh ? 'btn-active' : 'btn-secondary'}`}
+            title="Toggle auto refresh"
+          >
+            <RefreshCw size={16} className={autoRefresh ? 'animate-spin-slow' : ''} />
+            <span className="ml-1">{autoRefresh ? 'Auto ON' : 'Auto OFF'}</span>
+          </button>
+          <button onClick={onCancel} className="btn-icon">
+            <X size={20} />
+          </button>
+        </div>
       </div>
 
-      {error && <div className="error-message" style={{ whiteSpace: 'pre-wrap' }}><AlertTriangle size={16} /> {error}</div>}
+      {error && (
+        <div className="error-message" style={{ whiteSpace: 'pre-wrap' }}>
+          <AlertTriangle size={16} /> {error}
+        </div>
+      )}
 
-      {!file ? ( 
-        <div className="dropzone" onDragOver={handleDragOver} onDrop={handleDrop} onClick={() => document.getElementById('file-input-generic').click()}>
+      {/* 🔹 Główna część UI */}
+      {!file ? (
+        <div
+          className="dropzone"
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onClick={() => document.getElementById('file-input-generic').click()}
+        >
           <UploadCloud size={48} />
           <p>Drag & drop a CSV file here, or click to select a file.</p>
-          <input type="file" id="file-input-generic" accept=".csv" onChange={handleFileChange} style={{ display: 'none' }} />
+          <input
+            type="file"
+            id="file-input-generic"
+            accept=".csv"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
         </div>
       ) : (
         <div>
+          {/* Plik */}
           <div className="file-info" style={{ marginTop: '1.5rem' }}>
             <FileText size={24} />
             <span>{file.name}</span>
-            <button onClick={() => { setFile(null); setParsedData([]); setError(null); setParsingErrors([]); }} className="btn-icon"><X size={16} /></button>
+            <button
+              onClick={() => { setFile(null); setParsedData([]); setError(null); setParsingErrors([]); }}
+              className="btn-icon"
+            >
+              <X size={16} />
+            </button>
           </div>
 
+          {/* Błędy CSV */}
           {parsingErrors.length > 0 && (
-            <div className="error-message" style={{ marginTop: '1rem', maxHeight: '150px', overflowY: 'auto', padding: '1rem', background: '#fff3f3', borderRadius: '6px' }}>
+            <div
+              className="error-message"
+              style={{
+                marginTop: '1rem',
+                maxHeight: '150px',
+                overflowY: 'auto',
+                padding: '1rem',
+                background: '#fff3f3',
+                borderRadius: '6px',
+              }}
+            >
               <strong>Parsing Errors Found:</strong>
               <ul>
                 {parsingErrors.slice(0, 5).map((err, index) => (
@@ -123,9 +185,12 @@ const DataImporter = ({
             </div>
           )}
 
+          {/* Podgląd */}
           {parsedData.length > 0 && (
             <>
-              <p style={{ marginTop: '1rem' }}><CheckCircle size={16} color="green" /> Found <strong>{parsedData.length}</strong> records to import.</p>
+              <p style={{ marginTop: '1rem' }}>
+                <CheckCircle size={16} color="green" /> Found <strong>{parsedData.length}</strong> records to import.
+              </p>
               <div className="table-container-scrollable" style={{ maxHeight: '300px', marginTop: '1rem' }}>
                 <table className="data-table">
                   <thead>
@@ -146,13 +211,24 @@ const DataImporter = ({
                   </tbody>
                 </table>
               </div>
-              {parsedData.length > 5 && <p style={{ textAlign: 'center', marginTop: '0.5rem' }}>...and {parsedData.length - 5} more rows.</p>}
+              {parsedData.length > 5 && (
+                <p style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                  ...and {parsedData.length - 5} more rows.
+                </p>
+              )}
             </>
           )}
 
+          {/* Akcje */}
           <div className="form-actions">
-            <button type="button" onClick={onCancel} className="btn-secondary" disabled={isLoading}>Cancel</button>
-            <button onClick={handleImport} className="btn-primary" disabled={isLoading || parsedData.length === 0}>
+            <button type="button" onClick={onCancel} className="btn-secondary" disabled={isLoading}>
+              Cancel
+            </button>
+            <button
+              onClick={handleImport}
+              className="btn-primary"
+              disabled={isLoading || parsedData.length === 0}
+            >
               {isLoading ? 'Importing...' : `Import ${parsedData.length} Records`}
             </button>
           </div>
@@ -163,4 +239,8 @@ const DataImporter = ({
 };
 
 export default DataImporter;
-// ostatnia zmiana (30.05.2024, 13:14:12)
+
+// ✅ Ostatnia aktualizacja: 04.11.2025
+// - dodano Auto-Refresh toggle (ON/OFF)
+// - auto-refresh po imporcie
+// - kompatybilny z panelem nadrzędnym (refreshFn)

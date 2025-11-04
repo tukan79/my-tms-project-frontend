@@ -3,7 +3,7 @@ import ErrorBoundary from '../ErrorBoundary.jsx';
 import DataImporter from '../DataImporter.jsx';
 import { useDashboard } from '../../contexts/DashboardContext.jsx';
 
-const ViewRenderer = ({ viewConfig }) => {
+const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
   const {
     currentView, isLoading, anyError, handleRefresh,
     importerConfig: activeImporterConfig, // Poprawka: odczytujemy 'importerConfig' i zmieniamy nazwę
@@ -64,6 +64,7 @@ const ViewRenderer = ({ viewConfig }) => {
       isLoading: isLoading && !Array.isArray(safeDataForView), // Sprawdzamy zabezpieczone dane
       onDelete: handleDeleteRequest,
       currentUser: user,
+      autoRefreshEnabled: autoRefreshEnabled, // Przekazujemy stan auto-odświeżania
       ...(currentView === 'orders' && { drivers, trucks, trailers, zones }),
     };
 

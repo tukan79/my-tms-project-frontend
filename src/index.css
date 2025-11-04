@@ -1080,4 +1080,33 @@ h2 {
   margin-bottom: 0;
 }
 
+/* Skeleton Loader Styles */
+.skeleton-cell {
+  height: 18px;
+  background-color: #e2e8f0; /* neutral-300 */
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150px;
+  height: 100%;
+  width: 150px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  100% { left: 100%; }
+}
+
 /* ostatnia zmiana (30.05.2024, 13:14:12) */

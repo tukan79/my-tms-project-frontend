@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Bug } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useToast } from '../../contexts/ToastContext.jsx';
@@ -10,10 +10,26 @@ const BugReportButton = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { showToast } = useToast();
+  const modalOverlayRef = useRef(null);
 
   if (!user) {
     return null; // Don't show the button if the user is not logged in
   }
+
+  // Efekt do obsługi klawisza Escape i focusowania modala
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsModalOpen(false);
+      }
+    };
+
+    if (isModalOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -71,7 +87,12 @@ const BugReportButton = () => {
       </button>
 
       {isModalOpen && (
-        <div className="modal-overlay">
+        <div
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsModalOpen(false);
+          }}
+        >
           <div className="modal-content card" style={{ width: '500px' }}>
             <form onSubmit={handleSubmit}>
               <h4>Report a Bug</h4>

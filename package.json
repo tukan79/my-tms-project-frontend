@@ -1,13 +1,17 @@
 {
-  "name": "frontend",
+  "name": "tms-frontend",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
+  "description": "Nowoczesny panel do zarządzania transportem i spedycją (TMS)",
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build && echo 'Build complete'",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build": "vite build && echo '✅ Build complete!'",
+    "preview": "vite preview --host",
+    "lint": "eslint . --ext .js,.jsx",
+    "format": "prettier --write .",
+    "clean": "rm -rf dist node_modules/.vite",
+    "analyze": "vite build --mode analyze"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
@@ -24,10 +28,16 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.0",
     "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.34.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.9",
     "prop-types": "^15.8.1",
-    "vite": "^5.4.0"
+    "prettier": "^3.3.3",
+    "vite": "^5.4.0",
+    "vite-plugin-pwa": "^0.20.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

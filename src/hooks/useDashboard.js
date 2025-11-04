@@ -1,14 +1,11 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useApiResource } from './useApiResource';
-import { useBroadcastChannel } from './useBroadcastChannel.js';
+import { useBroadcastChannel } from './useBroadcastChannel.js'; // Keep for listening
 import { importerConfig } from '../config/importerConfig.js';
 
 /**
- * Manages the UI state of the dashboard, including the current view,
- * Zarządza stanem interfejsu użytkownika pulpitu, w tym bieżącym widokiem,
- * form visibility, and modal states.
- * widocznością formularzy i stanami modali.
+ * Zarządza stanem interfejsu użytkownika pulpitu (widoki, formularze, modale, importery)
  */
 export const useDashboardState = () => {
   const [currentView, setCurrentView] = useState('orders');
@@ -21,28 +18,31 @@ export const useDashboardState = () => {
     onConfirm: () => {},
   });
 
-  const handleViewChange = (view) => {
+  const handleViewChange = useCallback((view) => {
     setCurrentView(view);
     setShowForm(false);
-    setActiveImporterConfig(null);
     setItemToEdit(null);
-  };
-
-  const handleEditClick = (item) => {
-    setItemToEdit(item);
     setActiveImporterConfig(null);
-    setShowForm(true);
-  };
+  }, []);
 
-  const handleCancelForm = () => {
+  const handleEditClick = useCallback((item) => {
+    setItemToEdit(item);
+    setShowForm(true);
+    setActiveImporterConfig(null);
+  }, []);
+
+  const handleCancelForm = useCallback(() => {
     setShowForm(false);
     setItemToEdit(null);
-  };
+  }, []);
 
-  const handleShowImporter = (view) => setActiveImporterConfig(importerConfig[view]);
-  const handleHideImporter = () => setActiveImporterConfig(null);
+  const handleShowImporter = useCallback(
+    (view) => setActiveImporterConfig(importerConfig[view]),
+    []
+  );
+  const handleHideImporter = useCallback(() => setActiveImporterConfig(null), []);
 
-  const handleDeleteRequest = (message, confirmCallback) => {
+  const handleDeleteRequest = useCallback((message, confirmCallback) => {
     setModalState({
       isOpen: true,
       message,
@@ -51,11 +51,12 @@ export const useDashboardState = () => {
         setModalState({ isOpen: false, message: '', onConfirm: () => {} });
       },
     });
-  };
+  }, []);
 
-  const handleCloseModal = () => {
-    setModalState({ isOpen: false, message: '', onConfirm: () => {} });
-  };
+  const handleCloseModal = useCallback(
+    () => setModalState({ isOpen: false, message: '', onConfirm: () => {} }),
+    []
+  );
 
   return {
     currentView,
@@ -76,18 +77,16 @@ export const useDashboardState = () => {
 };
 
 /**
- * Fetches all necessary data for the dashboard based on user role.
- * Pobiera wszystkie niezbędne dane dla pulpitu na podstawie roli użytkownika.
+ * Pobiera wszystkie dane pulpitu na podstawie roli użytkownika.
+ * Integruje się z kanałem broadcast, aby synchronizować dane między zakładkami.
  */
 export const useDataFetching = (role) => {
-  console.log('🔍 User role for data fetching:', role);
-
   const { isAuthenticated } = useAuth();
+
   const isAdmin = role === 'admin';
   const isDispatcher = role === 'dispatcher';
 
-  // Używamy useMemo, aby uniknąć ponownego tworzenia obiektu `resources` przy każdym renderowaniu,
-  // chyba że zmienią się uprawnienia.
+  /** Użycie useMemo, żeby nie tworzyć nowych hooków w pętli — zachowuje stabilność. */
   const resources = useMemo(() => ({
     orders: useApiResource(isAuthenticated ? '/api/orders' : null),
     drivers: useApiResource(isAuthenticated && isAdmin ? '/api/drivers' : null),
@@ -102,56 +101,74 @@ export const useDataFetching = (role) => {
     runs: useApiResource(isAuthenticated ? '/api/runs' : null, { initialFetch: false }),
   }), [isAuthenticated, isAdmin, isDispatcher]);
 
+  /** Odświeża wszystkie zasoby jednocześnie */
   const refreshAll = useCallback(() => {
-    console.log('🔄 Refreshing all resources...');
-    Object.values(resources).forEach(resource => resource.fetchData && resource.fetchData());
+    Object.values(resources).forEach((res) => res.fetchData?.());
   }, [resources]);
-  
-  useBroadcastChannel(refreshAll);
 
-  // Destrukturyzacja zasobów w celu uzyskania stabilnych referencji do poszczególnych haków.
-  // Destructuring resources to get stable references for individual hooks.
-  const { orders, drivers, trucks, trailers, users, assignments, runs, customers, zones } = resources;
+  /** 🔄 Synchronizacja między zakładkami (debounce = 300ms) */
+  useBroadcastChannel('tms_state_sync', {
+    onMessage: (message) => {
+      if (message?.type === 'REFRESH_ALL') {
+        refreshAll();
+      } else if (message?.type === 'REFRESH_VIEW' && message.view && resources[message.view]) {
+        resources[message.view].fetchData?.();
+      }
+    },
+    debounceMs: 300,
+  });
 
-  // ZMIANA: isLoading jest prawdziwe, jeśli jakikolwiek zasób się ładuje LUB jeśli dane nie są jeszcze gotowe.
-  // To zapobiega sytuacji, w której isLoading jest false, a data wciąż jest null.
-  const isLoading = useMemo(
-    () => Object.values(resources).some(r => r.isLoading && !r.data),
-    [resources, ...Object.values(resources).map(r => r.data)]
-  );
-
-  const anyError = useMemo(() => 
-    Object.values(resources).map(r => r.error).find(e => e != null),
+  /** Odświeża tylko wybrany widok */
+  const handleRefresh = useCallback(
+    (view) => resources[view]?.fetchData?.(),
     [resources]
   );
 
-  const handleRefresh = (view) => {
-    if (resources[view] && resources[view].fetchData) {
-      resources[view].fetchData();
-    }
+  /** Dane w formacie klucz → tablica (nawet jeśli puste) */
+  const data = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(resources).map(([key, resource]) => [key, resource.data || []])
+      ),
+    [resources, ...Object.values(resources).map((r) => r.data)]
+  );
+
+  /** Nowy, stabilniejszy stan ładowania */
+  const isLoading = useMemo(
+    () => Object.values(resources).some((r) => r.isLoading && !r.data),
+    [resources, ...Object.values(resources).map((r) => r.isLoading)]
+  );
+
+  const anyError = useMemo(
+    () => Object.values(resources).find((r) => r.error)?.error ?? null,
+    [resources, ...Object.values(resources).map((r) => r.error)]
+  );
+
+  /** Akcje CRUD przypięte do każdego zasobu */
+  const actions = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(resources).map(([key, res]) => [
+          key,
+          {
+            create: res.createResource,
+            update: res.updateResource,
+            delete: res.deleteResource,
+            bulkCreate: res.bulkCreate,
+          },
+        ])
+      ),
+    [resources]
+  );
+
+  return {
+    data,
+    isLoading,
+    anyError,
+    handleRefresh,
+    refreshAll,
+    actions,
   };
-
-  const data = useMemo(() => {
-    // Zawsze zwracaj obiekt. Jeśli dane zasobu nie są gotowe, jego wartością będzie `null`.
-    // Komponenty konsumujące hooka powinny sprawdzać, czy dane, których potrzebują, nie są nullem.
-    return Object.fromEntries(
-      Object.entries(resources).map(([key, resource]) => [key, resource.data || []])
-    );
-  }, [resources, ...Object.values(resources).map(r => r.data)]
-  );
-
-  // Nowy, bardziej precyzyjny stan ładowania
-  const isInitialLoading = useMemo(() => data === null || Object.values(data).some(d => d === null), [data]);
-
-  const actions = Object.fromEntries(
-    Object.entries(resources).map(([key, resource]) => [key, {
-      create: resource.createResource,
-      update: resource.updateResource,
-      delete: resource.deleteResource,
-      bulkCreate: resource.bulkCreate,
-    }])
-  );
-
-  return { data, isLoading: isInitialLoading, anyError, handleRefresh, refreshAll, actions };
 };
-// ostatnia zmiana (30.05.2024, 13:14:12)
+
+// ostatnia zmiana (04.11.2025, 21:02:00)

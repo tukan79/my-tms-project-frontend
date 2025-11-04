@@ -1,85 +1,116 @@
 // frontend/src/hooks/useTableData.js
 import { useState, useMemo, useCallback } from 'react';
 
-// Funkcja pomocnicza do pobierania wartości z zagnieżdżonych obiektów
+/**
+ * Pobiera wartość z zagnieżdżonego obiektu według ścieżki (np. "user.address.city")
+ */
 const getNestedValue = (obj, path) => {
-  if (!path) return undefined;
-  return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+  if (!path || !obj) return undefined;
+  return path.split('.').reduce((acc, part) => (acc ? acc[part] : undefined), obj);
 };
 
-export const useTableData = (initialData = [], { initialSortKey, filterKeys }) => {
-  console.log('🔍 useTableData STEP 1 - Input:', {
-    initialData,
-    initialDataIsArray: Array.isArray(initialData),
-    // Poprawka: Bezpieczne sprawdzanie długości
-    initialDataLength: Array.isArray(initialData) ? initialData.length : 'undefined'
-  });
-
+/**
+ * Hook do obsługi sortowania i filtrowania danych tabeli.
+ * @param {Array} initialData - Dane źródłowe.
+ * @param {object} options
+ * @param {string} [options.initialSortKey] - Klucz początkowego sortowania.
+ * @param {string[]} [options.filterKeys] - Klucze do filtrowania (np. ["name", "address.city"]).
+ * @param {boolean} [options.debug=false] - Czy włączyć logi debugujące.
+ * @returns {{
+ *  sortedAndFilteredData: Array,
+ *  sortConfig: { key: string, direction: 'ascending' | 'descending' },
+ *  filterText: string,
+ *  setFilterText: Function,
+ *  handleSort: Function
+ * }}
+ */
+export const useTableData = (
+  initialData = [],
+  { initialSortKey = null, filterKeys = [], debug = false } = {}
+) => {
   const [sortConfig, setSortConfig] = useState({ key: initialSortKey, direction: 'ascending' });
   const [filterText, setFilterText] = useState('');
 
+  const log = (...args) => {
+    if (debug) console.log('📊 useTableData:', ...args);
+  };
+
+  /**
+   * 🔽 Sortowanie danych
+   */
   const sortedData = useMemo(() => {
-    console.log('🔍 useTableData STEP 2 - Creating sortedData');
-    // Zabezpieczenie: Gwarantujemy, że dane do sortowania są zawsze tablicą.
     const sortableData = Array.isArray(initialData) ? [...initialData] : [];
-    if (sortConfig.key !== null) {
-      sortableData.sort((a, b) => {
-        const valA = getNestedValue(a, sortConfig.key);
-        const valB = getNestedValue(b, sortConfig.key);
-        
-        // Ulepszenie: sortowanie stringów bez uwzględniania wielkości liter
-        const strA = typeof valA === 'string' ? valA.toLowerCase() : valA;
-        const strB = typeof valB === 'string' ? valB.toLowerCase() : valB;
+    const { key, direction } = sortConfig;
 
-        if (strA < strB) {
-          return sortConfig.direction === 'ascending' ? -1 : 1;
-        }
-        if (strA > strB) {
-          return sortConfig.direction === 'ascending' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
+    if (!key) return sortableData;
 
-    console.log('🔍 useTableData STEP 3 - sortedData result:', sortableData.length);
-    return sortableData;
+    const isAscending = direction === 'ascending';
+    const sorted = sortableData.sort((a, b) => {
+      const valA = getNestedValue(a, key);
+      const valB = getNestedValue(b, key);
+
+      const strA = typeof valA === 'string' ? valA.toLowerCase() : valA;
+      const strB = typeof valB === 'string' ? valB.toLowerCase() : valB;
+
+      if (strA < strB) return isAscending ? -1 : 1;
+      if (strA > strB) return isAscending ? 1 : -1;
+      return 0;
+    });
+
+    log('Sorted', { key, direction, count: sorted.length });
+    return sorted;
   }, [initialData, sortConfig]);
 
-  const handleSort = useCallback((key) => {
-    let direction = 'ascending';
-    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    }
-    setSortConfig({ key, direction });
-  }, [sortConfig]);
+  /**
+   * 🔁 Zmiana kierunku sortowania
+   */
+  const handleSort = useCallback(
+    (key) => {
+      setSortConfig((prev) => ({
+        key,
+        direction:
+          prev.key === key && prev.direction === 'ascending'
+            ? 'descending'
+            : 'ascending',
+      }));
+    },
+    []
+  );
 
+  /**
+   * 🔍 Filtrowanie danych
+   */
   const sortedAndFilteredData = useMemo(() => {
-    console.log('🔍 useTableData STEP 4 - Creating sortedAndFilteredData');
-    // Dodatkowe zabezpieczenie: Upewniamy się, że `sortedData` jest tablicą przed filtrowaniem.
-    const safeSortedData = Array.isArray(sortedData) ? sortedData : [];
+    if (!Array.isArray(sortedData)) return [];
+    if (!filterText) return sortedData;
 
-    if (!filterText) {
-      console.log('🔍 useTableData STEP 5 - No filter, returning:', safeSortedData.length);
-      return safeSortedData;
-    }
+    const lowerFilter = filterText.toLowerCase();
 
-    const result = safeSortedData.filter(item =>
-      (filterKeys || []).some(key => { // Zabezpieczenie: Użyj pustej tablicy, jeśli filterKeys jest undefined.
-        const value = getNestedValue(item, key) ?? ''; // Zabezpieczenie przed null/undefined
-        return value && String(value).toLowerCase().includes(filterText.toLowerCase());
+    const filtered = sortedData.filter((item) =>
+      filterKeys.some((key) => {
+        const value = getNestedValue(item, key);
+        return (
+          value &&
+          String(value).toLowerCase().includes(lowerFilter)
+        );
       })
     );
 
-    console.log('🔍 useTableData STEP 6 - Filtered result:', result.length);
-    return result;
+    log('Filtered', { filterText, resultCount: filtered.length });
+    return filtered;
   }, [sortedData, filterText, filterKeys]);
 
-  console.log('🔍 useTableData STEP 7 - Final result:', {
-    sortedAndFilteredData,
-    isArray: Array.isArray(sortedAndFilteredData),
-    length: sortedAndFilteredData?.length
+  log('Final result', {
+    items: sortedAndFilteredData.length,
+    sortConfig,
+    filterText,
   });
 
-  return { sortedAndFilteredData, sortConfig, filterText, setFilterText, handleSort };
+  return {
+    sortedAndFilteredData,
+    sortConfig,
+    filterText,
+    setFilterText,
+    handleSort,
+  };
 };
-// ostatnia zmiana (30.05.2024, 13:14:12)

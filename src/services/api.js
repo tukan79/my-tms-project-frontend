@@ -1,35 +1,36 @@
 // src/api.js
 import axios from 'axios';
 
+// Ustawienia globalne
+axios.defaults.withCredentials = true;
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true, // 👈 konieczne, żeby cookie refreshToken było wysyłane
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
-// === Dodaj token do nagłówków ===
+// === Token injection ===
 api.interceptors.request.use(
   (config) => {
-    const accessToken = localStorage.getItem('token');
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-      console.log('✅ Token added to request:', config.url);
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.debug('🔐 Request with token →', config.url);
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// === Obsługa błędów 401 i odświeżania tokenu ===
+// === Token refresh logic ===
 let isRefreshing = false;
 let failedQueue = [];
 
 const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
-    if (error) prom.reject(error);
-    else prom.resolve(token);
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error);
+    else resolve(token);
   });
   failedQueue = [];
 };
@@ -38,15 +39,17 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const isUnauthorized = error.response?.status === 401;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // 🔁 Obsługa 401 i odświeżanie tokena
+    if (isUnauthorized && !originalRequest._retry) {
       if (isRefreshing) {
-        // Czekamy na zakończenie odświeżania
+        // Inne zapytania czekają w kolejce
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
-            originalRequest.headers.Authorization = 'Bearer ' + token;
+            originalRequest.headers.Authorization = `Bearer ${token}`;
             return api(originalRequest);
           })
           .catch((err) => Promise.reject(err));
@@ -56,37 +59,45 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        console.log('🔄 Refreshing token...');
-        // Używamy `axios.post` z pełnym, jawnym URL, aby zagwarantować poprawną ścieżkę
-        const { data } = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL}/api/auth/refresh`,
-          {},
-          { withCredentials: true } // Kluczowe dla wysłania cookie z refreshToken
-        );
+        console.info('🔄 Attempting token refresh...');
+        // Pełny adres URL dla refresh endpointu
+        const refreshUrl = `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`;
+        const { data } = await axios.post(refreshUrl, {}, { withCredentials: true });
 
-        const newAccessToken = data.accessToken;
-        // Wyślij event, aby AuthContext mógł zaktualizować swój stan
-        window.dispatchEvent(new CustomEvent('token-refreshed', {
-          detail: { accessToken: newAccessToken }
-        }));
-        localStorage.setItem('token', newAccessToken);
+        const newToken = data.accessToken;
+        if (!newToken) throw new Error('No token returned from refresh.');
 
-        console.log('✅ Token refreshed successfully.');
+        // 🔥 Aktualizujemy token
+        localStorage.setItem('token', newToken);
+        api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
 
-        processQueue(null, newAccessToken);
-        api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        // Powiadamiamy aplikację (np. AuthContext)
+        window.dispatchEvent(new CustomEvent('token-refreshed', { detail: { accessToken: newToken } }));
+
+        processQueue(null, newToken);
+        console.info('✅ Token refreshed successfully.');
 
         return api(originalRequest);
       } catch (refreshError) {
-        console.error('❌ Token refresh failed:', refreshError);
+        console.error('❌ Refresh token failed:', refreshError);
         processQueue(refreshError, null);
+
+        // Wyczyść token i wywołaj globalny event
         localStorage.removeItem('token');
         window.dispatchEvent(new Event('auth-error'));
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
+    }
+
+    // Jeśli 403 lub inne błędy autoryzacji → wyloguj
+    if (error.response?.status === 403) {
+      console.warn('🚫 Forbidden (403) → forcing logout');
+      localStorage.removeItem('token');
+      window.dispatchEvent(new Event('auth-error'));
     }
 
     return Promise.reject(error);

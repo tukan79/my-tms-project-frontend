@@ -1,12 +1,12 @@
 //MainHeader.jsx
-import React from 'react';
-import { Plus, Upload, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Upload, Download, RefreshCw } from 'lucide-react';
 import { useDashboard } from '../../contexts/DashboardContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx'; // Assuming this is needed, if not, it can be removed if unused.
 import { importerConfig } from '../../config/importerConfig.js';
 
-const MainHeader = ({ viewConfig }) => {
-  const { user } = useAuth(); // Pobieramy użytkownika bezpośrednio z AuthContext
+const MainHeader = ({ viewConfig, onToggleAutoRefresh }) => {
+  const { user } = useAuth();
   const {
     currentView,
     showForm,
@@ -19,6 +19,17 @@ const MainHeader = ({ viewConfig }) => {
     handleGenericExport,
     isLoading,
   } = useDashboard();
+
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(
+    () => localStorage.getItem('autoRefreshEnabled') === 'true'
+  );
+
+  useEffect(() => {
+    localStorage.setItem('autoRefreshEnabled', autoRefreshEnabled);
+    if (onToggleAutoRefresh) {
+      onToggleAutoRefresh(autoRefreshEnabled);
+    }
+  }, [autoRefreshEnabled, onToggleAutoRefresh]);
 
   // Zabezpieczenie przed renderowaniem, gdy kluczowe dane nie są jeszcze dostępne
   if (!viewConfig || !currentView) {
@@ -52,6 +63,18 @@ const MainHeader = ({ viewConfig }) => {
     <header className="main-header">
       <div />
       <div className="main-header-actions">
+        {/* 🔁 Auto Refresh toggle */}
+        <button
+          onClick={() => setAutoRefreshEnabled(prev => !prev)}
+          className={`btn-icon ${autoRefreshEnabled ? 'btn-success' : 'btn-secondary'}`}
+          title={`Auto refresh ${autoRefreshEnabled ? 'ON' : 'OFF'}`}
+        >
+          <RefreshCw size={16} />
+          <span style={{ marginLeft: '0.5rem' }}>
+            {autoRefreshEnabled ? 'Auto ON' : 'Auto OFF'}
+          </span>
+        </button>
+
         {canImport && (
           <button
             onClick={() => handleShowImporter(currentView)}

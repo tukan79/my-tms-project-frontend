@@ -1,11 +1,16 @@
+/* Plik: src/styles/auth.css */
+
+/* Strona logowania / rejestracji */
 .auth-page {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: #f0f2f5;
+  background-color: var(--background-color);
+  animation: fadeIn 0.6s ease-in-out;
 }
 
+/* Karta logowania */
 .auth-card {
   background: white;
   padding: 2rem;
@@ -14,33 +19,119 @@
   width: 100%;
   max-width: 400px;
   text-align: center;
+  border: 1px solid var(--border-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
 }
 
 .auth-card h2 {
   margin-bottom: 1.5rem;
-  color: #333;
+  color: var(--primary-color);
 }
 
 .auth-card .form-group {
-  text-align: left; /* Wyrównaj etykiety do lewej */
+  text-align: left;
 }
 
+/* Pola formularza */
+.auth-card input[type="text"],
+.auth-card input[type="email"],
+.auth-card input[type="password"] {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Efekt focus glow spójny z resztą aplikacji */
+.auth-card input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(74, 105, 189, 0.25);
+}
+
+/* Przycisk logowania / rejestracji */
+.auth-card .btn-primary {
+  width: 100%;
+  margin-top: 1rem;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  background-color: var(--primary-color);
+  border: none;
+  color: #fff;
+  padding: 0.75rem;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.auth-card .btn-primary:hover {
+  background-color: var(--primary-color-dark);
+  transform: scale(1.02);
+}
+
+/* Przełącznik między loginem a rejestracją */
 .auth-switch {
   margin-top: 1.5rem;
+  font-size: 0.9rem;
 }
 
 .auth-switch a {
-  color: #007bff;
+  color: var(--primary-color);
   text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 .auth-switch a:hover {
   text-decoration: underline;
+  color: var(--primary-color-dark);
 }
 
-.auth-card .btn-primary {
-  width: 100%; /* Przycisk na całą szerokość karty */
-  margin-top: 1rem; /* Dodatkowy margines na górze */
+/* Animacja fade-in */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* ostatnia zmiana (30.05.2024, 13:14:12)
+/* Tryb ciemny */
+@media (prefers-color-scheme: dark) {
+  .auth-page {
+    background-color: #121212;
+  }
+
+  .auth-card {
+    background: #1e1e1e;
+    border-color: #2c2c2c;
+    color: #eaeaea;
+  }
+
+  .auth-card h2 {
+    color: var(--primary-color);
+  }
+
+  .auth-card input {
+    background-color: #2a2a2a;
+    color: #eaeaea;
+    border-color: #3a3a3a;
+  }
+
+  .auth-card input:focus {
+    box-shadow: 0 0 0 3px rgba(74, 105, 189, 0.3);
+  }
+
+  .auth-switch a {
+    color: #66b2ff;
+  }
+
+  .auth-card .btn-primary {
+    background-color: var(--primary-color);
+  }
+
+  .auth-card .btn-primary:hover {
+    background-color: var(--primary-color-dark);
+  }
+}

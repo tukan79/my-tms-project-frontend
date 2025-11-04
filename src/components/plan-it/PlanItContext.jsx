@@ -40,12 +40,33 @@ export const PlanItProvider = ({ children, initialData = {}, runActions, onAssig
     y: 0,
   });
 
-  // Stabilna funkcja do wymuszania odświeżania danych z poziomu nadrzędnego komponentu
-  const triggerRefresh = useCallback(() => {
-    if (onAssignmentCreated) {
-      onAssignmentCreated();
-    }
+  // --- Auto Refresh toggle ---
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(() => {
+    // zapamiętaj preferencję użytkownika między sesjami
+    const saved = localStorage.getItem('autoRefreshEnabled');
+    return saved ? JSON.parse(saved) : true;
+  });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const triggerRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    if (onAssignmentCreated) await onAssignmentCreated();
+    setTimeout(() => setIsRefreshing(false), 500);
   }, [onAssignmentCreated]);
+
+  // --- Auto Refresh every X seconds ---
+  React.useEffect(() => {
+    localStorage.setItem('autoRefreshEnabled', JSON.stringify(autoRefreshEnabled));
+    if (!autoRefreshEnabled) return;
+
+    const REFRESH_INTERVAL = 30000; // 30 sekund
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refresh triggered...');
+      triggerRefresh();
+    }, REFRESH_INTERVAL);
+
+    return () => clearInterval(interval); // czyszczenie przy odmontowaniu
+  }, [autoRefreshEnabled, triggerRefresh]);
 
   // --- Optymalizacja wydajności: Tworzenie map (lookup tables) do szybkiego wyszukiwania ---
   const driverMap = useMemo(() => new Map(drivers.map(d => [d.id, d])), [drivers]);
@@ -260,11 +281,15 @@ export const PlanItProvider = ({ children, initialData = {}, runActions, onAssig
     handleDeleteAssignment: handleDeleteAssignmentWithRefresh,
     initialData: { drivers, trucks, trailers, zones, pallets },
     triggerRefresh,
+    autoRefreshEnabled,
+    setAutoRefreshEnabled,
+    isRefreshing,
   }), [
     selectedDate, activeRunId, editingRun, isFormVisible, selectedOrderIds, contextMenu,
     handleEditRun, handleAddNewRun, handleSaveRun, handleBulkAssign, handleBulkDelete, handleDeleteRun,
     enrichedRuns, availableOrders, activeRun, ordersForActiveRun, handleDragEnd, handleDeleteAssignmentWithRefresh,
-    drivers, trucks, trailers, zones, pallets, triggerRefresh
+    drivers, trucks, trailers, zones, pallets, triggerRefresh,
+    autoRefreshEnabled, setAutoRefreshEnabled, isRefreshing
   ]);
 
   return <PlanItContext.Provider value={value}>{children}</PlanItContext.Provider>;

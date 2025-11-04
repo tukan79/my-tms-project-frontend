@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Package, Link2, Users, Truck, User, LogOut, LayoutDashboard,
-  Settings, PoundSterling, MapPin, Briefcase
+  Settings, PoundSterling, Briefcase, RefreshCw
 } from 'lucide-react';
 import { useDashboard } from '../../contexts/DashboardContext.jsx'; // Poprawiona ścieżka
 
@@ -56,7 +56,14 @@ const navLinksConfig = [
 ];
 
 const Sidebar = () => {
-  const { user, handleLogout, currentView, handleViewChange, isLoading } = useDashboard();
+  const { user, handleLogout, currentView, handleViewChange, isLoading, setGlobalAutoRefresh } = useDashboard();
+  const [autoRefresh, setAutoRefresh] = useState(false);
+
+  useEffect(() => {
+    if (typeof setGlobalAutoRefresh === 'function') {
+      setGlobalAutoRefresh(autoRefresh);
+    }
+  }, [autoRefresh, setGlobalAutoRefresh]);
 
   return (
     <nav className="sidebar">
@@ -68,6 +75,21 @@ const Sidebar = () => {
           <LogOut size={20} />
         </button>
       </div>
+
+      {/* 🔄 Globalny przełącznik auto-refresh */}
+      <div className="sidebar-auto-refresh" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', marginLeft: '1rem' }}>
+        <RefreshCw size={16} />
+        <label style={{ fontSize: '0.9rem', userSelect: 'none' }}>
+          <input
+            type="checkbox"
+            checked={autoRefresh}
+            onChange={(e) => setAutoRefresh(e.target.checked)}
+            style={{ marginRight: '0.4rem' }}
+          />
+          Auto Refresh
+        </label>
+      </div>
+
       <h1 className="sidebar-title">🚛 TMS System</h1>
       {isLoading && <div className="global-loading">Loading...</div>}
       <div className="sidebar-content">

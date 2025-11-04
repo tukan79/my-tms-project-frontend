@@ -1,6 +1,7 @@
 //app.jsx
 import React, { useMemo, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { broadcastRefreshAll } from './utils/broadcastUtils.js';
 import { Printer } from 'lucide-react';
 import DriverList from './components/list/DriverList.jsx';
 import AddDriverForm from './components/forms/AddDriverForm.jsx';
@@ -15,8 +16,7 @@ import AddOrderForm from './components/AddOrderForm.jsx';
 import UserList from './components/list/UserList.jsx';
 import AddUserForm from './components/forms/AddUserForm.jsx';
 import RunManager from './components/management/RunManager.jsx';
-import PricingPage from './pages/PricingPage.jsx';
-import { useBroadcastChannel } from './hooks/useBroadcastChannel.js';
+import PricingPage from './pages/PricingPage.jsx'; // Assuming this is used somewhere
 import PlanItPage from './pages/PlanItPage.jsx';
 import { useAuth } from './contexts/AuthContext.jsx';
 import FinancePage from './pages/FinancePage.jsx';
@@ -56,6 +56,11 @@ const DashboardContent = () => {
     refreshAll,
     actions,
   } = useDashboard();
+
+  // Stan do globalnego zarządzania auto-odświeżaniem
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(
+    () => localStorage.getItem('autoRefreshEnabled') === 'true'
+  );
 
   console.log('🔍 COMPLETE Dashboard data structure:', {
     data,
@@ -162,8 +167,8 @@ const DashboardContent = () => {
     <div className="app-container">
       <Sidebar />
       <main className="main-content">
-        <MainHeader viewConfig={viewConfig} />
-        <ViewRenderer viewConfig={viewConfig} />
+        <MainHeader viewConfig={viewConfig} onToggleAutoRefresh={setAutoRefreshEnabled} />
+        <ViewRenderer viewConfig={viewConfig} autoRefreshEnabled={autoRefreshEnabled} />
         <ConfirmationModal
           isOpen={modalState.isOpen}
           onClose={handleCloseModal}
@@ -188,8 +193,6 @@ const Dashboard = () => {
 };
 
 const EditOrderPopOut = () => {
-  // Używamy hooka do wysyłania wiadomości, a nie do odświeżania
-  const { postMessage } = useBroadcastChannel();
   const [editData, setEditData] = useState(null);
 
   useEffect(() => {
@@ -200,8 +203,7 @@ const EditOrderPopOut = () => {
   }, []);
 
   const handleSuccess = () => {
-    // Wyślij wiadomość do głównego okna, aby odświeżyło dane
-    postMessage('refresh_data');
+    broadcastRefreshAll(); // Używamy nowej funkcji do odświeżenia wszystkich danych
     window.close(); // Zamknij okno po sukcesie
   };
 

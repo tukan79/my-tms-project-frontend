@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import { Trash2 } from 'lucide-react';
 
@@ -6,6 +6,9 @@ const AssignmentPlanner = ({ orders = [], combinations = [], drivers = [], truck
   const [selectedOrder, setSelectedOrder] = useState('');
   const [selectedCombination, setSelectedCombination] = useState('');
   const [notes, setNotes] = useState('');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(30000); // 30 sekund
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -82,6 +85,20 @@ const AssignmentPlanner = ({ orders = [], combinations = [], drivers = [], truck
     }
   };
 
+  const refreshData = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await onAssignmentChange(); // Ponowne pobranie wszystkich danych
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [onAssignmentChange]);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(refreshData, refreshInterval);
+    return () => clearInterval(interval);
+  }, [autoRefresh, refreshInterval, refreshData]);
   return (
     <div className="card">
       <h2>Assignment Planner (Order to Combination)</h2>
@@ -89,6 +106,21 @@ const AssignmentPlanner = ({ orders = [], combinations = [], drivers = [], truck
 
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', alignItems: 'end' }}>
         <div className="form-group" style={{ flex: 3 }}>
+          <div className="auto-refresh-control">
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={() => setAutoRefresh(!autoRefresh)}
+              />
+              <span className="slider" />
+            </label>
+            <span style={{ marginLeft: '0.5rem' }}>
+              Auto Refresh: {autoRefresh ? 'ON' : 'OFF'}
+            </span>
+            {isRefreshing && <span style={{ marginLeft: '1rem', color: 'gray' }}>⟳ refreshing...</span>}
+          </div>
+
           <label>Available Orders (status: new)</label>
           <div className="table-container-scrollable">
             <table className="data-table selectable-table">
@@ -128,7 +160,7 @@ const AssignmentPlanner = ({ orders = [], combinations = [], drivers = [], truck
           <label>Available Combinations</label>
           <select value={selectedCombination} onChange={(e) => setSelectedCombination(e.target.value)} required>
             <option value="">Select a combination...</option>
-            {combinations.map(combo => ( // Używamy przefiltrowanych i wzbogaconych zestawów
+            {enrichedCombinations.map(combo => ( // Używamy przefiltrowanych i wzbogaconych zestawów
               <option key={combo.id} value={combo.id}>
                 {combo.displayText}
               </option>

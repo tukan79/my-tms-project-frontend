@@ -1,7 +1,7 @@
 // PlanItPage.jsx
 import React, { useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import PlanItOrders, { useHomeZone } from '../components/plan-it/PlanItOrders.jsx';
+import PlanItOrders, { useHomeZone } from '../components/shared/PlanItOrders.jsx';
 import PlanItRuns from '../components/plan-it/PlanItRuns.jsx';
 import { usePopOut } from '../contexts/PopOutContext.jsx'; // Ścieżka względna, więc bez zmian
 import AddRunForm from '../components/forms/AddRunForm.jsx';
@@ -89,6 +89,7 @@ const PlanItContent = ({ isPopOut, handlePopOut }) => {
             zones={zones || []}
             homeZone={homeZone}
             selectedDate={selectedDate}
+            onRefresh={triggerRefresh} // Przekazujemy funkcję odświeżającą
             onPopOut={handlePopOut}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: 0 }}>

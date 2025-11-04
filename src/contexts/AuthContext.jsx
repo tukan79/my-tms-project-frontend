@@ -1,190 +1,149 @@
-// AuthContext.jsx
-import React, { createContext, useState, useEffect, useContext } from 'react';
+// frontend/src/contexts/AuthContext.jsx
+import React, {
+  createContext,
+  useEffect,
+  useContext,
+  useState,
+  useCallback,
+} from 'react';
 import api from '../services/api';
+import { useToast } from './ToastContext.jsx';
 
-const AuthContext = createContext(null);
+const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('user')) || null;
-    } catch {
-      return null;
-    }
-  });
-  const [token, setToken] = useState(localStorage.getItem('token'));
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Ładowanie początkowe
+  const { showToast } = useToast();
 
-  // Poprawiona weryfikacja tokenu
-  useEffect(() => {
-    const verifyToken = async () => {
-      const storedToken = localStorage.getItem('token');
-      
-      if (!storedToken) {
-        setLoading(false);
-        return;
-      }
+  // 🔹 Ładowanie profilu użytkownika po tokenie
+  const fetchUser = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const { data } = await api.get('/auth/me'); // endpoint zwracający dane usera
+      setUser(data);
+    } catch (error) {
+      console.warn('⚠️ Failed to fetch user info:', error);
+      setUser(null);
+    }
+  }, [token]);
 
-      try {
-        // Ustaw token przed weryfikacją
-        setToken(storedToken);
-        
-        // Prostsza weryfikacja - pobierz dane użytkownika
-        const response = await api.get('/api/users/me');
-        const userData = response.data;
-        
-        setUser(userData);
-        setIsAuthenticated(true);
-        
-        // Aktualizuj dane w localStorage
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-      } catch (error) {
-        console.error('Token verification failed:', error);
-        
-        // Jeśli weryfikacja nie powiedzie się (np. token wygasł), wyloguj
-        if (error.response?.status !== 401) { // Nie wylogowuj przy 401, interceptor to obsłuży
-          logout();
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
+  // 🔹 Logowanie użytkownika
+  const login = useCallback(async (email, password) => {
+    setLoading(true);
+    try {
+      const { data } = await api.post('/api/auth/login', { email, password });
+      localStorage.setItem('token', data.accessToken);
+      setUser(data.user);
+      setIsAuthenticated(true);
+      showToast('Login successful', 'success');
+    } catch (error) {
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
 
-    verifyToken();
-  }, []);
+  // 🔹 Rejestracja
+  const register = useCallback(async (userData) => {
+    setLoading(true);
+    try {
+      await api.post('/auth/register', userData);
+      showToast('Registration successful! You can now log in.', 'success');
+    } catch (error) {
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
 
-  // Nasłuchiwanie na zdarzenia odświeżenia i błędu tokenu z interceptora
+  // 🔹 Wylogowanie
+  const logout = useCallback(async () => {
+    try {
+      await api.post('/api/auth/logout');
+    } catch (e) {
+      console.warn('Logout failed on API, clearing local session anyway.');
+    } finally {
+      localStorage.removeItem('token');
+      setUser(null);
+      setIsAuthenticated(false);
+      showToast('You have been logged out.', 'info');
+    }
+  }, [showToast]);
+
+  // 🔹 Automatyczne odświeżanie tokena (event z api.js)
   useEffect(() => {
     const handleTokenRefreshed = (event) => {
-      console.log('🔄 AuthContext: Token refreshed, updating state.');
-      setToken(event.detail.accessToken);
-      setIsAuthenticated(true);
+      const newToken = event.detail?.accessToken;
+      if (newToken) {
+        localStorage.setItem('token', newToken);
+        console.log('✅ Token updated in AuthContext.');
+      }
     };
 
     const handleAuthError = () => {
-      console.log('AuthContext: Auth error detected, logging out.');
+      console.warn('⚠️ Auth error received — logging out user.');
       logout();
     };
 
     window.addEventListener('token-refreshed', handleTokenRefreshed);
     window.addEventListener('auth-error', handleAuthError);
-
     return () => {
       window.removeEventListener('token-refreshed', handleTokenRefreshed);
       window.removeEventListener('auth-error', handleAuthError);
     };
+  }, [logout]);
+
+  // === Wczytanie sesji przy starcie aplikacji ===
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { data } = await api.get('/auth/me'); // endpoint zwracający dane usera
+        setUser(data.user);
+        setIsAuthenticated(true);
+      } catch (err) {
+        console.error('Session validation failed:', err);
+        localStorage.removeItem('token');
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
-  const login = async (email, password) => {
-    setLoading(true);
-    console.log('🔐 Attempting login...');
-    
-    try {
-      const response = await api.post('/api/auth/login', { email, password });
-      console.log('✅ Login response:', response.data);
-      
-      const { accessToken, refreshToken, user: userData } = response.data;
-      
-      if (!accessToken) {
-        throw new Error('No authentication token received');
-      }
-
-      console.log('🔑 Token from accessToken:', `YES (${accessToken.substring(0, 20)}...)`);
-      
-      // ZAPISZ DANE
-      localStorage.setItem('token', accessToken);
-      if (refreshToken) {
-        localStorage.setItem('refreshToken', refreshToken);
-      }
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      // USTAW STAN
-      setToken(accessToken);
-      setUser(userData);
-      setIsAuthenticated(true);
-      
-      console.log('✅ Token and user saved to localStorage');
-      return userData;
-      
-    } catch (error) {
-      console.error('❌ Login error:', error);
-      
-      // Czyszczenie w przypadku błędu
-      logout();
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const register = async (userData) => {
-    try {
-      const response = await api.post('/api/auth/register', userData);
-      
-      // Auto-login after registration
-      if (response.data.accessToken) {
-        const { accessToken, refreshToken, user } = response.data;
-        
-        localStorage.setItem('token', accessToken);
-        if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
-        localStorage.setItem('user', JSON.stringify(user));
-        
-        setToken(accessToken);
-        setUser(user);
-        setIsAuthenticated(true);
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
-    }
-  };
-
-  const logout = () => {
-    console.log('🚪 Logging out...');
-    
-    // Czyszczenie localStorage
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('refreshToken');
-    
-    // Reset stanu
-    setToken(null);
-    setUser(null);
-    setIsAuthenticated(false);
-    
-    // Opcjonalnie: wywołaj endpoint logout na backendzie
-    try {
-      api.post('/api/auth/logout').catch(() => {}); // Ignoruj błędy
-    } catch (error) {
-      // Ignoruj błędy przy wylogowywaniu
-    }
-  };
-
-  const value = {
-    user,
-    token,
-    login,
-    logout,
-    register,
-    isAuthenticated,
-    loading,
-  };
-
   return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        isLoading,
+        loading,
+        login,
+        logout,
+        register,
+        setUser,
+      }}
+    >
+      {!isLoading && children}
     </AuthContext.Provider>
   );
 };
