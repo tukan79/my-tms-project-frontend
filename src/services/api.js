@@ -4,8 +4,10 @@ import axios from 'axios';
 // Ustawienia globalne
 axios.defaults.withCredentials = true;
 
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
+  baseURL: baseURL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
@@ -60,8 +62,7 @@ api.interceptors.response.use(
 
       try {
         console.info('🔄 Attempting token refresh...');
-        // Pełny adres URL dla refresh endpointu
-        const refreshUrl = `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`;
+        const refreshUrl = `${baseURL}/auth/refresh`;
         const { data } = await axios.post(refreshUrl, {}, { withCredentials: true });
 
         const newToken = data.accessToken;

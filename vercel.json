@@ -7,7 +7,7 @@
       "config": { "distDir": "dist" }
     }
   ],
-  "rewrites": [
+  "routes": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
