@@ -1,11 +1,12 @@
 // AddOrderForm.jsx — z usprawnieniami (wersja 04.11.2025)
 import React, { useState, useEffect, useMemo } from 'react';
-import { showToast } from '../../utils/toastUtils';
+import { useToast } from '../contexts/ToastContext.jsx';
 import { saveOrder } from '../../services/ordersService';
 import { fetchCustomers, fetchSurcharges } from '../../services/apiService';
 
 const AddOrderForm = ({ onSuccess, orderToEdit }) => {
   const [formData, setFormData] = useState({
+    // ... (initial state remains the same)
     order_number: '',
     reference: '',
     customer_id: '',
@@ -25,6 +26,7 @@ const AddOrderForm = ({ onSuccess, orderToEdit }) => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { showToast } = useToast();
 
   // 🧠 Walidacja pól formularza
   const validate = () => {
