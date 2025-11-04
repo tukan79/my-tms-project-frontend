@@ -110,9 +110,9 @@ const RunManager = ({ runs = [], trucks = [], trailers = [], drivers = [], onDat
             onSuccess={handleSaveRun}
             onCancel={handleCancelForm}
             itemToEdit={editingRun}
-            drivers={drivers}
-            trucks={trucks}
-            trailers={trailers}
+            drivers={safeDrivers}
+            trucks={safeTrucks}
+            trailers={safeTrailers}
           />
         </div>
       )}
