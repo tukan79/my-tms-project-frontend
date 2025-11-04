@@ -7,21 +7,34 @@ const UserList = ({ items: users = [], onRefresh, onEdit, currentUser }) => {
   // Ensure that `users` is always an array to prevent errors in child components.
   const safeUsers = Array.isArray(users) ? users : [];
 
+  const { showToast } = useToast();
+
   const columns = [
-    { key: 'name', header: 'Name', sortable: true, render: (user) => `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email },
-    { key: 'email', header: 'Email', sortable: true },
+    {
+      key: 'name',
+      header: 'Name',
+      sortable: true,
+      render: (user) => `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || '-',
+    },
+    { key: 'email', header: 'Email', sortable: true, render: (u) => u.email || '-' },
     { 
       key: 'role',
       header: 'Role',
       sortable: true,
-      // Renderowanie bardziej przyjaznych nazw ról
-      render: (user) => user.role === 'admin' ? 'Admin' : 'Dispatcher'
+      render: (u) =>
+        u.role === 'admin'
+          ? 'Admin'
+          : u.role === 'dispatcher'
+          ? 'Dispatcher'
+          : '-',
     },
   ];
 
-  const { showToast } = useToast();
-
   const handleDelete = async (user) => {
+    if (user.id === currentUser?.id) {
+      showToast("You cannot delete your own account.", "error");
+      return;
+    }
     if (window.confirm(`Are you sure you want to delete user ${user.email}?`)) {
       try {
         await api.delete(`/api/users/${user.id}`);
@@ -41,9 +54,9 @@ const UserList = ({ items: users = [], onRefresh, onEdit, currentUser }) => {
       onEdit={onEdit}
       onDelete={handleDelete}
       title="User List"
-      filterPlaceholder="Filter by email or role..."
+      filterPlaceholder="Search users..."
       initialSortKey="name"
-      filterKeys={['email', 'role']}
+      filterKeys={['email', 'role', 'first_name', 'last_name']}
       currentUser={currentUser}
     />
   );

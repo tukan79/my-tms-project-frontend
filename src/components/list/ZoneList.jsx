@@ -1,13 +1,13 @@
+// ZoneList.jsx
 import React, { useState } from 'react';
-import DataTable from '../shared/DataTable.jsx'; // Poprawiona ścieżka
-import api from '../../services/api.js'; // Poprawiona ścieżka
-import { useToast } from '../../contexts/ToastContext.jsx'; // Poprawiona ścieżka
+import DataTable from '../shared/DataTable.jsx';
+import api from '../../services/api.js';
+import { useToast } from '../../contexts/ToastContext.jsx';
 
-const ZoneList = ({ items: zones = [], onRefresh, onEdit, onDelete }) => {
-  // Ensure that `zones` is always an array to prevent errors in child components.
+const ZoneList = ({ items: zones = [], onRefresh, onEdit }) => {
   const safeZones = Array.isArray(zones) ? zones : [];
-
   const [expandedZones, setExpandedZones] = useState({});
+  const { showToast } = useToast();
 
   const toggleZoneExpansion = (zoneId) => {
     setExpandedZones(prev => ({ ...prev, [zoneId]: !prev[zoneId] }));
@@ -19,19 +19,28 @@ const ZoneList = ({ items: zones = [], onRefresh, onEdit, onDelete }) => {
       key: 'postcode_patterns',
       header: 'Postcode Patterns',
       render: (zone) => {
-        const patterns = zone.postcode_patterns || [];
+        const patterns = Array.isArray(zone.postcode_patterns) ? zone.postcode_patterns : [];
         const isExpanded = expandedZones[zone.id];
         const patternsToShow = isExpanded ? patterns : patterns.slice(0, 5);
 
         return (
           <div className="tag-container">
-            {patternsToShow.map((pattern, index) => (
-              <span key={index} className="tag">{pattern}</span>
-            ))}
-            {patterns.length > 5 && (
-              <button onClick={() => toggleZoneExpansion(zone.id)} className="btn-link">
-                {isExpanded ? 'Show less' : `+${patterns.length - 5} more...`}
-              </button>
+            {patterns.length === 0 ? (
+              <span className="tag-empty">No postcodes defined</span>
+            ) : (
+              <>
+                {patternsToShow.map((pattern, index) => (
+                  <span key={index} className="tag">{pattern}</span>
+                ))}
+                {patterns.length > 5 && (
+                  <button
+                    onClick={() => toggleZoneExpansion(zone.id)}
+                    className="btn-link"
+                  >
+                    {isExpanded ? '▲ Show less' : `▼ +${patterns.length - 5} more`}
+                  </button>
+                )}
+              </>
             )}
           </div>
         );
@@ -44,9 +53,12 @@ const ZoneList = ({ items: zones = [], onRefresh, onEdit, onDelete }) => {
     },
   ];
 
-  const { showToast } = useToast();
-
   const handleDelete = async (zone) => {
+    if (zone.is_home_zone) {
+      showToast('You cannot delete the home zone.', 'error');
+      return;
+    }
+
     if (window.confirm(`Are you sure you want to delete zone "${zone.zone_name}"?`)) {
       try {
         await api.delete(`/api/zones/${zone.id}`);
@@ -66,11 +78,11 @@ const ZoneList = ({ items: zones = [], onRefresh, onEdit, onDelete }) => {
       onEdit={onEdit}
       onDelete={handleDelete}
       title="Postcode Zones"
-      filterPlaceholder="Filter zones..."
-      filterKeys={['zone_name', 'postcode_patterns']}
+      filterPlaceholder="Search zones..."
+      filterKeys={['zone_name']}
     />
   );
 };
 
 export default ZoneList;
-// ostatnia zmiana (30.05.2024, 13:14:12)
+// ostatnia zmiana (04.11.2025)

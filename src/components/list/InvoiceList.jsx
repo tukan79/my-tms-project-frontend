@@ -4,7 +4,7 @@ import { FileText, Calendar, User, PoundSterling, Download } from 'lucide-react'
 import api from '../../services/api.js';
 import { useToast } from '../../contexts/ToastContext.jsx';
 
-const InvoiceList = ({ invoices = [] }) => {
+const InvoiceList = ({ invoices = [], onRefresh }) => {
   const { showToast } = useToast();
 
   // Ensure that `invoices` is always an array to prevent errors in child components.
@@ -62,7 +62,9 @@ const InvoiceList = ({ invoices = [] }) => {
       link.setAttribute('download', `invoice_${invoiceId}.pdf`);
       document.body.appendChild(link);
       link.click();
+      showToast('Invoice PDF downloaded successfully.', 'success');
       link.remove();
+      window.URL.revokeObjectURL(url); // Zwolnienie pamięci
     } catch (error) {
       showToast('Failed to download invoice PDF.', 'error');
     }
@@ -72,6 +74,7 @@ const InvoiceList = ({ invoices = [] }) => {
     <DataTable
       items={safeInvoices}
       columns={columns}
+      onRefresh={onRefresh}
       title="Generated Invoices"
       filterPlaceholder="Filter invoices..."
       filterKeys={['invoice_number', 'customer_name', 'status']}

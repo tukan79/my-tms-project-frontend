@@ -23,37 +23,50 @@ const OrderList = ({ items: orders = [], zones = [], onRefresh, onEdit }) => {
     end: new Date().toISOString().split('T')[0],
   });
 
+  // (4) Bezpieczniejsza konwersja dat
+  const formatDateTime = (value) => {
+    if (!value) return '-';
+    try {
+      return new Date(value).toLocaleString();
+    } catch {
+      return '-';
+    }
+  };
+
   const columns = [
-    { key: 'order_number', header: 'Consignment #', icon: <Package size={16} /> },
-    { key: 'customer_reference', header: 'Customer Ref' },
+    // (3) Zastosowanie sortowania
+    { key: 'order_number', header: 'Consignment #', icon: <Package size={16} />, sortable: true },
+    { key: 'customer_reference', header: 'Customer Ref', sortable: true },
     { 
       key: 'status', 
       header: 'Status', 
-      render: (order) => <span className={`status status-${order.status}`}>{order.status}</span> 
+      render: (order) => <span className={`status status-${order.status}`}>{order.status}</span>,
+      sortable: true,
     },
     { key: 'sender_details.name', header: 'Loading', render: (order) => (
       <div>
         <div>{order.sender_details?.name}, {order.sender_details?.townCity}</div>
-        <div className="date-time">{new Date(order.loading_date_time).toLocaleString()}</div>
+        <div className="date-time">{formatDateTime(order.loading_date_time)}</div>
       </div>
     )},
     { key: 'recipient_details.name', header: 'Unloading', render: (order) => (
       <div>
         <div>{order.recipient_details?.name}, {order.recipient_details?.townCity}</div>
-        <div className="date-time">{new Date(order.unloading_date_time).toLocaleString()}</div>
+        <div className="date-time">{formatDateTime(order.unloading_date_time)}</div>
       </div>
     )},
     {
       key: 'final_price',
       header: 'Price',
       icon: <PoundSterling size={16} />,
-      render: (item) => item.final_price ? `£${parseFloat(item.final_price).toFixed(2)}` : '-',
+      render: (item) => item.final_price ? `£${parseFloat(item.final_price).toFixed(2)}` : '-', // sortable: true można dodać, jeśli jest potrzebne
     },
     {
       key: 'created_at',
       header: 'Created',
       icon: <Calendar size={16} />,
       render: (item) => new Date(item.created_at).toLocaleDateString(),
+      sortable: true, // Dodano dla spójności z initialSortKey
     },
   ];
 
@@ -68,6 +81,8 @@ const OrderList = ({ items: orders = [], zones = [], onRefresh, onEdit }) => {
       link.setAttribute('download', `labels_order_${order.id}.pdf`);
       document.body.appendChild(link);
       link.click();
+      // (1) UX — Dodaj komunikat o sukcesie po wydruku
+      showToast('Labels downloaded successfully.', 'success');
       link.remove();
     } catch (error) {
       showToast('Failed to generate labels.', 'error');
@@ -108,8 +123,12 @@ const OrderList = ({ items: orders = [], zones = [], onRefresh, onEdit }) => {
     if (start && end) {
       filtered = filtered.filter(order => {
         // Poprawka: Używamy daty załadunku dla 'collections' i daty rozładunku dla 'delivery'.
-        // Fix: Use loading_date_time for 'collections' and unloading_date_time for 'delivery'.
-        const dateField = activeTab === 'collections' ? order.loading_date_time : order.unloading_date_time;
+        // (2) Logika filtrów — drobna poprawka dla activeTab === 'all'
+        const dateField =
+          activeTab === 'collections' ? order.loading_date_time :
+          activeTab === 'delivery' ? order.unloading_date_time :
+          order.created_at;
+
         if (!dateField) return false;
         try {
           const orderDate = new Date(dateField).toISOString().split('T')[0];
