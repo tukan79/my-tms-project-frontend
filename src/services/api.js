@@ -1,18 +1,20 @@
+// src/api.js
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // 👈 konieczne, żeby cookie refreshToken było wysyłane
 });
 
-// Interceptor do dodawania tokenu do każdego zapytania
+// === Dodaj token do nagłówków ===
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const accessToken = localStorage.getItem('token');
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
       console.log('✅ Token added to request:', config.url);
     }
     return config;
@@ -20,18 +22,14 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// --- NOWA SEKCJA: Interceptor do obsługi błędów 401 i odświeżania tokenu ---
-
+// === Obsługa błędów 401 i odświeżania tokenu ===
 let isRefreshing = false;
 let failedQueue = [];
 
 const processQueue = (error, token = null) => {
   failedQueue.forEach(prom => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
+    if (error) prom.reject(error);
+    else prom.resolve(token);
   });
   failedQueue = [];
 };
@@ -41,54 +39,45 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Sprawdzamy, czy błąd to 401 i czy nie jest to próba odświeżenia tokenu
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
-        // Jeśli token jest już odświeżany, dodajemy zapytanie do kolejki
+        // Czekamy na zakończenie odświeżania
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then(token => {
+          .then((token) => {
             originalRequest.headers.Authorization = 'Bearer ' + token;
             return api(originalRequest);
           })
-          .catch(err => {
-            return Promise.reject(err);
-          });
+          .catch((err) => Promise.reject(err));
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        // Jeśli nie ma refresh tokenu, wylogowujemy
-        console.log('No refresh token, logging out.');
-        // Możesz tu wywołać funkcję logout z AuthContext lub przekierować
-        window.dispatchEvent(new Event('auth-error'));
-        return Promise.reject(error);
-      }
-
       try {
-        console.log('🔄 Attempting to refresh token...');
-        const { data } = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/refresh`, { refreshToken });
-        
+        console.log('🔄 Refreshing token...');
+        const { data } = await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/auth/refresh-token`,
+          {},
+          { withCredentials: true } // 👈 to klucz — cookie zostanie wysłane automatycznie
+        );
+
         const newAccessToken = data.accessToken;
         localStorage.setItem('token', newAccessToken);
-        localStorage.setItem('refreshToken', data.refreshToken); // Backend może zwrócić nowy refresh token
-        
+
         console.log('✅ Token refreshed successfully.');
-        
-        api.defaults.headers.common.Authorization = 'Bearer ' + newAccessToken;
-        originalRequest.headers.Authorization = 'Bearer ' + newAccessToken;
-        
+
         processQueue(null, newAccessToken);
+        api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
         return api(originalRequest);
       } catch (refreshError) {
         console.error('❌ Token refresh failed:', refreshError);
         processQueue(refreshError, null);
-        // Jeśli odświeżenie nie powiedzie się, wyloguj
-        window.dispatchEvent(new CustomEvent('auth-error', { detail: refreshError }));
+        localStorage.removeItem('token');
+        window.dispatchEvent(new Event('auth-error'));
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -100,5 +89,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-
-// ostatnia zmiana (30.05.2024, 13:14:12)
