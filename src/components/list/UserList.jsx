@@ -1,7 +1,7 @@
 import React from 'react';
-import api from '../services/api';
-import DataTable from '../shared/DataTable.jsx';
-import { useToast } from '../contexts/ToastContext.jsx';
+import api from '@/services/api';
+import DataTable from '@/components/shared/DataTable.jsx';
+import { useToast } from '@/contexts/ToastContext.jsx';
 
 const UserList = ({ items: users = [], onRefresh, onEdit, currentUser }) => {
   // Ensure that `users` is always an array to prevent errors in child components.

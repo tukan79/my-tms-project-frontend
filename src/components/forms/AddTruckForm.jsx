@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { X } from 'lucide-react';
-import api from '../services/api';
-import { useForm } from '../hooks/useForm.js';
-import { useToast } from '../contexts/ToastContext.jsx';
+import api from '@/services/api';
+import { useForm } from '@/hooks/useForm.js';
+import { useToast } from '@/contexts/ToastContext.jsx';
 
 const AddTruckForm = ({ onSuccess, onCancel, itemToEdit }) => {
   const isEditMode = Boolean(itemToEdit); // Use the renamed prop

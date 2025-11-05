@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { ArrowUp, ArrowDown, Edit, Trash2, RefreshCcw, RefreshCw } from 'lucide-react';
-import SkeletonRow from './SkeletonRow.jsx';
-import { useTableData } from '../../hooks/useTableData';
+import SkeletonRow from '@/components/shared/SkeletonRow.jsx';
+import { useTableData } from '@/hooks/useTableData';
 
 const getNestedValue = (obj, path) => {
   if (!obj || !path || typeof obj !== 'object') return undefined;

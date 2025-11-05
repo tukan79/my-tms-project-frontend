@@ -4,7 +4,7 @@ const PopOutContext = createContext(null);
 
 export const usePopOut = () => {
   const context = useContext(PopOutContext);
-  if (!context) {
+  if (context === null) { // Allow null when not in a pop-out
     throw new Error('usePopOut must be used within a PopOutProvider');
   }
   return context;

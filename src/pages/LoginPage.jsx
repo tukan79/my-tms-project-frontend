@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext.jsx';
+import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useNavigate, Link } from 'react-router-dom';
-import { useToast } from '../contexts/ToastContext.jsx';
+import { useToast } from '@/contexts/ToastContext.jsx';
 import { Moon, Sun } from 'lucide-react';
-import '../Auth.css';
+import '@/Auth.css';
 
 const LoginPage = () => {
   const navigate = useNavigate();

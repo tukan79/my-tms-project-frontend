@@ -7,10 +7,10 @@ import React, {
   useRef,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDashboardState, useDataFetching } from '../hooks/useDashboard.js';
-import { useAuth } from './AuthContext.jsx';
-import { useToast } from './ToastContext.jsx';
-import api from '../services/api.js';
+import { useDashboardState, useDataFetching } from '@/hooks/useDashboard.js';
+import { useAuth } from '@/contexts/AuthContext.jsx';
+import { useToast } from '@/contexts/ToastContext.jsx';
+import api from '@/services/api.js';
 
 const DashboardContext = createContext(null);
 

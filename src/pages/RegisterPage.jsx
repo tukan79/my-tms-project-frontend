@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext.jsx';
+import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useNavigate, Link } from 'react-router-dom';
-import { useToast } from '../contexts/ToastContext.jsx';
+import { useToast } from '@/contexts/ToastContext.jsx';
 
-import '../Auth.css';
+import '@/Auth.css';
 const RegisterPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

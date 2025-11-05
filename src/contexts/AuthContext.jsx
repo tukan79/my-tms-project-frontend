@@ -6,8 +6,8 @@ import React, {
   useState,
   useCallback,
 } from 'react';
-import api from '../services/api';
-import { useToast } from './ToastContext.jsx';
+import api from '@/services/api';
+import { useToast } from '@/contexts/ToastContext.jsx';
 
 const AuthContext = createContext();
 

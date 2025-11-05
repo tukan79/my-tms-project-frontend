@@ -1,9 +1,9 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import DataTable from '../components/shared/DataTable.jsx';
+import DataTable from '@/components/shared/DataTable.jsx';
 import { Package, PoundSterling, Download, FileText } from 'lucide-react';
-import { useToast } from '../contexts/ToastContext.jsx';
-import InvoiceList from '../components/list/InvoiceList.jsx';
-import api from '../services/api.js'; // ⚙️ zostawione do przyszłego użycia
+import { useToast } from '@/contexts/ToastContext.jsx';
+import InvoiceList from '@/components/list/InvoiceList.jsx';
+import api from '@/services/api.js'; // ⚙️ zostawione do przyszłego użycia
 
 const FinancePage = ({
   orders = [],

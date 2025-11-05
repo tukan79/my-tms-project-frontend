@@ -1,8 +1,8 @@
 // frontend/src/components/CustomerList.jsx
 import React from 'react';
-import DataTable from '../shared/DataTable.jsx';
-import api from '../services/api.js';
-import { useToast } from '../contexts/ToastContext.jsx';
+import DataTable from '@/components/shared/DataTable.jsx';
+import api from '@/services/api.js';
+import { useToast } from '@/contexts/ToastContext.jsx';
 
 const CustomerList = ({ items = [], onRefresh, onEdit }) => {
   // Zabezpieczenie: Gwarantujemy, że `items` jest zawsze tablicą.

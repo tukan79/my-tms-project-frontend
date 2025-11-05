@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import ZoneManager from '../components/ZoneManager.jsx';
-import RateCardEditor from '../components/RateCardEditor.jsx';
+import ZoneManager from '@/components/ZoneManager.jsx';
+import RateCardEditor from '@/components/RateCardEditor.jsx';
 import { RefreshCw } from 'lucide-react';
 
 const AUTO_REFRESH_INTERVAL = 30000; // 🔁 30 sekund — możesz zmienić np. na 60000 (1 minuta)
