@@ -62,7 +62,7 @@ api.interceptors.response.use(
 
       try {
         console.info('🔄 Attempting token refresh...');
-        const refreshUrl = `${baseURL}/auth/refresh`;
+        const refreshUrl = `${baseURL}/api/auth/refresh`; // Corrected URL
         const { data } = await axios.post(refreshUrl, {}, { withCredentials: true });
 
         const newToken = data.accessToken;

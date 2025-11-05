@@ -236,15 +236,15 @@ const PopOutWindow = ({ view }) => {
 
 function App() {
   return (
-    <ToastProvider>
+    <ToastProvider> {/* ToastProvider wraps the entire app */}
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         {/* Grouping protected routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/*" element={<Dashboard />} />
-          <Route path="/planit/popout" element={<PopOutWindow />} />
-          <Route path="/orders/:orderId/edit" element={<DashboardProvider><EditOrderPopOut /></DashboardProvider>} />
+          <Route path="/planit/popout" element={<PopOutWindow />} />        
+          <Route path="/orders/:orderId/edit" element={<DashboardProvider><EditOrderPopOut /></DashboardProvider>} />{/* DashboardProvider needed here too */}
         </Route>
       </Routes>
     </ToastProvider>
