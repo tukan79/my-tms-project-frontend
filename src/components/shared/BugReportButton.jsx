@@ -1,114 +1,43 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { Bug } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useToast } from '@/contexts/ToastContext.jsx';
 import api from '@/services/api.js';
 
 const BugReportButton = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [description, setDescription] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
   const { showToast } = useToast();
-  const modalOverlayRef = useRef(null);
 
-  if (!user) {
-    return null; // Don't show the button if the user is not logged in
-  }
-
-  // Efekt do obsługi klawisza Escape i focusowania modala
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        setIsModalOpen(false);
-      }
-    };
-
-    if (isModalOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
-
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isModalOpen]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!description.trim()) {
-      showToast('Please provide a description of the issue.', 'error');
+  const handleReport = async () => {
+    const description = prompt('Opisz błąd, który wystąpił:');
+    if (!description) {
       return;
     }
 
-    setIsLoading(true);
     try {
-      const payload = {
+      await api.post('/api/feedback/report-bug', {
         description,
         context: {
           url: window.location.href,
-          user: {
-            id: user.id,
-            email: user.email,
-            role: user.role,
-          },
           userAgent: navigator.userAgent,
+          reportingUser: JSON.parse(localStorage.getItem('user')) || {
+            email: 'anonymous@mytms.app',
+            userId: null,
+            role: 'guest',
+          },
         },
-      };
+      });
 
-      await api.post('/api/feedback/report-bug', payload);
       showToast('Bug report sent successfully. Thank you!', 'success');
-      setIsModalOpen(false);
-      setDescription('');
-    } catch (error) {
-      showToast(error.response?.data?.error || 'Failed to send bug report.', 'error');
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to send bug report.', 'error');
     }
   };
 
   return (
-    <>
-      <button
-        onClick={() => setIsModalOpen(true)}
-        className="btn-icon"
-        style={{
-          position: 'fixed',
-          bottom: '2rem',
-          right: '2rem',
-          backgroundColor: 'var(--danger-color)',
-          color: 'white',
-          width: '50px',
-          height: '50px',
-          borderRadius: '50%',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-          zIndex: 999,
-        }}
-        title="Report a Bug"
-      >
-        <Bug size={24} />
-      </button>
-
-      {isModalOpen && (
-        <div
-          className="modal-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsModalOpen(false);
-          }}
-        >
-          <div className="modal-content card" style={{ width: '500px' }}>
-            <form onSubmit={handleSubmit}>
-              <h4>Report a Bug</h4>
-              <p>Please describe the issue you encountered. Include steps to reproduce it if possible.</p>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows="6" required style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }} />
-              <div className="form-actions" style={{ marginTop: '1rem' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary" disabled={isLoading}>Cancel</button>
-                <button type="submit" className="btn-primary" disabled={isLoading}>{isLoading ? 'Sending...' : 'Send Report'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </>
+    <button onClick={handleReport} className="btn btn-secondary bug-report-btn" title="Report a Bug">
+      <Bug size={18} style={{ marginRight: '8px' }} /> Report a Bug
+    </button>
   );
 };
 
 export default BugReportButton;
-// ostatnia zmiana (30.05.2024, 13:14:12)
