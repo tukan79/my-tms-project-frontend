@@ -4,7 +4,7 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/', // Zapewnia, że ścieżki do zasobów są generowane poprawnie
+  base: '', // Zapewnia, że ścieżki do zasobów są generowane poprawnie
   plugins: [react()],
   resolve: {
     alias: {
