@@ -1,9 +1,9 @@
 //MainHeader.jsx
 import React, { useState, useEffect } from 'react';
 import { Plus, Upload, Download, RefreshCw } from 'lucide-react';
-import { useDashboard } from '../../contexts/DashboardContext.jsx';
-import { useAuth } from '../../contexts/AuthContext.jsx'; // Assuming this is needed, if not, it can be removed if unused.
-import { importerConfig } from '../../config/importerConfig.js';
+import { useDashboard } from '../contexts/DashboardContext.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx'; // Assuming this is needed, if not, it can be removed if unused.
+import { importerConfig } from '../config/importerConfig.js';
 
 const MainHeader = ({ viewConfig, onToggleAutoRefresh }) => {
   const { user } = useAuth();

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bug } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext.jsx';
-import { useToast } from '../../contexts/ToastContext.jsx';
-import api from '../../services/api.js';
+import { useAuth } from '../contexts/AuthContext.jsx';
+import { useToast } from '../contexts/ToastContext.jsx';
+import api from '../services/api.js';
 
 const BugReportButton = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);

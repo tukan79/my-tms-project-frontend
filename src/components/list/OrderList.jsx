@@ -1,9 +1,9 @@
 import React from 'react';
-import { useToast } from '../../contexts/ToastContext.jsx';
+import { useToast } from '../contexts/ToastContext.jsx';
 import DataTable from '../shared/DataTable.jsx';
 import { Package, PoundSterling, Calendar, Printer } from 'lucide-react';
-import api from '../../services/api.js'; // Poprawiona ścieżka
-import { isPostcodeInZone } from '../../utils/postcode.js';
+import api from '../services/api.js'; // Poprawiona ścieżka
+import { isPostcodeInZone } from '../utils/postcode.js';
 
 const OrderList = ({ items: orders = [], zones = [], onRefresh, onEdit }) => {
   const { showToast } = useToast();

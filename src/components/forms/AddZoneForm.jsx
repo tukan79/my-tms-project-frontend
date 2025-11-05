@@ -1,8 +1,8 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import api from '../../services/api.js';
-import { useToast } from '../../contexts/ToastContext.jsx';
-import { useForm } from '../../hooks/useForm.js';
+import api from '../services/api.js';
+import { useToast } from '../contexts/ToastContext.jsx';
+import { useForm } from '../hooks/useForm.js';
 
 const initialFormData = {
   zone_name: '',

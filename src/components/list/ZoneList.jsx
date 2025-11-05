@@ -1,8 +1,8 @@
 // ZoneList.jsx
 import React, { useState } from 'react';
 import DataTable from '../shared/DataTable.jsx';
-import api from '../../services/api.js';
-import { useToast } from '../../contexts/ToastContext.jsx';
+import api from '../services/api.js';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 const ZoneList = ({ items: zones = [], onRefresh, onEdit }) => {
   const safeZones = Array.isArray(zones) ? zones : [];

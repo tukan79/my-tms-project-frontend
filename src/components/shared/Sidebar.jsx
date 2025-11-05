@@ -3,7 +3,7 @@ import {
   Package, Link2, Users, Truck, User, LogOut, LayoutDashboard,
   Settings, PoundSterling, Briefcase, RefreshCw
 } from 'lucide-react';
-import { useDashboard } from '../../contexts/DashboardContext.jsx'; // Poprawiona ścieżka
+import { useDashboard } from '../contexts/DashboardContext.jsx'; // Poprawiona ścieżka
 
 const getInitials = (user) => {
   if (!user) return '';

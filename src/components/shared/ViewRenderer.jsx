@@ -1,7 +1,7 @@
 import React from 'react';
 import ErrorBoundary from '../ErrorBoundary.jsx';
 import DataImporter from '../DataImporter.jsx';
-import { useDashboard } from '../../contexts/DashboardContext.jsx';
+import { useDashboard } from '../contexts/DashboardContext.jsx';
 
 const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
   const {

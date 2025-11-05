@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useApiResource } from './useApiResource';
-import { useBroadcastChannel } from './useBroadcastChannel.js'; // Keep for listening
+import { useBroadcastChannel } from '../hooks/useBroadcastChannel.js'; // Keep for listening
 import { importerConfig } from '../config/importerConfig.js';
 
 /**

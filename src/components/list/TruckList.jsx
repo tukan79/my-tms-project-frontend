@@ -1,9 +1,9 @@
 // plik TruckList.jsx
 
 import React from 'react';
-import api from '../../services/api.js';
+import api from '../services/api.js';
 import DataTable from '../shared/DataTable.jsx';
-import { useToast } from '../../contexts/ToastContext.jsx';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 const TruckList = ({ items: trucks = [], onRefresh, onEdit }) => {
   // Ensure that `trucks` is always an array to prevent errors in child components.

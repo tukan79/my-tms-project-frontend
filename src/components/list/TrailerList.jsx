@@ -1,8 +1,8 @@
 // plik TrailerList.jsx
 import React, { useState } from 'react';
-import api from '../../services/api.js';
+import api from '../services/api.js';
 import DataTable from '../shared/DataTable.jsx';
-import { useToast } from '../../contexts/ToastContext.jsx';
+import { useToast } from '../contexts/ToastContext.jsx';
 
 const TrailerList = ({ items: trailers = [], onRefresh, onEdit }) => {
   // Zabezpieczenie: Gwarantujemy, że `trailers` jest zawsze tablicą.

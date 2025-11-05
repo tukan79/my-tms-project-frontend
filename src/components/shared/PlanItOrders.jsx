@@ -2,8 +2,8 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { RefreshCw as RotateCw } from 'lucide-react'; // 🔄 ikona "refresh"
-import { usePlanIt } from '../../contexts/PlanItContext.jsx';
-import { isPostcodeInZone } from '../../utils/postcode.js';
+import { usePlanIt } from '../contexts/PlanItContext.jsx';
+import { isPostcodeInZone } from '../utils/postcode.js';
 
 // Eksportujemy hook, aby można go było użyć w komponencie nadrzędnym
 export const useHomeZone = (zones) => {

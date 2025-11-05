@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import api from '../../services/api';
+import api from '../services/api';
 import { Trash2 } from 'lucide-react';
 
 const AssignmentPlanner = ({ orders = [], combinations = [], drivers = [], trucks = [], assignments = [], onAssignmentChange }) => {
