@@ -113,4 +113,4 @@ const MainHeader = ({ viewConfig, onToggleAutoRefresh }) => {
 };
 
 export default MainHeader;
-// ostatnia zmiana (30.05.2024, 13:14:12)
+// ostatnia zmiana 05.11
