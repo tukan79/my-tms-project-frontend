@@ -1,12 +1,12 @@
 // PlanItPage.jsx
 import React, { useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import PlanItOrders, { useHomeZone } from '../components/shared/PlanItOrders.jsx';
-import PlanItRuns from '../components/plan-it/PlanItRuns.jsx';
-import { usePopOut } from '../contexts/PopOutContext.jsx'; // Ścieżka względna, więc bez zmian
-import AddRunForm from '../components/forms/AddRunForm.jsx';
-import { PlanItProvider, usePlanIt } from '../contexts/PlanItContext.jsx';
-import ActiveRunView from '../components/plan-it/ActiveRunView.jsx';
+import PlanItOrders, { useHomeZone } from '@/components/shared/PlanItOrders.jsx';
+import PlanItRuns from '@/components/plan-it/PlanItRuns.jsx';
+import { usePopOut } from '@/contexts/PopOutContext.jsx'; // Ścieżka względna, więc bez zmian
+import AddRunForm from '@/components/forms/AddRunForm.jsx';
+import { PlanItProvider, usePlanIt } from '@/contexts/PlanItContext.jsx';
+import ActiveRunView from '@/components/plan-it/ActiveRunView.jsx';
 
 const PlanItPage = (props) => {
   const popOutData = usePopOut();

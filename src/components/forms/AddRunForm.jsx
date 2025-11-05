@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { X } from 'lucide-react';
-import { useToast } from '../contexts/ToastContext.jsx';
-import { useForm } from '../hooks/useForm.js'; // Poprawiona ścieżka
+import { useToast } from '@/contexts/ToastContext.jsx';
+import { useForm } from '@/hooks/useForm.js'; // Poprawiona ścieżka
 
 // Przeniesiono poza komponent, aby uniknąć ponownego tworzenia przy każdym renderowaniu
 const initialFormData = {

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useApiResource } from '../hooks/useApiResource.js';
-import { useToast } from '../contexts/ToastContext.jsx';
+import { useApiResource } from '@/hooks/useApiResource.js';
+import { useToast } from '@/contexts/ToastContext.jsx';
 import { Edit, Trash2, Plus, X, Download, Upload, ArrowUp, ArrowDown } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import api from '../services/api.js';
+import api from '@/services/api.js';
 import DataImporter from './DataImporter.jsx';
 
 const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {

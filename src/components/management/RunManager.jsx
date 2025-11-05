@@ -1,7 +1,7 @@
 // plik RunManager.jsx
 import React, { useState, useMemo, useCallback } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
-import AddRunForm from '../forms/AddRunForm.jsx';
+import AddRunForm from '@/components/forms/AddRunForm.jsx';
 import DataTable from '@/components/shared/DataTable.jsx';
 import { useToast } from '@/contexts/ToastContext.jsx';
 

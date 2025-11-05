@@ -1,14 +1,63 @@
-import { useToast } from '@/contexts/ToastContext.jsx';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { X, CheckCircle, AlertTriangle, Info, AlertCircle } from 'lucide-react';
 
-function DemoToastButtons() {
-  const { showToast } = useToast();
+const ToastContext = createContext();
+
+export const useToast = () => {
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error('useToast must be used within a ToastProvider');
+  }
+  return context;
+};
+
+const Toast = ({ message, type, onClose }) => {
+  const icons = {
+    success: <CheckCircle />,
+    error: <AlertCircle />,
+    warning: <AlertTriangle />,
+    info: <Info />,
+  };
 
   return (
-    <div className="flex gap-2">
-      <button onClick={() => showToast('Success! Everything went well.', 'success')}>✅ Success</button>
-      <button onClick={() => showToast('Something went wrong!', 'error')}>❌ Error</button>
-      <button onClick={() => showToast('Here’s some info for you.', 'info')}>ℹ️ Info</button>
-      <button onClick={() => showToast('Be careful!', 'warning')}>⚠️ Warning</button>
+    <div className={`toast toast-${type}`}>
+      <div className="toast-icon">{icons[type]}</div>
+      <p className="toast-message">{message}</p>
+      <button onClick={onClose} className="toast-close-btn">
+        <X size={18} />
+      </button>
     </div>
   );
-}
+};
+
+export const ToastProvider = ({ children }) => {
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = useCallback((message, type = 'success') => {
+    const id = Date.now();
+    setToasts((prevToasts) => [...prevToasts, { id, message, type }]);
+    setTimeout(() => {
+      removeToast(id);
+    }, 5000);
+  }, []);
+
+  const removeToast = (id) => {
+    setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id));
+  };
+
+  return (
+    <ToastContext.Provider value={{ showToast }}>
+      {children}
+      <div className="toast-container">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+};

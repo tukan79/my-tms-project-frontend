@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { useApiResource } from '../hooks/useApiResource.js';
-import { useToast } from '../contexts/ToastContext.jsx';
+import { useApiResource } from '@/hooks/useApiResource.js';
+import { useToast } from '@/contexts/ToastContext.jsx';
 import { Edit, Trash2, Plus, X } from 'lucide-react';
-import { useForm } from '../hooks/useForm.js';
+import { useForm } from '@/hooks/useForm.js';
 
 const initialFormData = {
   code: '',

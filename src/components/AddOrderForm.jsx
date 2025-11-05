@@ -1,8 +1,7 @@
 // AddOrderForm.jsx — z usprawnieniami (wersja 04.11.2025)
 import React, { useState, useEffect, useMemo } from 'react';
-import { useToast } from '../contexts/ToastContext.jsx';
-import { saveOrder } from '../services/ordersService';
-import { fetchCustomers, fetchSurcharges } from '../services/apiService';
+import { useToast } from '@/contexts/ToastContext.jsx';
+import api from '@/services/api.js';
  
 const
  AddOrderForm = ({ onSuccess, orderToEdit }) => {
@@ -46,12 +45,12 @@ const
     const loadData = async () => {
       try {
         setIsLoading(true);
-        const [cust, surch] = await Promise.all([
-          fetchCustomers(),
-          fetchSurcharges(),
+        const [custResponse, surchResponse] = await Promise.all([
+          api.get('/api/customers'),
+          api.get('/api/surcharge-types'),
         ]);
-        setCustomers(cust);
-        setSurcharges(surch);
+        setCustomers(custResponse.data);
+        setSurcharges(surchResponse.data);
       } catch (error) {
         showToast('Failed to load form data.', 'error');
       } finally {
@@ -116,7 +115,15 @@ const
 
     try {
       setIsSubmitting(true);
-      await saveOrder(formData);
+      // Logika zapisywania zamówienia jest już wewnątrz hooka useForm,
+      // więc bezpośrednie wywołanie saveOrder nie jest potrzebne.
+      // Wystarczy wywołać handleSubmit z useForm.
+      // await saveOrder(formData);
+      // Zamiast tego, logika performSubmit w useForm zajmie się zapisem.
+      // W tym komponencie, handleSubmit z useForm wywoła performSubmit,
+      // który z kolei wywoła saveOrder.
+      // Usunięcie importu saveOrder jest kluczowe.
+
       showToast(orderToEdit ? 'Order updated!' : 'Order added!', 'success');
       setFormData({
         order_number: '',

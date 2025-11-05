@@ -2,13 +2,70 @@
 <html lang="pl">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+
+    <!-- 🧭 Meta podstawowe -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Nowoczesny system do zarządzania transportem i spedycją." />
+    <meta
+      name="description"
+      content="Nowoczesny system do zarządzania transportem i spedycją. Prosty, szybki i bezpieczny panel TMS dla firm logistycznych."
+    />
     <title>System TMS</title>
-    <script type="module" crossorigin src="/assets/index-DBohmOQM.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DEyzdMn8.css">
+
+    <!-- 🎨 Ikony i motyw -->
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <meta name="theme-color" content="#4a69bd" />
+
+    <!-- 📱 Apple / Android ikony (opcjonalnie, jeśli chcesz wsparcie PWA) -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- 🔒 Content Security Policy -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src 'self' https://fonts.gstatic.com;
+        img-src 'self' data:;
+        connect-src 'self' https://api.example.com;
+        object-src 'none';
+      "
+    />
+
+    <!-- 🔗 Open Graph (Facebook, LinkedIn) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pl_PL" />
+    <meta property="og:title" content="System TMS" />
+    <meta
+      property="og:description"
+      content="Nowoczesny system do zarządzania transportem i spedycją."
+    />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:url" content="https://twojadomena.pl" />
+
+    <!-- 🐦 Twitter Cards -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="System TMS" />
+    <meta
+      name="twitter:description"
+      content="Nowoczesny system do zarządzania transportem i spedycją."
+    />
+    <meta name="twitter:image" content="/og-image.png" />
+
+    <!-- 💬 Czcionki (opcjonalnie, np. Roboto lub Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" crossorigin src="/assets/index-BAGcY8v3.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BMcOoGeV.css">
   </head>
+
   <body>
     <div id="root"></div>
   </body>

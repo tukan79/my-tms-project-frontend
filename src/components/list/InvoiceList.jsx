@@ -1,8 +1,8 @@
 import React from 'react';
-import DataTable from '../shared/DataTable.jsx';
+import DataTable from '@/components/shared/DataTable.jsx';
 import { FileText, Calendar, User, PoundSterling, Download } from 'lucide-react';
-import api from '../services/api.js';
-import { useToast } from '../contexts/ToastContext.jsx';
+import api from '@/services/api.js';
+import { useToast } from '@/contexts/ToastContext.jsx';
 
 const InvoiceList = ({ invoices = [], onRefresh }) => {
   const { showToast } = useToast();
