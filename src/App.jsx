@@ -209,7 +209,13 @@ const EditOrderPopOut = () => {
 
   if (!editData) return <div className="loading">Loading order data...</div>;
 
-  return <AddOrderForm {...editData} onSuccess={handleSuccess} onCancel={() => window.close()} />;
+  return (
+    <ToastProvider>
+      <ErrorBoundary>
+        <AddOrderForm {...editData} onSuccess={handleSuccess} onCancel={() => window.close()} />
+      </ErrorBoundary>
+    </ToastProvider>
+  );
 };
 
 const ProtectedRoute = () => {

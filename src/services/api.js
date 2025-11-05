@@ -29,6 +29,8 @@ api.interceptors.request.use(
 let isRefreshing = false;
 let failedQueue = [];
 
+/*
+// TODO: Re-enable this logic once the /api/auth/refresh endpoint is implemented on the backend.
 const processQueue = (error, token = null) => {
   failedQueue.forEach(({ resolve, reject }) => {
     if (error) reject(error);
@@ -104,5 +106,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+*/
 
 export default api;
