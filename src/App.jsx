@@ -232,11 +232,13 @@ const ProtectedRoute = () => {
 const PopOutWindow = ({ view }) => {
   return (
     // Owijamy PlanItPage w PopOutProvider, który dostarczy dane z sessionStorage.
-    <PopOutProvider>
-      <div className="popout-container">
-        <PlanItPage isPopOut={true} />
-      </div>
-    </PopOutProvider>
+    <ToastProvider>
+      <PopOutProvider>
+        <div className="popout-container">
+          <PlanItPage isPopOut={true} />
+        </div>
+      </PopOutProvider>
+    </ToastProvider>
   );
 };
 
