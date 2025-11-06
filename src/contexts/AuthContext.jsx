@@ -31,13 +31,13 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-      const { data } = await api.get('/auth/me'); // endpoint zwracający dane usera
-      setUser(data);
+      const { data } = await api.get('/api/auth/me');
+      setUser(data.user);
     } catch (error) {
       console.warn('⚠️ Failed to fetch user info:', error);
       setUser(null);
     }
-  }, []); // ✅ brak zależności od tokena, bo pobieramy go z localStorage wewnątrz funkcji
+  }, []);
 
   // 🔹 Logowanie użytkownika
   const login = useCallback(
@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }) => {
     async (userData) => {
       setLoading(true);
       try {
-        await api.post('/auth/register', userData);
+        await api.post('/api/auth/register', userData);
         showToast('Registration successful! You can now log in.', 'success');
       } catch (error) {
         throw error;
@@ -124,7 +124,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const { data } = await api.get('/auth/me'); // endpoint zwracający dane usera
+        const { data } = await api.get('/api/auth/me');
         setUser(data.user);
         setIsAuthenticated(true);
       } catch (err) {
@@ -159,3 +159,4 @@ export const AuthProvider = ({ children }) => {
 };
 
 export default AuthContext;
+// ostatnia zmiana (04.11.2025, 23:07)

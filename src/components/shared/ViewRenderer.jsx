@@ -54,7 +54,7 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
         itemToEdit: itemToEdit,
         ...(currentView === 'orders' && { drivers, trucks, trailers, clients: customers, surcharges }),
       };
-      return <ErrorBoundary onReset={() => onRefresh(currentView)}><currentViewConfig.FormComponent {...formProps} /></ErrorBoundary>;
+      return <ErrorBoundary onReset={() => handleRefresh(currentView)}><currentViewConfig.FormComponent {...formProps} /></ErrorBoundary>;
     }
 
     const listProps = {
@@ -70,8 +70,8 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
 
     console.log('🔄 Rendering ListComponent:', {
       view: currentView,
-      component: currentViewConfig.ListComponent.name,
-      itemsCount: safeDataForView.length,
+      component: currentViewConfig?.ListComponent?.name ?? 'Unknown',
+      itemsCount: safeDataForView?.length ?? 0,
       listProps
     });
 

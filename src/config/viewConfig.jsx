@@ -31,6 +31,11 @@ export const generateViewConfig = ({
   handleEditOrderFromAnywhere,
   handlePrintLabels,
 }) => {
+  if (!data) {
+    console.warn('⚠️ generateViewConfig called without data');
+    return {};
+  }
+
   const isAdmin = user?.role === 'admin';
   const isDispatcher = user?.role === 'dispatcher';
   const { orders, drivers, trucks, trailers, users, assignments, runs, customers, zones, surcharges, invoices } = data || {};
