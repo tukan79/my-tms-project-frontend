@@ -11,6 +11,7 @@ import { useDashboardState, useDataFetching } from '@/hooks/useDashboard.js';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useToast } from '@/contexts/ToastContext.jsx';
 import api from '@/services/api.js';
+import { generateViewConfig } from '../config/viewConfig.jsx';
 
 const DashboardContext = createContext(null);
 
@@ -88,17 +89,36 @@ export const DashboardProvider = ({ children }) => {
     [showToast]
   );
 
+  const viewConfig = useMemo(
+    () =>
+      generateViewConfig({
+        user,
+        data: dataFetching.data,
+        actions: dataFetching.actions,
+        refreshAll: dataFetching.refreshAll,
+        handleDeleteRequest: state.handleDeleteRequest,
+        handleEditOrderFromAnywhere: (order) => {
+          // Implementacja lub przekazanie funkcji
+        },
+        handlePrintLabels: (orderIds) => {
+          // Implementacja lub przekazanie funkcji
+        },
+      }),
+    [user, dataFetching.data, dataFetching.actions, dataFetching.refreshAll, state.handleDeleteRequest]
+  );
+
   /** 🧩 Łączymy wszystko w jedno */
   const value = useMemo(
     () => ({
       ...state,
       ...dataFetching,
       user,
+      viewConfig,
       handleLogout,
       handleFormSuccess,
       handleGenericExport,
     }),
-    [state, dataFetching, user, handleLogout, handleFormSuccess, handleGenericExport]
+    [state, dataFetching, user, viewConfig, handleLogout, handleFormSuccess, handleGenericExport]
   );
 
   return (
