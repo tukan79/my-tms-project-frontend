@@ -37,50 +37,59 @@ export const AuthProvider = ({ children }) => {
       console.warn('⚠️ Failed to fetch user info:', error);
       setUser(null);
     }
-  }, [token]);
+  }, []); // ✅ brak zależności od tokena, bo pobieramy go z localStorage wewnątrz funkcji
 
   // 🔹 Logowanie użytkownika
-  const login = useCallback(async (email, password) => {
-    setLoading(true);
-    try {
-      const { data } = await api.post('/api/auth/login', { email, password });
-      localStorage.setItem('token', data.accessToken);
-      setUser(data.user);
-      setIsAuthenticated(true);
-      showToast('Login successful', 'success');
-    } catch (error) {
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, [showToast]);
+  const login = useCallback(
+    async (email, password) => {
+      setLoading(true);
+      try {
+        const { data } = await api.post('/api/auth/login', { email, password });
+        localStorage.setItem('token', data.accessToken);
+        setUser(data.user);
+        setIsAuthenticated(true);
+        showToast('Login successful', 'success');
+      } catch (error) {
+        throw error;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [showToast]
+  );
 
   // 🔹 Rejestracja
-  const register = useCallback(async (userData) => {
-    setLoading(true);
-    try {
-      await api.post('/auth/register', userData);
-      showToast('Registration successful! You can now log in.', 'success');
-    } catch (error) {
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, [showToast]);
+  const register = useCallback(
+    async (userData) => {
+      setLoading(true);
+      try {
+        await api.post('/auth/register', userData);
+        showToast('Registration successful! You can now log in.', 'success');
+      } catch (error) {
+        throw error;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [showToast]
+  );
 
   // 🔹 Wylogowanie
-  const logout = useCallback(async () => {
-    try {
-      await api.post('/api/auth/logout');
-    } catch (e) {
-      console.warn('Logout failed on API, clearing local session anyway.');
-    } finally {
-      localStorage.removeItem('token');
-      setUser(null);
-      setIsAuthenticated(false);
-      showToast('You have been logged out.', 'info');
-    }
-  }, [showToast]);
+  const logout = useCallback(
+    async () => {
+      try {
+        await api.post('/api/auth/logout');
+      } catch (e) {
+        console.warn('Logout failed on API, clearing local session anyway.');
+      } finally {
+        localStorage.removeItem('token');
+        setUser(null);
+        setIsAuthenticated(false);
+        showToast('You have been logged out.', 'info');
+      }
+    },
+    [showToast]
+  );
 
   // 🔹 Automatyczne odświeżanie tokena (event z api.js)
   useEffect(() => {
@@ -141,6 +150,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         register,
         setUser,
+        fetchUser,
       }}
     >
       {!isLoading && children}
