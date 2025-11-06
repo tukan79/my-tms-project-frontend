@@ -1,16 +1,16 @@
 import React from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { ToastProvider } from './contexts/ToastContext.jsx';
-import { DashboardProvider } from './contexts/DashboardContext.jsx';
-import { PopOutProvider } from './contexts/PopOutContext.jsx';
-import { useAuth } from './contexts/AuthContext.jsx';
-import ErrorBoundary from './components/ErrorBoundary.jsx';
-import DashboardContent from './components/DashboardContent.jsx'; // jeśli wydzielony
-import PlanItPage from './pages/PlanItPage.jsx';
-import LoginPage from './pages/LoginPage.jsx';
-import RegisterPage from './pages/RegisterPage.jsx';
-import AddOrderForm from './components/AddOrderForm.jsx';
-import { broadcastRefreshAll } from './utils/broadcastUtils.js';
+import { ToastProvider } from '@/contexts/ToastContext.jsx';
+import { DashboardProvider } from '@/contexts/DashboardContext.jsx';
+import { PopOutProvider } from '@/contexts/PopOutContext.jsx';
+import { useAuth } from '@/contexts/AuthContext.jsx';
+import ErrorBoundary from '@/components/ErrorBoundary.jsx';
+import DashboardContent from '@/components/DashboardContent.jsx'; // jeśli wydzielony
+import PlanItPage from '@/pages/PlanItPage.jsx';
+import LoginPage from '@/pages/LoginPage.jsx';
+import RegisterPage from '@/pages/RegisterPage.jsx';
+import AddOrderForm from '@/components/AddOrderForm.jsx';
+import { broadcastRefreshAll } from '@/utils/broadcastUtils.js';
 
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
