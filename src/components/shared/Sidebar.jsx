@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Package, Link2, Users, Truck, User, LogOut, LayoutDashboard,
   Settings, PoundSterling, Briefcase, RefreshCw
@@ -56,14 +56,7 @@ const navLinksConfig = [
 ];
 
 const Sidebar = () => {
-  const { user, handleLogout, currentView, handleViewChange, isLoading, setGlobalAutoRefresh } = useDashboard();
-  const [autoRefresh, setAutoRefresh] = useState(false);
-
-  useEffect(() => {
-    if (typeof setGlobalAutoRefresh === 'function') {
-      setGlobalAutoRefresh(autoRefresh);
-    }
-  }, [autoRefresh, setGlobalAutoRefresh]);
+  const { user, handleLogout, currentView, handleViewChange, isLoading, globalAutoRefresh, setGlobalAutoRefresh } = useDashboard();
 
   return (
     <nav className="sidebar">
@@ -82,8 +75,8 @@ const Sidebar = () => {
         <label style={{ fontSize: '0.9rem', userSelect: 'none' }}>
           <input
             type="checkbox"
-            checked={autoRefresh}
-            onChange={(e) => setAutoRefresh(e.target.checked)}
+            checked={globalAutoRefresh}
+            onChange={(e) => setGlobalAutoRefresh(e.target.checked)}
             style={{ marginRight: '0.4rem' }}
           />
           Auto Refresh

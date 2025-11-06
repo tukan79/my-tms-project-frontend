@@ -1,10 +1,10 @@
 import React from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { ToastProvider } from '@/contexts/ToastContext.jsx';
 import { DashboardProvider } from '@/contexts/DashboardContext.jsx';
 import { PopOutProvider } from '@/contexts/PopOutContext.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
+import DashboardContent from '@/components/DashboardContent.jsx';
 import PlanItPage from '@/pages/PlanItPage.jsx';
 import LoginPage from '@/pages/LoginPage.jsx';
 import RegisterPage from '@/pages/RegisterPage.jsx';
@@ -45,22 +45,20 @@ const PopOutWindow = () => (
 
 function App() {
   return (
-    <ToastProvider>
-      <DashboardProvider>
-        <ErrorBoundary>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+    <DashboardProvider>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-            <Route element={<ProtectedRoute />}>
-              <Route path="/*" element={<DashboardContent />} />
-              <Route path="/planit/popout" element={<PopOutWindow />} />
-              <Route path="/orders/:orderId/edit" element={<EditOrderPopOut />} />
-            </Route>
-          </Routes>
-        </ErrorBoundary>
-      </DashboardProvider>
-    </ToastProvider>
+          <Route element={<ProtectedRoute />}>
+            <Route path="/*" element={<DashboardContent />} />
+            <Route path="/planit/popout" element={<PopOutWindow />} />
+            <Route path="/orders/:orderId/edit" element={<EditOrderPopOut />} />
+          </Route>
+        </Routes>
+      </ErrorBoundary>
+    </DashboardProvider>
   );
 }
 

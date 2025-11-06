@@ -5,7 +5,7 @@ import { useDashboard } from '@/contexts/DashboardContext.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx'; // Assuming this is needed, if not, it can be removed if unused.
 import { importerConfig } from '@/config/importerConfig.js';
 
-const MainHeader = ({ viewConfig, onToggleAutoRefresh }) => {
+const MainHeader = ({ viewConfig }) => {
   const { user } = useAuth();
   const {
     currentView,
@@ -18,18 +18,9 @@ const MainHeader = ({ viewConfig, onToggleAutoRefresh }) => {
     handleHideImporter, // Przywracamy tę funkcję, jest potrzebna dla przycisku "Add"
     handleGenericExport,
     isLoading,
+    globalAutoRefresh,
+    setGlobalAutoRefresh,
   } = useDashboard();
-
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(
-    () => localStorage.getItem('autoRefreshEnabled') === 'true'
-  );
-
-  useEffect(() => {
-    localStorage.setItem('autoRefreshEnabled', autoRefreshEnabled);
-    if (onToggleAutoRefresh) {
-      onToggleAutoRefresh(autoRefreshEnabled);
-    }
-  }, [autoRefreshEnabled, onToggleAutoRefresh]);
 
   // Zabezpieczenie przed renderowaniem, gdy kluczowe dane nie są jeszcze dostępne
   if (!viewConfig || !currentView) {
@@ -65,13 +56,13 @@ const MainHeader = ({ viewConfig, onToggleAutoRefresh }) => {
       <div className="main-header-actions">
         {/* 🔁 Auto Refresh toggle */}
         <button
-          onClick={() => setAutoRefreshEnabled(prev => !prev)}
-          className={`btn-icon ${autoRefreshEnabled ? 'btn-success' : 'btn-secondary'}`}
-          title={`Auto refresh ${autoRefreshEnabled ? 'ON' : 'OFF'}`}
+          onClick={() => setGlobalAutoRefresh(!globalAutoRefresh)}
+          className={`btn-icon ${globalAutoRefresh ? 'btn-success' : 'btn-secondary'}`}
+          title={`Auto refresh ${globalAutoRefresh ? 'ON' : 'OFF'}`}
         >
           <RefreshCw size={16} />
           <span style={{ marginLeft: '0.5rem' }}>
-            {autoRefreshEnabled ? 'Auto ON' : 'Auto OFF'}
+            {globalAutoRefresh ? 'Auto ON' : 'Auto OFF'}
           </span>
         </button>
 

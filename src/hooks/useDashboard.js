@@ -17,6 +17,14 @@ export const useDashboardState = () => {
     message: '',
     onConfirm: () => {},
   });
+  const [globalAutoRefresh, setGlobalAutoRefreshState] = useState(
+    () => localStorage.getItem('globalAutoRefresh') === 'true'
+  );
+
+  const setGlobalAutoRefresh = useCallback((isEnabled) => {
+    localStorage.setItem('globalAutoRefresh', isEnabled);
+    setGlobalAutoRefreshState(isEnabled);
+  }, []);
 
   const handleViewChange = useCallback((view) => {
     setCurrentView(view);
@@ -64,6 +72,8 @@ export const useDashboardState = () => {
     itemToEdit,
     importerConfig: activeImporterConfig,
     modalState,
+    globalAutoRefresh,
+    setGlobalAutoRefresh,
     handleViewChange,
     handleEditClick,
     handleCancelForm,
