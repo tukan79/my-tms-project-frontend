@@ -1,4 +1,3 @@
-// frontend/src/components/ViewRenderer.jsx
 import React from 'react';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 import DataImporter from '@/components/DataImporter.jsx';
@@ -13,27 +12,35 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
     handleDeleteRequest, user, data
   } = useDashboard();
 
-  const { drivers, trucks, trailers, customers, zones, surcharges } = data || {};
+  const { drivers = [], trucks = [], trailers = [], customers = [], zones = [], surcharges = [] } = data || {};
 
-  if (!user || !viewConfig) return null;
+  // 🔒 Zabezpieczenie przed brakiem danych lub użytkownika
+  if (!user || !viewConfig || !currentView) {
+    return <div className="loading">Preparing view...</div>;
+  }
 
   const currentViewConfig = viewConfig[currentView];
-  if (!currentViewConfig) return null;
 
-  // 🧩 Debug log
-  console.log('🧩 Rendering view:', currentView, {
-    currentViewConfig,
-    dataType: typeof currentViewConfig?.data,
-    isArray: Array.isArray(currentViewConfig?.data),
-    dataSample: currentViewConfig?.data?.slice?.(0, 1) ?? currentViewConfig?.data
-  });
+  if (!currentViewConfig) {
+    console.warn(`⚠️ ViewRenderer: No config found for currentView "${currentView}"`);
+    return <div className="error-container">Unknown view: {currentView}</div>;
+  }
 
-  // 🧱 Zabezpieczenie — dane ZAWSZE jako tablica
-  const safeDataForView = Array.isArray(currentViewConfig?.data)
-    ? currentViewConfig.data
-    : currentViewConfig?.data
-    ? [currentViewConfig.data]
+  // 🧱 Bezpieczne dane
+  const dataForView = currentViewConfig?.data;
+  const safeDataForView = Array.isArray(dataForView)
+    ? dataForView
+    : dataForView
+    ? [dataForView]
     : [];
+
+  // 🪲 Debug (chroniony przed undefined)
+  console.log('🧩 Rendering view:', currentView, {
+    hasConfig: !!currentViewConfig,
+    dataType: typeof dataForView,
+    isArray: Array.isArray(dataForView),
+    dataLength: Array.isArray(dataForView) ? dataForView.length : 0,
+  });
 
   if (anyError) {
     return (
@@ -47,7 +54,7 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
     );
   }
 
-  // Widok z pojedynczym komponentem
+  // 🔧 Widok z pojedynczym komponentem
   if (currentViewConfig.Component && !currentViewConfig.ListComponent) {
     return (
       <ErrorBoundary>
@@ -56,8 +63,9 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
     );
   }
 
-  // Widok z listą i formularzem
+  // 📋 Widok z listą
   if (currentViewConfig.ListComponent) {
+    // Importer
     if (activeImporterConfig) {
       return (
         <ErrorBoundary onReset={() => handleRefresh(currentView)}>
@@ -70,6 +78,7 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
       );
     }
 
+    // Formularz
     if (showForm) {
       const formProps = {
         onSuccess: handleFormSuccess,
@@ -77,19 +86,23 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
         itemToEdit,
         ...(currentView === 'orders' && { drivers, trucks, trailers, clients: customers, surcharges }),
       };
-      // Ensure FormComponent is a valid React component before rendering
       if (typeof currentViewConfig.FormComponent !== 'function') {
-        console.error(`FormComponent for view "${currentView}" is not a valid component.`, currentViewConfig.FormComponent);
-        return null; // Or render a fallback/error message
+        console.error(`❌ Invalid FormComponent for view "${currentView}".`, currentViewConfig.FormComponent);
+        return <div className="error-container">Form component not found.</div>;
       }
-      return <ErrorBoundary onReset={() => handleRefresh(currentView)}><currentViewConfig.FormComponent {...formProps} /></ErrorBoundary>;
+      return (
+        <ErrorBoundary onReset={() => handleRefresh(currentView)}>
+          <currentViewConfig.FormComponent {...formProps} />
+        </ErrorBoundary>
+      );
     }
 
+    // Lista
     const listProps = {
       items: safeDataForView,
       onRefresh: () => handleRefresh(currentView),
       onEdit: handleEditClick,
-      isLoading: isLoading && !Array.isArray(safeDataForView),
+      isLoading: !!isLoading,
       onDelete: handleDeleteRequest,
       currentUser: user,
       autoRefreshEnabled,
@@ -103,7 +116,7 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
     );
   }
 
-  return null;
+  return <div>No component to render for this view.</div>;
 };
 
 export default ViewRenderer;

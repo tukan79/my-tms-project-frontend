@@ -8,6 +8,11 @@ import { useDashboard } from '../contexts/DashboardContext.jsx';
 const DashboardContent = () => {
   const { modalState, handleCloseModal, globalAutoRefresh, viewConfig } = useDashboard();
 
+  // ⛔ Blokujemy render, dopóki viewConfig nie jest gotowy
+  if (!viewConfig) {
+    return <div className="loading">Loading dashboard...</div>;
+  }
+
   return (
     <div className="dashboard-layout">
       <Sidebar />
@@ -20,10 +25,10 @@ const DashboardContent = () => {
           />
         </div>
       </main>
-      {modalState.isOpen && (
+      {modalState?.isOpen && (
         <ConfirmationModal
-          message={modalState.message}
-          onConfirm={modalState.onConfirm}
+          message={modalState?.message}
+          onConfirm={modalState?.onConfirm}
           onCancel={handleCloseModal}
         />
       )}
