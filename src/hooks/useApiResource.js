@@ -17,6 +17,7 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
     setDataRef.current = setData;
   }, []);
 
+
   const resourceUrlRef = useRef(resourceUrl);
   const resourceNameRef = useRef(resourceName);
   const abortControllerRef = useRef(null);

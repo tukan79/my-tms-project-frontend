@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useApiResource } from './useApiResource';
 import { useBroadcastChannel } from '@/hooks/useBroadcastChannel.js'; // Keep for listening
-import { importerConfig } from '@/config/importerConfig.js';
+import { importerConfig } from '@/config/importerConfig.jsx';
 
 /**
  * Zarządza stanem interfejsu użytkownika pulpitu (widoki, formularze, modale, importery)
