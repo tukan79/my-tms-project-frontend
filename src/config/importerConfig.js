@@ -1,187 +1,260 @@
-// Helper function to create a preview column configuration
-const createPreview = (key, header, render) => ({ key, header, render });
+//importerConfig.js
+//import React, { useState } from 'react';
+import Papa from 'papaparse';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
-// Configuration for the generic DataImporter component
-export const importerConfig = {
-  orders: {
-    title: 'Import Orders',
-    apiEndpoint: '/api/orders/import',
-    postDataKey: 'orders', // Backend oczekuje { orders: [...] }
-    dataMappingFn: (row) => ({
-      order_number: row.ConsignmentNumber,
-      customer_reference: row.CustomerReference,
-      customer_code: row.AccountCode,
-      status: 'nowe',
-      sender_details: {
-        name: row.CollectionName,
-        address1: row.CollectionAddress1,
-        address2: row.CollectionAddress2,
-        townCity: row.CollectionTownCity,
-        postCode: row.CollectionPostCode,
-      },
-      recipient_details: {
-        name: row.DeliveryName,
-        address1: row.DeliveryAddress1,
-        address2: row.DeliveryAddress2,
-        townCity: row.DeliveryTownCity,
-        postCode: row.DeliveryPostCode,
-      },
-      loading_date_time: row.CollectionDate ? `${row.CollectionDate}T${row.CollectionTime || '12:00:00'}` : null,
-      unloading_date_time: row.DeliveryDate ? `${row.DeliveryDate}T${row.DeliveryTime || '12:00:00'}` : null, // To pole jest nadal potrzebne dla sortowania/filtrowania
-      // Nowa, bardziej zaawansowana logika mapowania czasu
-      ...(() => {
-        // Uproszczona i bardziej skalowalna logika mapowania czasu dostawy
-        const timeSurchargeConfig = {
-          'BW': { hours: 4, type: 'window' }, // 4-godzinne okno przed czasem dostawy
-          'AM': { startTime: '09:00', type: 'before' }, // Dostawa przed czasem z pliku
-          'PT': { startTime: '09:00', type: 'before' }, // Dostawa przed czasem z pliku
-        };
-
-        const surcharges = (row.Surcharges || '').split(' ').filter(Boolean);
-        const deliveryTime = row.DeliveryTime || null;
-        const surchargeCode = surcharges.find(code => timeSurchargeConfig[code]);
-
-        if (surchargeCode && deliveryTime) {
-          const config = timeSurchargeConfig[surchargeCode];
-          const endTime = deliveryTime.slice(0, 5);
-          let startTime = config.startTime; // Domyślnie użyj czasu z konfiguracji
-          if (config.type === 'window') {
-            const [endHour, endMinute] = endTime.split(':').map(Number);
-            const date = new Date(0, 0, 0, endHour, endMinute);
-            date.setHours(date.getHours() - config.hours);
-            startTime = date.toTimeString().slice(0, 5);
-          }
-          return { unloading_start_time: startTime, unloading_end_time: endTime };
-        }
-        return { unloading_start_time: deliveryTime?.slice(0, 5) || null, unloading_end_time: null };
-      })(),
-      cargo_details: {
-        description: `Spaces: ${row.TotalSpaces}, Kilos: ${row.TotalKilos}`,
-        // Poprawka: Konwertujemy obiekt palet na tablicę, aby pasowała do formatu formularza.
-        pallets: Object.entries({
-          full: { quantity: parseInt(row.FullQ) || 0, spaces: parseFloat(row.FullS) || parseInt(row.FullQ) || 0, weight: parseFloat(row.FullW) || 0 },
-          half: { quantity: parseInt(row.HalfQ) || 0, spaces: parseFloat(row.HalfS) || 0.5 * (parseInt(row.HalfQ) || 0), weight: parseFloat(row.HalfW) || 0 },
-          half_plus: { quantity: parseInt(row.HalfPlusQ) || 0, spaces: parseFloat(row.HalfPlusS) || 1.5 * (parseInt(row.HalfPlusQ) || 0), weight: parseFloat(row.HalfPlusW) || 0 },
-          quarter: { quantity: parseInt(row.QuarterQ) || 0, spaces: parseFloat(row.QuarterS) || 0.5 * (parseInt(row.QuarterQ) || 0), weight: parseFloat(row.QuarterW) || 0 },
-          micro: { quantity: parseInt(row.MicroQ) || 0, spaces: parseFloat(row.MicroS) || 0.25 * (parseInt(row.MicroQ) || 0), weight: parseFloat(row.MicroW) || 0 },
-        })
-        .filter(([, details]) => details.quantity > 0)
-        .map(([type, details]) => ({
-          type,
-          quantity: details.quantity,
-          spaces: details.spaces,
-          weight: details.weight,
-        })),
-        total_kilos: parseFloat(row.TotalKilos) || 0,
-        total_spaces: parseFloat(row.TotalSpaces) || 0,
-        // Mapowanie pól Amazona
-        amazon_asn: row.AmazonASN,
-        amazon_fbaref: row.AmazonFBARef,
-        amazon_carton_count: parseInt(row.AmazonCartonCount, 10) || null,
-        amazon_unit_count: parseInt(row.AmazonUnitCount, 10) || null,
-        amazon_poref: row.AmazonPORef,
-      },
-      service_level: row.ServiceCode || 'A',
-      // Odczytujemy kody dopłat, dzielimy je po spacji i filtrujemy puste wartości
-      selected_surcharges: (row.Surcharges || '').split(' ').filter(Boolean),
-    }),
-    previewColumns: [
-      createPreview('order_number', 'Consignment #'),
-      createPreview('customer_code', 'Customer Code'),
-      createPreview('sender_details.name', 'Sender'),
-      createPreview('recipient_details.name', 'Recipient'),
-    ],
-  },
-  customers: {
-    title: 'Import Customers',
-    apiEndpoint: '/api/customers/import',
-    dataMappingFn: (row) => row, // No mapping needed if CSV headers match DB columns
-    previewColumns: [
-      createPreview('customer_code', 'Code'),
-      createPreview('name', 'Name'),
-      createPreview('postcode', 'Postcode'),
-    ],
-  },
-  drivers: {
-    title: 'Import Drivers',
-    apiEndpoint: '/api/drivers/import',
-    dataMappingFn: (row) => row,
-    previewColumns: [
-      createPreview('first_name', 'First Name'),
-      createPreview('last_name', 'Last Name'),
-      createPreview('login_code', 'Login Code'),
-    ],
-  },
-  trucks: {
-    title: 'Import Vehicles',
-    apiEndpoint: '/api/trucks/import',
-    postDataKey: 'trucks', // API expects { trucks: [...] }
-    dataMappingFn: (row) => ({
-      registration_plate: row.registration_plate || '',
-      brand: row.brand || '',
-      model: row.model || '',
-      vin: row.vin || '',
-      production_year: row.production_year ? parseInt(row.production_year, 10) : null,
-      type_of_truck: row.type_of_truck || 'tractor',
-      total_weight: row.total_weight ? parseInt(row.total_weight, 10) : null,
-      pallet_capacity: row.pallet_capacity ? parseInt(row.pallet_capacity, 10) : null,
-      max_payload_kg: row.max_payload_kg ? parseInt(row.max_payload_kg, 10) : null,
-      is_active: !(row.is_deleted === 'true' || row.is_deleted === true),
-    }),
-    previewColumns: [
-      createPreview('registration_plate', 'Reg. Plate'),
-      createPreview('brand', 'Brand'),
-      createPreview('type_of_truck', 'Type'),
-    ],
-  },
-  trailers: {
-    title: 'Import Trailers',
-    apiEndpoint: '/api/trailers/import',
-    postDataKey: 'trailers', // API expects { trailers: [...] }
-    dataMappingFn: (row) => ({
-      registration_plate: row.registration_plate || '',
-      description: row.description || '',
-      category: row.category || 'Own',
-      brand: row.brand || 'Unknown',
-      max_payload_kg: row.max_payload_kg ? parseInt(row.max_payload_kg, 10) : null,
-      max_spaces: row.max_spaces ? parseInt(row.max_spaces, 10) : null,
-      length_m: row.length_m ? parseFloat(row.length_m) : null,
-      width_m: row.width_m ? parseFloat(row.width_m) : null,
-      height_m: row.height_m ? parseFloat(row.height_m) : null,
-      weight_kg: row.weight_kg ? parseInt(row.weight_kg, 10) : null,
-      status: row.status ? row.status.toLowerCase() : 'inactive',
-    }),
-    previewColumns: [
-      createPreview('registration_plate', 'Reg. Plate'),
-      createPreview('description', 'Description'),
-      createPreview('max_payload_kg', 'Payload (kg)'),
-      createPreview('status', 'Status'),
-    ],
-  },
-  users: {
-    title: 'Import Users',
-    apiEndpoint: '/api/users/import',
-    dataMappingFn: (row) => row, // CSV headers match expected keys
-    previewColumns: [
-      createPreview('email', 'Email'),
-      createPreview('first_name', 'First Name'),
-      createPreview('last_name', 'Last Name'),
-      createPreview('role', 'Role'),
-    ],
-  },
-  zones: {
-    title: 'Import Postcode Zones',
-    apiEndpoint: '/api/zones/import',
-    dataMappingFn: (row) => ({
-      ...row,
-      postcode_patterns: (row.postcode_patterns || '').split(';').map(p => p.trim()).filter(Boolean),
-      is_home_zone: ['true', 'yes', '1'].includes(String(row.is_home_zone).toLowerCase()),
-    }),
-    previewColumns: [
-      createPreview('zone_name', 'Zone Name'),
-      createPreview('postcode_patterns', 'Patterns', (row) => (row.postcode_patterns || []).join(', ')),
-      createPreview('is_home_zone', 'Home Zone', (row) => (row.is_home_zone ? 'Yes' : 'No')),
-    ],
-  },
+// 🔒 Helper — logowanie błędów do backendu
+const logImportError = async (errorDetails) => {
+  try {
+    await fetch('/api/bug_reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        description: `Import Error: ${errorDetails.message}`,
+        context: {
+          userAgent: navigator.userAgent,
+          url: window.location.href,
+          fileName: errorDetails.fileName || null,
+          apiEndpoint: errorDetails.apiEndpoint || null,
+          totalRecords: errorDetails.totalRecords || null,
+          errorType: errorDetails.type || 'ImportError',
+          stack: errorDetails.stack || null,
+          sampleRow: errorDetails.sampleRow || null,
+        },
+        reportedAt: new Date().toISOString(),
+      }),
+    });
+  } catch (err) {
+    console.warn('⚠️ Failed to send bug report:', err);
+  }
 };
-// ostatnia zmiana (30.05.2024, 13:14:12)
+
+const DataImporter = ({ title, apiEndpoint, postDataKey, dataMappingFn, previewColumns, onSuccess, onCancel }) => {
+  const { toast } = useToast();
+  const [file, setFile] = useState(null);
+  const [parsedData, setParsedData] = useState([]);
+  const [error, setError] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    setError(null);
+
+    if (!selectedFile) return;
+
+    if (!selectedFile.name.endsWith('.csv')) {
+      setError('❌ Please select a valid CSV file.');
+      return;
+    }
+
+    setFile(selectedFile);
+    Papa.parse(selectedFile, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        if (!Array.isArray(results.data) || results.data.length === 0) {
+          const msg = '❌ No valid data found in the CSV file.';
+          setError(msg);
+          logImportError({
+            message: msg,
+            fileName: selectedFile.name,
+            apiEndpoint,
+            totalRecords: 0,
+          });
+          return;
+        }
+
+        try {
+          const mapped = results.data.map((row, i) => {
+            const mappedRow = dataMappingFn(row);
+            if (typeof mappedRow !== 'object' || mappedRow === null) {
+              throw new Error(`Invalid row mapping at line ${i + 1}`);
+            }
+            return mappedRow;
+          });
+
+          const hasInvalidData = mapped.some(
+            (item) => typeof item !== 'object' || item === null || Array.isArray(item)
+          );
+
+          if (hasInvalidData) {
+            throw new Error('Some rows contain invalid data structures.');
+          }
+
+          setParsedData(mapped);
+          setError(null);
+        } catch (err) {
+          console.error('🚨 Mapping error:', err);
+          const message = `❌ Data mapping failed: ${err.message}`;
+          setError(message);
+          logImportError({
+            message,
+            fileName: selectedFile.name,
+            apiEndpoint,
+            totalRecords: results.data?.length || 0,
+            stack: err.stack,
+            sampleRow: results.data?.[0],
+          });
+        }
+      },
+      error: (err) => {
+        console.error('🚨 CSV Parse error:', err);
+        const message = `❌ Error parsing CSV file: ${err.message}`;
+        setError(message);
+        logImportError({
+          message,
+          fileName: selectedFile.name,
+          apiEndpoint,
+          stack: err.stack,
+        });
+      },
+    });
+  };
+
+  const handleUpload = async () => {
+    if (parsedData.length === 0) {
+      toast({ title: 'No data', description: 'Please import a CSV file first.' });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const payload = postDataKey ? { [postDataKey]: parsedData } : parsedData;
+
+      const res = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Server responded with ${res.status}: ${text}`);
+      }
+
+      const json = await res.json();
+      toast({
+        title: '✅ Import successful',
+        description: `${json.count || parsedData.length} records imported.`,
+      });
+      onSuccess?.();
+    } catch (err) {
+      console.error('🚨 Upload failed:', err);
+      const message = `Import failed: ${err.message}`;
+      toast({
+        title: 'Import failed',
+        description: err.message,
+        variant: 'destructive',
+      });
+      logImportError({
+        message,
+        fileName: file?.name,
+        apiEndpoint,
+        totalRecords: parsedData?.length || 0,
+        stack: err.stack,
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const validatePreviewColumns = () => {
+    if (!Array.isArray(previewColumns) || previewColumns.length === 0) return false;
+    return previewColumns.every((col) => col.key && col.header);
+  };
+
+  const renderPreview = () => {
+    if (!validatePreviewColumns()) {
+      return <div className="text-red-500">❌ Invalid preview configuration.</div>;
+    }
+
+    return (
+      <table className="min-w-full border border-gray-300 text-sm mt-3">
+        <thead>
+          <tr className="bg-gray-100">
+            {previewColumns.map((col) => (
+              <th key={col.key} className="px-3 py-2 border-b font-semibold text-left">
+                {col.header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {parsedData.slice(0, 5).map((row, i) => (
+            <tr key={i} className="odd:bg-white even:bg-gray-50">
+              {previewColumns.map((col) => {
+                try {
+                  const value = col.render
+                    ? col.render(row)
+                    : col.key.split('.').reduce((acc, part) => acc?.[part], row);
+                  return (
+                    <td key={col.key} className="px-3 py-2 border-b">
+                      {value ?? '-'}
+                    </td>
+                  );
+                } catch (err) {
+                  console.warn(`⚠️ Preview render error for ${col.key}`, err);
+                  logImportError({
+                    message: `Preview render error for ${col.key}: ${err.message}`,
+                    fileName: file?.name,
+                    apiEndpoint,
+                    stack: err.stack,
+                    sampleRow: row,
+                  });
+                  return (
+                    <td key={col.key} className="px-3 py-2 border-b text-red-500">
+                      ⚠️ Error
+                    </td>
+                  );
+                }
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
+
+  return (
+    <Card className="w-full max-w-3xl mx-auto mt-6 shadow-md">
+      <CardHeader>
+        <h2 className="text-lg font-semibold">{title || 'Data Importer'}</h2>
+      </CardHeader>
+      <CardContent>
+        {error && (
+          <div className="bg-red-50 border border-red-300 text-red-600 p-3 rounded-md mb-3">
+            <p>{error}</p>
+            <div className="mt-2 flex gap-2">
+              <Button variant="outline" onClick={() => setError(null)}>Retry</Button>
+              <Button variant="destructive" onClick={onCancel}>Cancel</Button>
+            </div>
+          </div>
+        )}
+
+        <input
+          type="file"
+          accept=".csv"
+          onChange={handleFileChange}
+          className="mb-4 block"
+        />
+
+        {parsedData.length > 0 && (
+          <>
+            <h3 className="font-semibold mt-3 mb-1">Preview ({parsedData.length} rows)</h3>
+            {renderPreview()}
+            <div className="mt-4 flex gap-2">
+              <Button onClick={handleUpload} disabled={isUploading}>
+                {isUploading ? 'Uploading...' : 'Upload Data'}
+              </Button>
+              <Button variant="outline" onClick={onCancel}>Cancel</Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default DataImporter;
