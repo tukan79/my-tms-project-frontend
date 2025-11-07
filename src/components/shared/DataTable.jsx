@@ -40,20 +40,27 @@ const DataTable = ({
 
   const safeItems = Array.isArray(items) ? items : [];
 
+  // ✅ Twarde zabezpieczenia
   const {
-    sortedAndFilteredData,
-    sortConfig,
-    filterText,
-    setFilterText,
-    handleSort,
-  } = useTableData(safeItems, {
-    initialSortKey,
-    filterKeys,
-  });
+    sortedAndFilteredData = [],
+    sortConfig = {},
+    filterText = '',
+    setFilterText = () => {},
+    handleSort = () => {},
+  } = useTableData?.(safeItems, { initialSortKey, filterKeys }) || {};
 
+  // ✅ Zawsze zwracaj tablicę
   const safeSortedData = Array.isArray(sortedAndFilteredData)
     ? sortedAndFilteredData
     : [];
+
+  // Dodatkowa diagnostyka
+  console.log('🧠 DataTable debug:', {
+    itemsType: typeof items,
+    itemsIsArray: Array.isArray(items),
+    safeSortedDataLength: safeSortedData.length,
+    columnsLength: Array.isArray(columns) ? columns.length : '❌ not array',
+  });
 
   const [inputValue, setInputValue] = useState(filterText);
 

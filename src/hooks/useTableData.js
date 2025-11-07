@@ -6,29 +6,25 @@ import { useState, useMemo, useCallback } from 'react';
  */
 const getNestedValue = (obj, path) => {
   if (!path || !obj) return undefined;
-  return path.split('.').reduce((acc, part) => (acc ? acc[part] : undefined), obj);
+  try {
+    return path.split('.').reduce((acc, part) => (acc ? acc[part] : undefined), obj);
+  } catch {
+    return undefined;
+  }
 };
 
 /**
  * Hook do obsługi sortowania i filtrowania danych tabeli.
- * @param {Array} initialData - Dane źródłowe.
- * @param {object} options
- * @param {string} [options.initialSortKey] - Klucz początkowego sortowania.
- * @param {string[]} [options.filterKeys] - Klucze do filtrowania (np. ["name", "address.city"]).
- * @param {boolean} [options.debug=false] - Czy włączyć logi debugujące.
- * @returns {{
- *  sortedAndFilteredData: Array,
- *  sortConfig: { key: string, direction: 'ascending' | 'descending' },
- *  filterText: string,
- *  setFilterText: Function,
- *  handleSort: Function
- * }}
  */
 export const useTableData = (
   initialData = [],
   { initialSortKey = null, filterKeys = [], debug = false } = {}
 ) => {
-  const [sortConfig, setSortConfig] = useState({ key: initialSortKey, direction: 'ascending' });
+  const [sortConfig, setSortConfig] = useState({
+    key: initialSortKey,
+    direction: 'ascending',
+  });
+
   const [filterText, setFilterText] = useState('');
 
   const log = (...args) => {
@@ -36,24 +32,24 @@ export const useTableData = (
   };
 
   /**
-   * 🔽 Sortowanie danych
+   * 🔽 SORTOWANIE
    */
   const sortedData = useMemo(() => {
-    const sortableData = Array.isArray(initialData) ? [...initialData] : [];
+    const safeData = Array.isArray(initialData) ? [...initialData] : [];
     const { key, direction } = sortConfig;
 
-    if (!key) return sortableData;
+    if (!key) return safeData;
 
     const isAscending = direction === 'ascending';
-    const sorted = sortableData.sort((a, b) => {
+    const sorted = safeData.sort((a, b) => {
       const valA = getNestedValue(a, key);
       const valB = getNestedValue(b, key);
 
-      const strA = typeof valA === 'string' ? valA.toLowerCase() : valA;
-      const strB = typeof valB === 'string' ? valB.toLowerCase() : valB;
+      const normA = typeof valA === 'string' ? valA.toLowerCase() : valA ?? '';
+      const normB = typeof valB === 'string' ? valB.toLowerCase() : valB ?? '';
 
-      if (strA < strB) return isAscending ? -1 : 1;
-      if (strA > strB) return isAscending ? 1 : -1;
+      if (normA < normB) return isAscending ? -1 : 1;
+      if (normA > normB) return isAscending ? 1 : -1;
       return 0;
     });
 
@@ -62,23 +58,23 @@ export const useTableData = (
   }, [initialData, sortConfig]);
 
   /**
-   * 🔁 Zmiana kierunku sortowania
+   * 🔁 SORTOWANIE - ZMIANA KIERUNKU
    */
   const handleSort = useCallback(
     (key) => {
       setSortConfig((prev) => ({
         key,
         direction:
-          prev.key === key && prev.direction === 'ascending'
-            ? 'descending'
-            : 'ascending',
+          prev.key === key && prev.direction === 'ascending' ?
+          'descending' :
+          'ascending',
       }));
     },
     []
   );
 
   /**
-   * 🔍 Filtrowanie danych
+   * 🔍 FILTROWANIE
    */
   const sortedAndFilteredData = useMemo(() => {
     if (!Array.isArray(sortedData)) return [];
@@ -87,7 +83,7 @@ export const useTableData = (
     const lowerFilter = filterText.toLowerCase();
 
     const filtered = sortedData.filter((item) =>
-      filterKeys.some((key) => {
+      Array.isArray(filterKeys) && filterKeys.some((key) => {
         const value = getNestedValue(item, key);
         return (
           value &&
@@ -100,17 +96,12 @@ export const useTableData = (
     return filtered;
   }, [sortedData, filterText, filterKeys]);
 
-  log('Final result', {
-    items: sortedAndFilteredData.length,
-    sortConfig,
-    filterText,
-  });
-
+  // ✅ Gwarantuje, że hook **zawsze zwróci poprawne wartości**, nawet przy błędach
   return {
-    sortedAndFilteredData,
-    sortConfig,
-    filterText,
-    setFilterText,
-    handleSort,
+    sortedAndFilteredData: Array.isArray(sortedAndFilteredData) ? sortedAndFilteredData : [],
+    sortConfig: sortConfig || { key: null, direction: 'ascending' },
+    filterText: typeof filterText === 'string' ? filterText : '',
+    setFilterText: typeof setFilterText === 'function' ? setFilterText : () => {},
+    handleSort: typeof handleSort === 'function' ? handleSort : () => {},
   };
 };

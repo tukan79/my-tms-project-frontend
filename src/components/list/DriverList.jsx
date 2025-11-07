@@ -18,7 +18,7 @@ const DriverList = ({ items: drivers = [], onRefresh, onEdit }) => {
         {driver.is_active ? 'Active' : 'Inactive'}
       </span>
     )},
-  ];
+  ];  
 
   const { showToast } = useToast();
 

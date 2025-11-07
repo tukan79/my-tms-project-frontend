@@ -1,3 +1,4 @@
+// frontend/src/components/ViewRenderer.jsx
 import React from 'react';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 import DataImporter from '@/components/DataImporter.jsx';
@@ -6,7 +7,7 @@ import { useDashboard } from '@/contexts/DashboardContext.jsx';
 const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
   const {
     currentView, isLoading, anyError, handleRefresh,
-    importerConfig: activeImporterConfig, // Poprawka: odczytujemy 'importerConfig' i zmieniamy nazwę
+    importerConfig: activeImporterConfig,
     handleFormSuccess, handleHideImporter,
     showForm, handleCancelForm, itemToEdit, handleEditClick,
     handleDeleteRequest, user, data
@@ -14,20 +15,25 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
 
   const { drivers, trucks, trailers, customers, zones, surcharges } = data || {};
 
-  if (!user) return null;
-  if (!viewConfig) return null; // Dodatkowe zabezpieczenie
+  if (!user || !viewConfig) return null;
 
   const currentViewConfig = viewConfig[currentView];
   if (!currentViewConfig) return null;
 
-  // Widoki, które są pojedynczymi, autonomicznymi komponentami (np. PlanItPage, RunManager)
-  if (currentViewConfig.Component && !currentViewConfig.ListComponent) {
-    return <ErrorBoundary><currentViewConfig.Component {...currentViewConfig.props} /></ErrorBoundary>;
-  }
+  // 🧩 Debug log
+  console.log('🧩 Rendering view:', currentView, {
+    currentViewConfig,
+    dataType: typeof currentViewConfig?.data,
+    isArray: Array.isArray(currentViewConfig?.data),
+    dataSample: currentViewConfig?.data?.slice?.(0, 1) ?? currentViewConfig?.data
+  });
 
-  // Zabezpieczenie: Gwarantujemy, że dane dla widoku są zawsze tablicą.
-  // To zapobiega błędom, gdy `currentViewConfig.data` jest `undefined`.
-  const safeDataForView = Array.isArray(currentViewConfig?.data) ? currentViewConfig.data : [];
+  // 🧱 Zabezpieczenie — dane ZAWSZE jako tablica
+  const safeDataForView = Array.isArray(currentViewConfig?.data)
+    ? currentViewConfig.data
+    : currentViewConfig?.data
+    ? [currentViewConfig.data]
+    : [];
 
   if (anyError) {
     return (
@@ -41,45 +47,62 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
     );
   }
 
-  // Widoki składające się z listy i formularza (np. Orders, Drivers)
+  // Widok z pojedynczym komponentem
+  if (currentViewConfig.Component && !currentViewConfig.ListComponent) {
+    return (
+      <ErrorBoundary>
+        <currentViewConfig.Component {...currentViewConfig.props} />
+      </ErrorBoundary>
+    );
+  }
+
+  // Widok z listą i formularzem
   if (currentViewConfig.ListComponent) {
     if (activeImporterConfig) {
-      return <ErrorBoundary onReset={() => handleRefresh(currentView)}><DataImporter {...activeImporterConfig} onSuccess={handleFormSuccess} onCancel={handleHideImporter} /></ErrorBoundary>;
+      return (
+        <ErrorBoundary onReset={() => handleRefresh(currentView)}>
+          <DataImporter
+            {...activeImporterConfig}
+            onSuccess={handleFormSuccess}
+            onCancel={handleHideImporter}
+          />
+        </ErrorBoundary>
+      );
     }
 
     if (showForm) {
       const formProps = {
         onSuccess: handleFormSuccess,
         onCancel: handleCancelForm,
-        itemToEdit: itemToEdit,
+        itemToEdit,
         ...(currentView === 'orders' && { drivers, trucks, trailers, clients: customers, surcharges }),
       };
-      return <ErrorBoundary onReset={() => handleRefresh(currentView)}><currentViewConfig.FormComponent {...formProps} /></ErrorBoundary>;
+      return (
+        <ErrorBoundary onReset={() => handleRefresh(currentView)}>
+          <currentViewConfig.FormComponent {...formProps} />
+        </ErrorBoundary>
+      );
     }
 
     const listProps = {
-      items: safeDataForView, // Używamy zabezpieczonych danych
+      items: safeDataForView,
       onRefresh: () => handleRefresh(currentView),
       onEdit: handleEditClick,
-      isLoading: isLoading && !Array.isArray(safeDataForView), // Sprawdzamy zabezpieczone dane
+      isLoading: isLoading && !Array.isArray(safeDataForView),
       onDelete: handleDeleteRequest,
       currentUser: user,
-      autoRefreshEnabled: autoRefreshEnabled, // Przekazujemy stan auto-odświeżania
+      autoRefreshEnabled,
       ...(currentView === 'orders' && { drivers, trucks, trailers, zones }),
     };
 
-    console.log('🔄 Rendering ListComponent:', {
-      view: currentView,
-      component: currentViewConfig?.ListComponent?.name ?? 'Unknown',
-      itemsCount: safeDataForView?.length ?? 0,
-      listProps
-    });
-
-    return <ErrorBoundary onReset={() => handleRefresh(currentView)}><currentViewConfig.ListComponent {...listProps} /></ErrorBoundary>;
+    return (
+      <ErrorBoundary onReset={() => handleRefresh(currentView)}>
+        <currentViewConfig.ListComponent {...listProps} />
+      </ErrorBoundary>
+    );
   }
 
   return null;
 };
 
 export default ViewRenderer;
-// ostatnia zmiana (30.05.2024, 20:14:12)
