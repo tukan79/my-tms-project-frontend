@@ -77,11 +77,12 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
         itemToEdit,
         ...(currentView === 'orders' && { drivers, trucks, trailers, clients: customers, surcharges }),
       };
-      return (
-        <ErrorBoundary onReset={() => handleRefresh(currentView)}>
-          <currentViewConfig.FormComponent {...formProps} />
-        </ErrorBoundary>
-      );
+      // Ensure FormComponent is a valid React component before rendering
+      if (typeof currentViewConfig.FormComponent !== 'function') {
+        console.error(`FormComponent for view "${currentView}" is not a valid component.`, currentViewConfig.FormComponent);
+        return null; // Or render a fallback/error message
+      }
+      return <ErrorBoundary onReset={() => handleRefresh(currentView)}><currentViewConfig.FormComponent {...formProps} /></ErrorBoundary>;
     }
 
     const listProps = {
