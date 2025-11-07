@@ -75,7 +75,7 @@ export const useForm = ({
       }
 
       setFormData(prev => (shallowEqual(prev, merged) ? prev : merged));
-    } else {
+    } else if (base) {
       setFormData(prev => (shallowEqual(prev, base) ? prev : base));
     }
 
