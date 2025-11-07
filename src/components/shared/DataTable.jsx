@@ -31,7 +31,7 @@ const DataTable = ({
   loadingText = "Loading...",
   onContextMenu,
   footerData = {},
-  autoRefreshEnabled = false // Przyjmujemy stan z zewnątrz
+  autoRefreshEnabled = false
 }) => {
   if (!Array.isArray(columns)) {
     console.error('DataTable: columns must be an array');
@@ -39,6 +39,7 @@ const DataTable = ({
   }
 
   const safeItems = Array.isArray(items) ? items : [];
+  const safeColumns = Array.isArray(columns) ? columns : [];
 
   // ✅ Twarde zabezpieczenia
   const {
@@ -120,7 +121,7 @@ const DataTable = ({
         <table className="data-table">
           <thead>
             <tr>
-              {columns.map((col) => (
+              {safeColumns.map((col) => (
                 <th
                   key={col.key}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
@@ -150,19 +151,19 @@ const DataTable = ({
               Array.from({ length: 10 }).map((_, i) => (
                 <SkeletonRow
                   key={i}
-                  columns={columns}
+                  columns={safeColumns}
                   hasActions={onEdit || onDelete || (Array.isArray(customActions) && customActions.length > 0)}
                 />
               ))
-            ) : safeSortedData.length > 0 ? (
+            ) : safeSortedData?.length > 0 ? (
               safeSortedData.map((item) => (
                 <tr
                   key={item.id}
                   onContextMenu={onContextMenu ? (e) => onContextMenu(e, item) : undefined}
                   style={onContextMenu ? { cursor: 'context-menu' } : {}}
                 >
-                  {columns.map((col) => (
-                    <td key={`${item.id}-${col.key}`}>
+                  {safeColumns.map((col) => (
+                    <td key={`${item.id}-${col?.key}`}>
                       {col.render ? col.render(item) : getNestedValue(item, col.key)}
                     </td>
                   ))}
@@ -204,7 +205,7 @@ const DataTable = ({
           {footerData && (
             <tfoot>
               <tr>
-                {columns.map((col) => (
+                {safeColumns.map((col) => (
                   <td key={`footer-${col.key}`}>
                     {footerData?.[col.key] ? (
                       <strong>{footerData[col.key]}</strong>
