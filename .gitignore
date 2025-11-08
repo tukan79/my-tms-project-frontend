@@ -1,2 +1,23 @@
-/node_modules
-/.env
+# Ignorowanie zależności i plików tymczasowych
+node_modules/
+
+# Pliki logów
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Katalog z zbudowaną aplikacją
+dist/
+dist-ssr/
+
+# Pliki środowiskowe
+.env
+.env.local
+.env.*.local
+
+# Pliki specyficzne dla systemu operacyjnego i edytora
+.DS_Store
+.idea/
+.vscode/
