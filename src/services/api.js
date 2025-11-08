@@ -44,9 +44,15 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const isUnauthorized = error.response?.status === 401;
+    const isRefreshEndpoint = originalRequest.url.includes('/api/auth/refresh');
+
+    // Jeśli błąd dotyczy samego odświeżania, nie próbuj ponownie
+    if (isRefreshEndpoint) {
+      return Promise.reject(error);
+    }
 
     // 🔁 Obsługa 401 i odświeżanie tokena
-    if (isUnauthorized && !originalRequest._retry) {
+    if (isUnauthorized && !originalRequest._retry && !originalRequest.url.includes('/api/auth/login')) {
       if (isRefreshing) {
         // Inne zapytania czekają w kolejce
         return new Promise((resolve, reject) => {
