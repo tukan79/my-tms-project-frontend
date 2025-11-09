@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Upload, Download, RefreshCw } from 'lucide-react';
 import { useDashboard } from '@/contexts/DashboardContext.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import { importerConfig } from '@/config/importerConfig.jsx';
 
 const MainHeader = ({ viewConfig }) => {
   const { user } = useAuth();
@@ -45,7 +44,7 @@ const MainHeader = ({ viewConfig }) => {
   const exportableViews = ['drivers', 'trucks', 'trailers', 'customers', 'users'];
   
   // Używamy czytelnych flag do zarządzania logiką warunkową
-  const canImport = importerConfig[currentView] && user?.role === 'admin';
+  const canImport = viewConfig[currentView]?.importer && user?.role === 'admin';
   const canExport = exportableViews.includes(currentView) && user?.role === 'admin';
   const canAdd = viewConfig[currentView]?.FormComponent;
 

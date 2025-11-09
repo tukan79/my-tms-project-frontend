@@ -157,6 +157,3 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-
-export default AuthContext;
-// ostatnia zmiana (04.11.2025, 23:07)
