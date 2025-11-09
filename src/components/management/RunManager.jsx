@@ -103,7 +103,7 @@ const RunManager = ({ runs = [], trucks = [], trailers = [], drivers = [], onDat
   }, [runActions, showToast, enrichedRuns]);
 
   return (
-    <div className="card">
+    <div className="card flex flex-col h-full">
       {isFormVisible && (
         <div className="modal-overlay">
           <AddRunForm

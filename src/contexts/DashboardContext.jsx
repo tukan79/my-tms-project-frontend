@@ -24,7 +24,7 @@ export const useDashboard = () => {
 };
 
 const useDashboardStateManagement = () => {
-  const [currentView, setCurrentView] = React.useState('orders');
+  const [currentView, setCurrentView] = React.useState(null); // Initialize as null
   const [showForm, setShowForm] = React.useState(false);
   const [itemToEdit, setItemToEdit] = React.useState(null);
   const [importerConfig, setImporterConfig] = React.useState(null);
@@ -57,18 +57,16 @@ const useDashboardStateManagement = () => {
 
 export const DashboardProvider = ({ children }) => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const { showToast } = useToast();
 
   // 🧩 Inicjalizacja stanu dashboardu
   const state = useDashboardStateManagement();
 
-  // 🔄 Bezpieczne pobieranie danych — jeśli user nie istnieje, zwróć pusty obiekt
-  const dataFetching = user ? useDataFetching(user.role) : {
-    data: {},
-    actions: {},
-    refreshAll: async () => {},
-  };
+  // 🔄 Pobieranie danych jest teraz bezwarunkowe.
+  // Hook `useDataFetching` sam obsłuży sytuację, gdy nie ma użytkownika.
+  const dataFetching = useDataFetching(user?.role);
+
 
   // Ref zabezpieczający przed spamem refreshy
   const isRefreshing = useRef(false);
@@ -141,24 +139,25 @@ export const DashboardProvider = ({ children }) => {
   const viewConfig = useMemo(() => {
     return generateViewConfig({
       user,
-      data: dataFetching?.data || {},
-      actions: dataFetching?.actions || {},
-      refreshAll: dataFetching?.refreshAll,
-      handleDeleteRequest: state?.handleDeleteRequest,
-      handleEditOrderFromAnywhere: (order) => {
-        console.log('Edit order:', order);
-      },
-      handlePrintLabels: (orderIds) => {
-        console.log('Print labels:', orderIds);
-      },
+      data: dataFetching.data,
+      actions: {
+        ...dataFetching.actions,
+        ...state, // Przekazujemy wszystkie akcje ze stanu (np. handleDeleteRequest)
+      }
     });
-  }, [
-    user,
-    dataFetching?.data,
-    dataFetching?.actions,
-    dataFetching?.refreshAll,
-    state?.handleDeleteRequest,
-  ]);
+  }, [user, dataFetching.data, dataFetching.actions, state]);
+
+  // Set initial currentView based on user role and available views
+  React.useEffect(() => {
+    // Only set if currentView is null (initial state) and viewConfig is available
+    if (state.currentView === null && viewConfig && Object.keys(viewConfig).length > 0) {
+      const availableViews = Object.keys(viewConfig);
+      // Try to default to 'orders' if available, otherwise pick the first one
+      const defaultView = availableViews.includes('orders') ? 'orders' : availableViews[0];
+      state.handleViewChange(defaultView);
+    }
+  }, [viewConfig, state.currentView, state.handleViewChange]);
+
 
   // 🧱 Łączenie wszystkiego w jedno źródło prawdy
   const value = useMemo(

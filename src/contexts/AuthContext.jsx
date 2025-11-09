@@ -26,19 +26,6 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true); // Ładowanie początkowe
   const { showToast } = useToast();
 
-  // 🔹 Ładowanie profilu użytkownika po tokenie
-  const fetchUser = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    try {
-      const { data } = await api.get('/api/auth/me');
-      setUser(data.user);
-    } catch (error) {
-      console.warn('⚠️ Failed to fetch user info:', error);
-      setUser(null);
-    }
-  }, []);
-
   // 🔹 Logowanie użytkownika
   const login = useCallback(
     async (email, password) => {
@@ -150,7 +137,6 @@ export const AuthProvider = ({ children }) => {
         logout,
         register,
         setUser,
-        fetchUser,
       }}
     >
       {!isLoading && children}

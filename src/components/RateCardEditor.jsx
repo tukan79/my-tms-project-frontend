@@ -23,7 +23,9 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
       setIsLoading(true);
       try {
         const response = await api.get('/api/rate-cards');
-        setRateCards(response.data);
+        // Ensure that we are always setting an array
+        const data = Array.isArray(response.data) ? response.data : response.data?.data || [];
+        setRateCards(data);
       } catch (error) {
         showToast('Failed to fetch rate cards.', 'error');
       } finally {

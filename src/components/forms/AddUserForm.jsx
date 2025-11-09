@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { X } from 'lucide-react';
 import api from '@/services/api.js';
 import { useToast } from '@/contexts/ToastContext.jsx';
@@ -16,37 +16,43 @@ const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
 
   const { showToast } = useToast();
 
-  const validate = (data) => {
-    const newErrors = {};
-    if (!data.email) newErrors.email = 'Email is required.';
-    if (!data.first_name) newErrors.first_name = 'First name is required.';
-    if (!data.last_name) newErrors.last_name = 'Last name is required.';
-    if (!isEditMode && (!data.password || data.password.length < 6)) {
-      newErrors.password = 'Password must be at least 6 characters long.';
-    }
-    return newErrors;
-  };
-
-  const performSubmit = async (formData) => {
-    try {
-      if (isEditMode) {
-        await api.put(`/api/users/${itemToEdit.id}`, { 
-          role: formData.role,
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-        });
-        showToast('User updated successfully!', 'success');
-      } else {
-        await api.post('/api/users', formData);
-        showToast('User created successfully!', 'success');
+  const validate = useCallback(
+    (data) => {
+      const newErrors = {};
+      if (!data.email) newErrors.email = 'Email is required.';
+      if (!data.first_name) newErrors.first_name = 'First name is required.';
+      if (!data.last_name) newErrors.last_name = 'Last name is required.';
+      if (!isEditMode && (!data.password || data.password.length < 6)) {
+        newErrors.password = 'Password must be at least 6 characters long.';
       }
-      onSuccess();
-    } catch (err) {
-      const errorMessage = err.response?.data?.error || 'An error occurred.';
-      showToast(errorMessage, 'error');
-      throw new Error(errorMessage);
-    }
-  };
+      return newErrors;
+    },
+    [isEditMode]
+  );
+
+  const performSubmit = useCallback(
+    async (formData) => {
+      try {
+        if (isEditMode) {
+          await api.put(`/api/users/${itemToEdit.id}`, {
+            role: formData.role,
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+          });
+          showToast('User updated successfully!', 'success');
+        } else {
+          await api.post('/api/users', formData);
+          showToast('User created successfully!', 'success');
+        }
+        onSuccess();
+      } catch (err) {
+        const errorMessage = err.response?.data?.error || 'An error occurred.';
+        showToast(errorMessage, 'error');
+        throw new Error(errorMessage);
+      }
+    },
+    [isEditMode, itemToEdit, onSuccess, showToast]
+  );
 
   const {
     formData,
@@ -54,7 +60,7 @@ const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
     loading,
     handleChange,
     handleSubmit,
-  } = useForm({ initialState: initialFormData, validate, onSubmit: performSubmit, itemToEdit });
+  } = useForm({ initialState: initialFormData, validate, onSubmit: performSubmit, itemToEdit: useMemo(() => itemToEdit, [itemToEdit]) });
 
   return (
     <div className="card">

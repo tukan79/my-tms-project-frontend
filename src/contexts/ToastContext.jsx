@@ -34,7 +34,8 @@ export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
   const showToast = useCallback((message, type = 'success') => {
-    const id = Date.now();
+    // Use a more robust unique ID to prevent key collisions
+    const id = Date.now() + Math.random();
     setToasts((prevToasts) => [...prevToasts, { id, message, type }]);
     setTimeout(() => {
       removeToast(id);

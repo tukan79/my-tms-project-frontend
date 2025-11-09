@@ -44,46 +44,29 @@ body.main-app-body {
   overflow: hidden;
 }
 
-/* Główny kontener aplikacji, zajmujący całą wysokość i szerokość widoku */
-.app-container {
-  display: flex;
-  height: 100vh; /* Ustawiamy sztywną wysokość na 100% widoku */
-}
+/* Główny kontener aplikacji jest teraz w pełni stylizowany przez TailwindCSS. */
+/* Usunięto .app-container, aby uniknąć konfliktów. */
 
-/* Sidebar */
+/* Przywrócono kluczowe style dla paska bocznego, aby zapewnić jego widoczność i stałą szerokość. */
 .sidebar {
-  width: 9rem; /* Używamy rem dla lepszej skalowalności */
-  background-color: var(--sidebar-bg);
-  color: var(--sidebar-text);
+  width: 9rem; /* Stała szerokość paska bocznego */
+  background-color: var(--sidebar-bg); /* Tło paska */
+  color: var(--sidebar-text); /* Kolor tekstu na pasku */
   padding: 2rem 1rem;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
   display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
+  flex-direction: column; /* Wewnętrzny układ paska (elementy jeden pod drugim) */
+  flex-shrink: 0; /* Zapobiega kurczeniu się paska */
   transition: width 0.2s ease-in-out;
 }
 
 .sidebar-header {
-  padding: 0 0 1.5rem 0; /* Usunięcie bocznych paddingów */
+  padding: 0 0 1.5rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 1.5rem;
   display: flex;
-  align-items: center; /* Wyrównanie w pionie */
+  align-items: center;
   justify-content: space-around;
-}
-
-.sidebar-header h4 {
-  margin: 0 0 0.25rem 0;
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.sidebar-header p {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 500;
-  word-break: break-all;
 }
 
 .user-avatar {
@@ -180,19 +163,8 @@ body.main-app-body {
   border-bottom-color: var(--primary-color);
 }
 
-.tab:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Kontener głównej zawartości, który rozciąga się, aby wypełnić przestrzeń */
 .main-content {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 2rem;
-  overflow-y: auto; /* Kluczowa zmiana: Włączamy przewijanie tylko dla tego kontenera */
-  box-sizing: border-box;
+  /* Ta klasa jest teraz pusta, ponieważ jej style są zarządzane przez TailwindCSS. */
 }
 
 @media (max-width: 768px) {

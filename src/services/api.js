@@ -16,10 +16,16 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+    console.log('🔐 Sending request with token:', token ? 'YES' : 'NO');
+    console.log('🔐 Request URL:', config.url);
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.debug('🔐 Request with token →', config.url);
+      console.log('🔐 Authorization header set');
+    } else {
+      console.log('❌ No token found in localStorage');
     }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -40,7 +46,14 @@ const processQueue = (error, token = null) => {
 };
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(
+      '✅ Response received:',
+      response.status,
+      response.config.url
+    );
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     const isUnauthorized = error.response?.status === 401;
@@ -48,6 +61,8 @@ api.interceptors.response.use(
 
     // Jeśli błąd dotyczy samego odświeżania, nie próbuj ponownie
     if (isRefreshEndpoint) {
+      console.log('❌ Response error:', error.response?.status, error.config?.url);
+      console.log('❌ Error details:', error.response?.data);
       return Promise.reject(error);
     }
 
@@ -108,6 +123,9 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       window.dispatchEvent(new Event('auth-error'));
     }
+
+    console.log('❌ Response error:', error.response?.status, error.config?.url);
+    console.log('❌ Error details:', error.response?.data);
 
     return Promise.reject(error);
   }

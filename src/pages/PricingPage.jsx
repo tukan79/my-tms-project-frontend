@@ -85,7 +85,7 @@ const PricingPage = ({ customers = [], zones = [], onRefresh }) => {
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .card-header h2 {
           margin: 0;
         }

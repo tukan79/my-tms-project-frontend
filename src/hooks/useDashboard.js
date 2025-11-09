@@ -1,109 +1,71 @@
-import { useMemo, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext.jsx';
-import { useApiResource } from './useApiResource';
-import { useBroadcastChannel } from '@/hooks/useBroadcastChannel.js';
+import { useMemo, useCallback, useEffect } from 'react';
+import { useApiResource } from '@/hooks/useApiResource.js';
 
-export const useDataFetching = (role) => {
-  const { isAuthenticated } = useAuth();
+export const useDataFetching = (userRole) => {
+  const endpoints = {
+    orders: '/api/orders',
+    drivers: '/api/drivers',
+    trucks: '/api/trucks',
+    trailers: '/api/trailers',
+    users: '/api/users',
+    assignments: '/api/assignments',
+    customers: '/api/customers',
+    zones: '/api/zones',
+    surcharges: '/api/surcharge-types',
+    invoices: '/api/invoices',
+    runs: '/api/runs',
+  };
 
-  const isAdmin = role === 'admin';
-  const isDispatcher = role === 'dispatcher';
-
-  // 🧱 Hooki muszą być wywołane zawsze w tej samej kolejności
-  const orders = useApiResource(isAuthenticated ? '/api/orders' : null);
-  const drivers = useApiResource(isAuthenticated && isAdmin ? '/api/drivers' : null);
-  const trucks = useApiResource(isAuthenticated && isAdmin ? '/api/trucks' : null);
-  const trailers = useApiResource(isAuthenticated && isAdmin ? '/api/trailers' : null);
-  const users = useApiResource(isAuthenticated && isAdmin ? '/api/users' : null);
-  const assignments = useApiResource(isAuthenticated ? '/api/assignments' : null);
-  const customers = useApiResource(
-    isAuthenticated && (isAdmin || isDispatcher) ? '/api/customers' : null
-  );
-  const zones = useApiResource(
-    isAuthenticated && (isAdmin || isDispatcher) ? '/api/zones' : null
-  );
-  const surcharges = useApiResource(isAuthenticated && isAdmin ? '/api/surcharge-types' : null);
-  const invoices = useApiResource(isAuthenticated && isAdmin ? '/api/invoices' : null);
-  const runs = useApiResource(isAuthenticated ? '/api/runs' : null, { initialFetch: false });
-
-  // 📦 Zasoby (hook-safe)
   const resources = {
-    orders,
-    drivers,
-    trucks,
-    trailers,
-    users,
-    assignments,
-    customers,
-    zones,
-    surcharges,
-    invoices,
-    runs,
+    orders: useApiResource(userRole ? endpoints.orders : null, 'order', [], { initialFetch: false }),
+    drivers: useApiResource(userRole === 'admin' ? endpoints.drivers : null, 'driver', [], { initialFetch: false }),
+    trucks: useApiResource(userRole === 'admin' ? endpoints.trucks : null, 'truck', [], { initialFetch: false }),
+    trailers: useApiResource(userRole === 'admin' ? endpoints.trailers : null, 'trailer', [], { initialFetch: false }),
+    users: useApiResource(userRole === 'admin' ? endpoints.users : null, 'user', [], { initialFetch: false }),
+    assignments: useApiResource(userRole ? endpoints.assignments : null, 'assignment', [], { initialFetch: false }),
+    customers: useApiResource(userRole ? endpoints.customers : null, 'customer', [], { initialFetch: false }),
+    zones: useApiResource(userRole ? endpoints.zones : null, 'zone', [], { initialFetch: false }),
+    surcharges: useApiResource(userRole === 'admin' ? endpoints.surcharges : null, 'surcharge', [], { initialFetch: false }),
+    invoices: useApiResource(userRole === 'admin' ? endpoints.invoices : null, 'invoice', [], { initialFetch: false }),
+    runs: useApiResource(userRole ? endpoints.runs : null, 'run', [], { initialFetch: false }),
   };
 
-  /** Odświeża wszystkie zasoby jednocześnie */
-  const refreshAll = useCallback(() => {
-    Object.values(resources).forEach((res) => res.fetchData?.());
-  }, [resources]);
-
-  /** 🔄 Synchronizacja między zakładkami (debounce = 300ms) */
-  useBroadcastChannel('tms_state_sync', {
-    onMessage: (message) => {
-      if (message?.type === 'REFRESH_ALL') {
-        refreshAll();
-      } else if (message?.type === 'REFRESH_VIEW' && message.view && resources[message.view]) {
-        resources[message.view].fetchData?.();
+  const fetchAllSequentially = useCallback(async () => {
+    console.log('🔄 Sequentially fetching all dashboard data...');
+    // Fetch data one by one to avoid rate limiting
+    for (const resource of Object.values(resources)) {
+      // The fetchData function is memoized inside useApiResource
+      if (resource.fetchData) {
+        await resource.fetchData();
       }
-    },
-    debounceMs: 300,
-  });
-
-  /** Odświeża tylko wybrany widok */
-  const handleRefresh = useCallback(
-    (view) => resources[view]?.fetchData?.(),
-    [resources]
-  );
-
-  /** Dane w formacie klucz → tablica (nawet jeśli puste) */
-  const data = useMemo(() => {
-    const result = {};
-    for (const [key, resource] of Object.entries(resources)) {
-      result[key] = resource.data || [];
     }
-    return result;
-  }, [resources]);
+    console.log('✅ Sequential fetch complete.');
+  }, []); // Dependencies are stable due to useApiResource
 
-  /** Nowy, stabilniejszy stan ładowania */
-  const isLoading = useMemo(
-    () => Object.values(resources).some((r) => r.isLoading && !r.data),
-    [resources]
-  );
+  const refreshAll = useCallback(async () => {
+    await fetchAllSequentially();
+  }, [fetchAllSequentially]);
 
-  const anyError = useMemo(
-    () => Object.values(resources).find((r) => r.error)?.error ?? null,
-    [resources]
-  );
-
-  /** Akcje CRUD przypięte do każdego zasobu */
-  const actions = useMemo(() => {
-    const result = {};
-    for (const [key, res] of Object.entries(resources)) {
-      result[key] = {
-        create: res.createResource,
-        update: res.updateResource,
-        delete: res.deleteResource,
-        bulkCreate: res.bulkCreate,
-      };
+  // Trigger initial fetch when userRole changes
+  useEffect(() => {
+    if (userRole) {
+      fetchAllSequentially();
     }
-    return result;
-  }, [resources]);
+  }, [userRole, fetchAllSequentially]);
 
-  return {
-    data,
-    isLoading,
-    anyError,
-    handleRefresh,
-    refreshAll,
-    actions,
-  };
+  const data = useMemo(() => 
+    Object.fromEntries(Object.entries(resources).map(([key, res]) => [key, res.data]))
+  , [resources]);
+
+  const isLoading = useMemo(() => 
+    Object.values(resources).some(res => res.isLoading)
+  , [resources]);
+
+  const anyError = useMemo(() => 
+    Object.values(resources).find(res => res.error)?.error
+  , [resources]);
+
+  const actions = useMemo(() => Object.fromEntries(Object.entries(resources).map(([key, res]) => [key, { create: res.createResource, update: res.updateResource, delete: res.deleteResource }])), [resources]);
+
+  return { data, isLoading, anyError, handleRefresh: (view) => resources[view]?.fetchData(), refreshAll, actions };
 };

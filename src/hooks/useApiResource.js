@@ -5,8 +5,13 @@ import api from '@/services/api';
  * Uniwersalny hook do zarządzania danymi API z wbudowaną obsługą CRUD, 
  * optymistycznymi aktualizacjami i bezpieczeństwem przed race conditions.
  */
-export const useApiResource = (resourceUrl, resourceName = 'resource') => {
-  const [data, setData] = useState([]); // zawsze tablica
+export const useApiResource = (
+  resourceUrl,
+  resourceName = 'resource',
+  initialData = [],
+  options = { initialFetch: true }
+) => {
+  const [data, setData] = useState(initialData); // zawsze tablica
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastFetched, setLastFetched] = useState(null);
@@ -66,7 +71,7 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
    * Automatycznie pobiera dane przy zmianie adresu.
    */
   useEffect(() => {
-    if (resourceUrl) {
+    if (resourceUrl && options.initialFetch) {
       fetchData();
     } else {
       setData([]);
@@ -74,7 +79,7 @@ export const useApiResource = (resourceUrl, resourceName = 'resource') => {
     return () => {
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [resourceUrl, fetchData]);
+  }, [resourceUrl, options.initialFetch, fetchData]);
 
   /**
    * Tworzy nowy rekord z opcjonalnym optymistycznym UI.

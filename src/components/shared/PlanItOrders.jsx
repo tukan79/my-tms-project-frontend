@@ -58,13 +58,12 @@ OrderRow.displayName = 'OrderRow';
  * Custom hook to manage filtering and enrichment of orders.
  */
 const useFilteredOrders = ({ orders, activeTab, selectedDate, homeZone }) => {
-  const allEnrichedOrders = useMemo(() => {
-    return safeOrders.map(order => ({
+  const allEnrichedOrders = useMemo(() =>
+    (Array.isArray(orders) ? orders : []).map(order => ({
       ...order,
       totalKilos: order.cargo_details?.total_kilos || 0,
       totalSpaces: order.cargo_details?.total_spaces || 0,
-    }));
-  }, [safeOrders]);
+    })), [orders]);
 
   return useMemo(() => {
     const dateFiltered = allEnrichedOrders.filter(order => {
