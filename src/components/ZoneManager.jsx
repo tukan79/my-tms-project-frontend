@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApiResource } from '@/hooks/useApiResource.js';
 import { useToast } from '@/contexts/ToastContext.jsx';
 import { Edit, Trash2, Plus, X, Download, Upload, ArrowUp, ArrowDown } from 'lucide-react';
@@ -7,19 +7,18 @@ import api from '@/services/api.js';
 import DataImporter from './DataImporter.jsx';
 
 const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
-  const { data: zonesFromApi, createResource, updateResource } = useApiResource('/api/zones', 'zone', initialZones);
+  const { data: zonesFromApi, createResource, updateResource, fetchData: fetchZones } = useApiResource('/api/zones', 'zone', initialZones, { initialFetch: true });
   const { showToast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingZone, setEditingZone] = useState(null);
   const [showImporter, setShowImporter] = useState(false);
   const [formData, setFormData] = useState({ zone_name: '', postcode_patterns: '', is_home_zone: false });
   
-  const [zones, setZones] = useState(initialZones);
   const [sortConfig, setSortConfig] = useState({ key: 'zone_name', direction: 'ascending' });
 
-  useEffect(() => {
+  const sortedZones = useMemo(() => {
     // Sortowanie stref po nazwie
-    const sorted = [...zonesFromApi].sort((a, b) => {      
+    return [...zonesFromApi].sort((a, b) => {
       const valA = a.zone_name;
       const valB = b.zone_name;
 
@@ -47,7 +46,6 @@ const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
       // Jeśli początki są takie same, dłuższa nazwa jest "większa"
       return sortConfig.direction === 'ascending' ? partsA.length - partsB.length : partsB.length - partsA.length;
     });
-    setZones(sorted);
   }, [zonesFromApi, sortConfig]);
 
   const handleSort = (key) => {
@@ -140,8 +138,8 @@ const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
     const destZoneId = parseInt(destination.droppableId, 10);
     const pattern = draggableId.split('-')[1];
 
-    const sourceZone = zones.find(z => z.id === sourceZoneId);
-    const destZone = zones.find(z => z.id === destZoneId);
+    const sourceZone = sortedZones.find(z => z.id === sourceZoneId);
+    const destZone = sortedZones.find(z => z.id === destZoneId);
 
     if (!sourceZone || !destZone) return;
 
@@ -193,9 +191,7 @@ const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
 
   const handleImportSuccess = () => {
     setShowImporter(false);
-    if (onRefresh) {
-      onRefresh();
-    }
+    fetchZones(); // Bezpośrednio odświeżamy dane stref
     showToast('Zones imported successfully!', 'success');
   };
 
@@ -264,7 +260,7 @@ const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
                 <th>Actions</th>
               </tr>
             </thead>
-            {zones.map(zone => (
+            {sortedZones.map(zone => (
               <Droppable key={zone.id} droppableId={String(zone.id)}>
                 {(provided, snapshot) => (
                   <tbody ref={provided.innerRef} {...provided.droppableProps} style={{ backgroundColor: snapshot.isDraggingOver ? '#e6f7ff' : 'transparent' }}>

@@ -13,8 +13,12 @@ import { broadcastRefreshAll } from '@/utils/broadcastUtils.js';
 
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) return <div className="loading">Verifying authorization...</div>;
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+  if (isLoading) {
+    return <div className="loading">Verifying authorization...</div>;
+  }
+  return isAuthenticated 
+    ? <DashboardProvider><Outlet /></DashboardProvider>
+    : <Navigate to="/login" replace />;
 };
 
 const EditOrderPopOut = () => {
@@ -45,20 +49,20 @@ const PopOutWindow = () => (
 
 function App() {
   return (
-    <DashboardProvider>
-      <ErrorBoundary>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-          <Route element={<ProtectedRoute />}>
-            <Route path="/*" element={<DashboardContent />} />
-            <Route path="/planit/popout" element={<PopOutWindow />} />
-            <Route path="/orders/:orderId/edit" element={<EditOrderPopOut />} />
-          </Route>
-        </Routes>
-      </ErrorBoundary>
-    </DashboardProvider>
+        <Route element={<ProtectedRoute />}>
+          <Route path="/*" element={
+            <DashboardContent />
+          } />
+          <Route path="/planit/popout" element={<PopOutWindow />} />
+          <Route path="/orders/:orderId/edit" element={<EditOrderPopOut />} />
+        </Route>
+      </Routes>
+    </ErrorBoundary>
   );
 }
 

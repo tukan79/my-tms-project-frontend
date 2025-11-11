@@ -54,7 +54,6 @@ body.main-app-body {
   color: var(--sidebar-text); /* Kolor tekstu na pasku */
   padding: 2rem 1rem;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-  display: flex;
   flex-direction: column; /* Wewnętrzny układ paska (elementy jeden pod drugim) */
   flex-shrink: 0; /* Zapobiega kurczeniu się paska */
   transition: width 0.2s ease-in-out;
@@ -163,9 +162,7 @@ body.main-app-body {
   border-bottom-color: var(--primary-color);
 }
 
-.main-content {
-  /* Ta klasa jest teraz pusta, ponieważ jej style są zarządzane przez TailwindCSS. */
-}
+/* Usunięto również .main-content, ponieważ jego style są zarządzane przez TailwindCSS w DashboardContent.jsx. */
 
 @media (max-width: 768px) {
   .sidebar {

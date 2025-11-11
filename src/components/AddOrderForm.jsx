@@ -4,7 +4,7 @@ import { useToast } from '@/contexts/ToastContext.jsx';
 import api from '@/services/api.js';
  
 const
- AddOrderForm = ({ onSuccess, orderToEdit }) => {
+ AddOrderForm = ({ onSuccess, orderToEdit, clients: customers = [], surcharges: initialSurcharges = [] }) => {
   const [formData, setFormData] = useState({
     // ... (initial state remains the same)
     order_number: '',
@@ -21,11 +21,8 @@ const
     selected_surcharges: [],
   });
 
-  const [customers, setCustomers] = useState([]);
-  const [surcharges, setSurcharges] = useState([]);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const { showToast } = useToast();
 
   // 🧠 Walidacja pól formularza
@@ -39,26 +36,6 @@ const
     if (!formData.final_price || isNaN(formData.final_price)) newErrors.final_price = 'Valid price required';
     return newErrors;
   };
-
-  // ⚡️ Pobranie danych pomocniczych
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        const [custResponse, surchResponse] = await Promise.all([
-          api.get('/api/customers'),
-          api.get('/api/surcharge-types'),
-        ]);
-        setCustomers(custResponse.data);
-        setSurcharges(surchResponse.data);
-      } catch (error) {
-        showToast('Failed to load form data.', 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
-  }, []);
 
   // ✏️ Aktualizacja danych w trybie edycji
   useEffect(() => {
@@ -79,9 +56,9 @@ const
   const showTimeInputs = useMemo(
     () =>
       formData.selected_surcharges?.some((code) =>
-        surcharges.find((s) => s.code === code)?.requires_time
+        initialSurcharges.find((s) => s.code === code)?.requires_time
       ),
-    [formData.selected_surcharges, surcharges]
+    [formData.selected_surcharges, initialSurcharges]
   );
 
   // 🔄 Obsługa zmian pól
@@ -154,8 +131,6 @@ const
       setIsSubmitting(false);
     }
   };
-
-  if (isLoading) return <p>Loading form...</p>;
 
   return (
     <form onSubmit={handleSubmit} className="form-card">
@@ -233,7 +208,7 @@ const
       <div className="form-group">
         <label>Surcharges</label>
         <div className="surcharges-list">
-          {surcharges.map((s) => (
+          {initialSurcharges.map((s) => (
             <label key={s.code} className="checkbox-label">
               <input
                 type="checkbox"

@@ -60,7 +60,7 @@ const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
     loading,
     handleChange,
     handleSubmit,
-  } = useForm({ initialState: initialFormData, validate, onSubmit: performSubmit, itemToEdit: useMemo(() => itemToEdit, [itemToEdit]) });
+  } = useForm({ initialState: initialFormData, validate, onSubmit: performSubmit, itemToEdit });
 
   return (
     <div className="card">

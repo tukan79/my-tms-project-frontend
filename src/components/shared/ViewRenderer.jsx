@@ -73,6 +73,8 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
             {...activeImporterConfig}
             onSuccess={handleFormSuccess}
             onCancel={handleHideImporter}
+            // Przekazujemy dedykowaną funkcję odświeżania dla bieżącego widoku
+            refreshFn={() => handleRefresh(currentView)}
           />
         </ErrorBoundary>
       );

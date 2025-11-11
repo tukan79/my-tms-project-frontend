@@ -65,9 +65,7 @@ const DataImporter = ({
     setError(null);
 
     const payload = postDataKey ? { [postDataKey]: parsedData } : parsedData;
-
-    try {
-      const response = await api.post(apiEndpoint, payload);
+    try {      const response = await api.post(apiEndpoint, payload);
       const result = response.data;
       showToast(result.message || 'Import finished successfully!', 'success');
       if (result.errors && result.errors.length > 0) {

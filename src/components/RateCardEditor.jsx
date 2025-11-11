@@ -43,7 +43,8 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
     setIsLoading(true);
     try {
       const response = await api.get(`/api/rate-cards/${selectedRateCardId}/entries`);
-      setRateEntries(response.data);
+        // Zabezpieczenie: Upewnij się, że rateCards jest zawsze tablicą
+        setRateCards(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       showToast('Failed to fetch rate entries.', 'error');
     } finally {

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Upload, Download, RefreshCw } from 'lucide-react';
 import { useDashboard } from '@/contexts/DashboardContext.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
+import { importerConfigs } from '@/config/importerConfig.jsx';
 
 const MainHeader = ({ viewConfig }) => {
   const { user } = useAuth();
@@ -43,8 +44,8 @@ const MainHeader = ({ viewConfig }) => {
   const getViewName = () => viewNames[currentView] || '';
   const exportableViews = ['drivers', 'trucks', 'trailers', 'customers', 'users'];
   
-  // Używamy czytelnych flag do zarządzania logiką warunkową
-  const canImport = viewConfig[currentView]?.importer && user?.role === 'admin';
+  // Używamy czytelnych flag do zarządzania logiką warunkową - teraz z globalnej konfiguracji
+  const canImport = !!importerConfigs[currentView] && user?.role === 'admin';
   const canExport = exportableViews.includes(currentView) && user?.role === 'admin';
   const canAdd = viewConfig[currentView]?.FormComponent;
 
@@ -67,7 +68,7 @@ const MainHeader = ({ viewConfig }) => {
 
         {canImport && (
           <button
-            onClick={() => handleShowImporter(currentView)}
+            onClick={() => handleShowImporter(importerConfigs[currentView])}
             className="btn-secondary"
             // Przycisk jest wyłączony, jeśli formularz jest otwarty lub importer jest już aktywny
             disabled={isLoading || showForm || activeImporterConfig}

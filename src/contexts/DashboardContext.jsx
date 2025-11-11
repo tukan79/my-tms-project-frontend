@@ -40,19 +40,24 @@ const useDashboardStateManagement = () => {
     setShowForm(false);
     setItemToEdit(null);
   };
-  const handleShowImporter = (view) => setImporterConfig(importerConfig[view]);
+  // Poprawka: Funkcja powinna ustawiać otrzymaną konfigurację, a nie próbować odczytywać z `importerConfig`.
+  const handleShowImporter = (config) => setImporterConfig(config);
   const handleHideImporter = () => setImporterConfig(null);
   const handleDeleteRequest = (message, onConfirm) => setModalState({ isOpen: true, message, onConfirm });
   const handleCloseModal = () => setModalState({ isOpen: false });
 
-  return {
-    currentView, handleViewChange,
-    showForm, setShowForm,
-    itemToEdit, setItemToEdit, handleEditClick, handleCancelForm,
-    importerConfig, handleShowImporter, handleHideImporter,
-    modalState, handleDeleteRequest, handleCloseModal,
-    globalAutoRefresh, setGlobalAutoRefresh,
-  };
+  // We use useMemo to stabilize the state object and prevent unnecessary re-renders in child components.
+  return useMemo(
+    () => ({
+      currentView, handleViewChange,
+      showForm, setShowForm,
+      itemToEdit, setItemToEdit, handleEditClick, handleCancelForm,
+      importerConfig, handleShowImporter, handleHideImporter,
+      modalState, handleDeleteRequest, handleCloseModal,
+      globalAutoRefresh, setGlobalAutoRefresh,
+    }),
+    [currentView, showForm, itemToEdit, importerConfig, modalState, globalAutoRefresh]
+  );
 };
 
 export const DashboardProvider = ({ children }) => {
@@ -64,8 +69,8 @@ export const DashboardProvider = ({ children }) => {
   const state = useDashboardStateManagement();
 
   // 🔄 Pobieranie danych jest teraz bezwarunkowe.
-  // Hook `useDataFetching` sam obsłuży sytuację, gdy nie ma użytkownika.
-  const dataFetching = useDataFetching(user?.role);
+  // Hook `useDataFetching` jest wywoływany tylko po uwierzytelnieniu.
+  const dataFetching = useDataFetching(isAuthenticated ? user?.role : null);
 
 
   // Ref zabezpieczający przed spamem refreshy
@@ -83,7 +88,9 @@ export const DashboardProvider = ({ children }) => {
     isRefreshing.current = true;
 
     try {
-      await dataFetching.refreshAll?.();
+      // Poprawka: Zamiast odświeżać wszystko, odświeżamy tylko dane dla bieżącego widoku.
+      // To zapobiega lawinie zapytań API po imporcie.
+      await dataFetching.handleRefresh?.(state.currentView);
     } catch (err) {
       console.error('❌ Error during refreshAll after form success:', err);
       showToast('Failed to refresh dashboard data.', 'error');

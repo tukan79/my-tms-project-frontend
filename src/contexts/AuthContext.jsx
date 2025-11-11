@@ -36,8 +36,22 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user);
         setIsAuthenticated(true);
         showToast('Login successful', 'success');
-      } catch (error) {
-        throw error;
+      } catch (initialError) {
+        // Retry the login after a delay
+        console.log('Login failed, retrying after delay...', initialError);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for 1 second
+
+        try {
+          const { data } = await api.post('/api/auth/login', { email, password });
+          localStorage.setItem('token', data.accessToken);
+          setUser(data.user);
+          setIsAuthenticated(true);
+          showToast('Login successful', 'success');
+        } catch (retryError) {
+          console.error('Retry login failed:', retryError);
+          showToast('Login failed. Please check your credentials.', 'error');
+          throw retryError;
+        }
       } finally {
         setLoading(false);
       }
