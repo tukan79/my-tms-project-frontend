@@ -124,8 +124,8 @@ api.interceptors.response.use(
       window.dispatchEvent(new Event('auth-error'));
     }
 
-    console.log('❌ Response error:', error.response?.status, error.config?.url);
-    console.log('❌ Error details:', error.response?.data);
+    console.log('❌ Response error:', error.response?.status || 'No Status', error.config?.url);
+    console.log('❌ Error details:', error.response?.data || error.message || 'Unknown error');
 
     return Promise.reject(error);
   }

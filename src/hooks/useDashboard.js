@@ -17,7 +17,10 @@ export const useDataFetching = (userRole) => {
   };
 
   const resources = {
-    orders: useApiResource(userRole ? endpoints.orders : null, 'order', [], { initialFetch: false }),
+    // TODO: Backend permissions for 'dispatcher' on /api/orders are missing.
+    // Temporarily disable fetching for dispatchers to prevent 403 errors and forced logouts.
+    // Re-enable this once backend permissions are fixed.
+    orders: useApiResource(userRole === 'admin' ? endpoints.orders : null, 'order', [], { initialFetch: false }),
     drivers: useApiResource(userRole === 'admin' ? endpoints.drivers : null, 'driver', [], { initialFetch: false }),
     trucks: useApiResource(userRole === 'admin' ? endpoints.trucks : null, 'truck', [], { initialFetch: false }),
     trailers: useApiResource(userRole === 'admin' ? endpoints.trailers : null, 'trailer', [], { initialFetch: false }),
@@ -46,12 +49,14 @@ export const useDataFetching = (userRole) => {
     await fetchAllSequentially();
   }, [fetchAllSequentially]);
 
-  // Trigger initial fetch when userRole changes
+  // Trigger initial fetch only once when userRole is first available
   useEffect(() => {
     if (userRole) {
       fetchAllSequentially();
     }
-  }, [userRole, fetchAllSequentially]);
+    // We only want this to run once when userRole is first defined.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userRole]);
 
   const data = useMemo(() => 
     Object.fromEntries(Object.entries(resources).map(([key, res]) => [key, res.data]))

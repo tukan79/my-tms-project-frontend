@@ -71,7 +71,7 @@ export const useApiResource = (
    * Automatycznie pobiera dane przy zmianie adresu.
    */
   useEffect(() => {
-    if (resourceUrl && options.initialFetch) {
+    if (resourceUrl && options.initialFetch && !lastFetched) {
       fetchData();
     } else {
       setData([]);
@@ -79,7 +79,7 @@ export const useApiResource = (
     return () => {
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [resourceUrl, options.initialFetch, fetchData]);
+  }, [resourceUrl, options.initialFetch, lastFetched, fetchData]);
 
   /**
    * Tworzy nowy rekord z opcjonalnym optymistycznym UI.

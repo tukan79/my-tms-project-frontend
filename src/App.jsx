@@ -16,9 +16,14 @@ const ProtectedRoute = () => {
   if (isLoading) {
     return <div className="loading">Verifying authorization...</div>;
   }
-  return isAuthenticated 
-    ? <DashboardProvider><Outlet /></DashboardProvider>
-    : <Navigate to="/login" replace />;
+  // The DashboardProvider should wrap the Outlet to provide context to all protected routes
+  return isAuthenticated ? (
+    <DashboardProvider>
+      <Outlet />
+    </DashboardProvider>
+  ) : (
+    <Navigate to="/login" replace />
+  );
 };
 
 const EditOrderPopOut = () => {
@@ -49,15 +54,15 @@ const PopOutWindow = () => (
 
 function App() {
   return (
+    // ErrorBoundary should be inside the Router to catch routing errors
     <ErrorBoundary>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/*" element={
-            <DashboardContent />
-          } />
+          {/* DashboardContent is the main layout for authenticated users */}
+          <Route path="/*" element={<DashboardContent />} />
           <Route path="/planit/popout" element={<PopOutWindow />} />
           <Route path="/orders/:orderId/edit" element={<EditOrderPopOut />} />
         </Route>

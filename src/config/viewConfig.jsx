@@ -77,7 +77,7 @@ export const generateViewConfig = ({
       FormComponent: AddOrderForm, 
       formProps: { clients: Array.isArray(customers) ? customers : [], surcharges: Array.isArray(surcharges) ? surcharges : [] },
       data: Array.isArray(orders) ? orders : [],
-      customActions: [
+       customActions: [
         { icon: <Printer size={16} />, onClick: handlePrintLabels, title: 'Print Pallet Labels' }
       ]
     },

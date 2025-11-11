@@ -3,7 +3,8 @@
 A modern web interface for managing transport operations — built with **React + Vite**.  
 This project allows users to manage deliveries, track drivers, and monitor logistics performance in real time.
 
-🌐 **Live Demo:** [my-tms-project-frontend.vercel.app](https://my-tms-project-frontend.vercel.app)
+🌐 **Live Demo:** [my-tms-project-frontend.vercel.app](https://my-tms-project-frontend.vercel.app/login) usrer: admin@tms.com. password: Password123!
+
 
 ⚙️ **Backend API:** [my-tms-project-production.up.railway.app](https://my-tms-project-production.up.railway.app)
 
@@ -26,5 +27,3 @@ This project allows users to manage deliveries, track drivers, and monitor logis
 
 ---
 
-## 🔧 Environment Setup
-Create a `.env` file in the project root:

@@ -100,16 +100,23 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
     }
 
     // Lista
-    const listProps = {
+    let listProps = {
       items: safeDataForView,
       onRefresh: () => handleRefresh(currentView),
       onEdit: handleEditClick,
       isLoading: !!isLoading,
       onDelete: handleDeleteRequest,
       currentUser: user,
-      autoRefreshEnabled,
-      ...(currentView === 'orders' && { drivers, trucks, trailers, zones }),
+      autoRefreshEnabled
     };
+
+    // Dodaj dodatkowe propsy tylko dla widoku 'orders' i upewnij się, że dane istnieją
+    if (currentView === 'orders') {
+      listProps.drivers = drivers ?? [];
+      listProps.trucks = trucks ?? [];
+      listProps.trailers = trailers ?? [];
+      listProps.zones = zones ?? [];
+    }
 
     return (
       <ErrorBoundary onReset={() => handleRefresh(currentView)}>
