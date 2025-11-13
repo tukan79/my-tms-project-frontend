@@ -3,13 +3,13 @@ import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 import DataImporter from '@/components/DataImporter.jsx';
 import { useDashboard } from '@/contexts/DashboardContext.jsx';
 
-const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
+const ViewRenderer = ({ viewConfig }) => {
   const {
     currentView, isLoading, anyError, handleRefresh,
     importerConfig: activeImporterConfig,
     handleFormSuccess, handleHideImporter,
     showForm, handleCancelForm, itemToEdit, handleEditClick,
-    handleDeleteRequest, user, data
+    handleDeleteRequest, user, data, globalAutoRefresh
   } = useDashboard();
 
   const { drivers = [], trucks = [], trailers = [], customers = [], zones = [], surcharges = [] } = data || {};
@@ -26,12 +26,13 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
     return <div className="error-container">Unknown view: {currentView}</div>;
   }
 
-  // 🧱 Bezpieczne dane
-  const dataForView = currentViewConfig?.data;
+  // 🧱 Bezpieczne dane - Poprawka: Pobieramy dane bezpośrednio z `data`, a nie z `viewConfig`.
+  // `viewConfig` może zawierać nieaktualną referencję do danych z momentu inicjalizacji.
+  // `data` jest zawsze aktualnym źródłem prawdy z `useDataFetching`.
+  const dataKey = currentViewConfig.dataKey;
+  const dataForView = dataKey ? data?.[dataKey] : [];
   const safeDataForView = Array.isArray(dataForView)
     ? dataForView
-    : dataForView
-    ? [dataForView]
     : [];
 
   // 🪲 Debug (chroniony przed undefined)
@@ -107,7 +108,7 @@ const ViewRenderer = ({ viewConfig, autoRefreshEnabled }) => {
       isLoading: !!isLoading,
       onDelete: handleDeleteRequest,
       currentUser: user,
-      autoRefreshEnabled
+      autoRefreshEnabled: globalAutoRefresh
     };
 
     // Dodaj dodatkowe propsy tylko dla widoku 'orders' i upewnij się, że dane istnieją

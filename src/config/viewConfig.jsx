@@ -64,30 +64,25 @@ export const generateViewConfig = ({
   };
 
   const adminConfig = {
-    drivers: { ListComponent: DriverList, FormComponent: AddDriverForm, data: Array.isArray(drivers) ? drivers : [] },
-    trucks: { ListComponent: TruckList, FormComponent: AddTruckForm, data: Array.isArray(trucks) ? trucks : [] },
-    customers: { ListComponent: CustomerList, FormComponent: AddCustomerForm, data: Array.isArray(customers) ? customers : [] },
-    trailers: { ListComponent: TrailerList, FormComponent: AddTrailerForm, data: Array.isArray(trailers) ? trailers : [] },
-    users: { ListComponent: UserList, FormComponent: AddUserForm, data: Array.isArray(users) ? users : [] },
+    drivers: { ListComponent: DriverList, FormComponent: AddDriverForm, dataKey: 'drivers' },
+    trucks: { ListComponent: TruckList, FormComponent: AddTruckForm, dataKey: 'trucks' },
+    customers: { ListComponent: CustomerList, FormComponent: AddCustomerForm, dataKey: 'customers' },
+    trailers: { ListComponent: TrailerList, FormComponent: AddTrailerForm, dataKey: 'trailers' },
+    users: { ListComponent: UserList, FormComponent: AddUserForm, dataKey: 'users' },
   };
 
-  const dispatcherConfig = {
-    orders: { 
-      ListComponent: OrderList, 
-      FormComponent: AddOrderForm, 
-      formProps: { clients: Array.isArray(customers) ? customers : [], surcharges: Array.isArray(surcharges) ? surcharges : [] },
-      data: Array.isArray(orders) ? orders : [],
-       customActions: [
-        { icon: <Printer size={16} />, onClick: handlePrintLabels, title: 'Print Pallet Labels' }
-      ]
-    },
-  };
+  // Konfiguracja dla admina, który ma dostęp do wszystkiego
+  const adminOnlyConfig = {
+    ...adminConfig,
+    orders: { ListComponent: OrderList, FormComponent: AddOrderForm, formProps: { clients: Array.isArray(customers) ? customers : [], surcharges: Array.isArray(surcharges) ? surcharges : [] }, dataKey: 'orders', customActions: [{ icon: <Printer size={16} />, onClick: handlePrintLabels, title: 'Print Pallet Labels' }] },
+  }
 
   let finalConfig = { ...baseConfig };
   if (isAdmin) {
-    finalConfig = { ...finalConfig, ...adminConfig, ...dispatcherConfig };
+    finalConfig = { ...finalConfig, ...adminOnlyConfig };
   } else if (isDispatcher) {
-    finalConfig = { ...finalConfig, ...dispatcherConfig };
+    // Dispatcher ma tylko dostęp do widoków bazowych (runs, planit, etc.)
+    finalConfig = { ...finalConfig };
   }
 
   return finalConfig;

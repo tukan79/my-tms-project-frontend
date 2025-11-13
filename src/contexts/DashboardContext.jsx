@@ -147,12 +147,13 @@ export const DashboardProvider = ({ children }) => {
     return generateViewConfig({
       user,
       data: dataFetching.data,
-      actions: {
-        ...dataFetching.actions,
-        ...state, // Przekazujemy wszystkie akcje ze stanu (np. handleDeleteRequest)
-      }
+      // Przekazujemy tylko te akcje, które są faktycznie potrzebne w konfiguracji widoków.
+      // Upraszcza to zależności i zapobiega błędom.
+      actions: dataFetching.actions,
+      handleDeleteRequest: state.handleDeleteRequest,
+      refreshAll: dataFetching.handleRefresh, // Przekazujemy funkcję odświeżania
     });
-  }, [user, dataFetching.data, dataFetching.actions, state]);
+  }, [user, dataFetching.data, dataFetching.actions, state.handleDeleteRequest, dataFetching.handleRefresh]);
 
   // Set initial currentView based on user role and available views
   React.useEffect(() => {
@@ -190,7 +191,15 @@ export const DashboardProvider = ({ children }) => {
 
   return (
     <DashboardContext.Provider value={value}>
-      {children}
+      {/* Prevent children from rendering until the initial view is set */}
+      {!state.currentView ? (
+        <div className="loading">Initializing dashboard...</div>
+      ) : (
+        // Ta linia obsługuje przypadek, gdy prop 'children' jest obiektem,
+        // który sam w sobie zawiera właściwe elementy React pod kluczem 'children'.
+        // Jest to często spowodowane nieprawidłowym przekazywaniem propsów w komponencie nadrzędnym.
+        children.children || children
+      )}
     </DashboardContext.Provider>
   );
 };

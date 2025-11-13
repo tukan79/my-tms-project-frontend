@@ -128,7 +128,7 @@ const SurchargeTypesManager = () => {
               <tr key={item.id}>
                 <td>{item.code}</td>
                 <td>{item.name}</td>
-                <td style={{ textTransform: 'capitalize' }}>{item.calculation_method.replace('_', ' ')}</td>
+                <td style={{ textTransform: 'capitalize' }}>{item.calculation_method?.replace('_', ' ') || ''}</td>
                 <td>£{parseFloat(item.amount).toFixed(2)}</td>
                 <td>{item.is_automatic ? 'Yes' : 'No'}</td>
                 <td>{item.requires_time ? 'Yes' : 'No'}</td>

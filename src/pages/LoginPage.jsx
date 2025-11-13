@@ -18,6 +18,7 @@ const LoginPage = () => {
   });
   const [rememberMe, setRememberMe] = useState(!!localStorage.getItem('rememberedEmail'));
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+  const [isRateLimited, setIsRateLimited] = useState(false);
 
   // 🔹 Synchronizuj motyw z localStorage i <body>
   useEffect(() => {
@@ -50,13 +51,26 @@ const LoginPage = () => {
       navigate('/');
     } catch (err) {
       console.error('Login error:', err);
-      const errorMessage =
-        err.response?.data?.error || 'Login failed. Please check your credentials.';
+
+      let errorMessage; // Declare errorMessage here
+      // Sprawdzamy, czy błąd to 429 Too Many Requests
+      if (err.response?.status === 429) {
+        setIsRateLimited(true);
+        showToast('Too many login attempts. Please wait a moment.', 'warning');
+        // Odblokuj przycisk po 15 sekundach
+        setTimeout(() => setIsRateLimited(false), 15000);
+      } else {
+        const errorMessage =
+          err.response?.data?.error || 'Login failed. Please check your credentials.';
+        showToast(errorMessage, 'error');
+      }
+
       showToast(errorMessage, 'error');
       setCredentials((prev) => ({ ...prev, password: '' }));
       emailInputRef.current?.focus();
     }
   };
+
 
   return (
     <div className="auth-page">
@@ -116,10 +130,10 @@ const LoginPage = () => {
           <button
             type="submit"
             className="btn-primary"
-            disabled={loading}
-            aria-busy={loading}
+            disabled={loading || isRateLimited}
+            aria-busy={loading || isRateLimited}
           >
-            {loading ? 'Logging in…' : 'Login'}
+            {loading ? 'Logging in…' : isRateLimited ? 'Please wait...' : 'Login'}
           </button>
         </form>
 

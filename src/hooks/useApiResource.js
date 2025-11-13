@@ -53,10 +53,26 @@ export const useApiResource = (
 
     try {
       const response = await api.get(currentUrl, { signal: controller.signal });
-      const newData = Array.isArray(response.data) ? response.data : [];
-      setDataRef.current(newData);
+      const rawData = response.data;
+      let processedData = [];
+
+      // Handle different API response structures:
+      // 1. If data is wrapped in a key matching the pluralized resource name (e.g., { users: [...] })
+      // 2. If data is wrapped in a generic 'data' key (e.g., { data: [...] })
+      // 3. If data is directly an array
+      if (rawData) {
+        const pluralResourceName = resourceName + 's'; // e.g., 'users' from 'user'
+        if (rawData[pluralResourceName] && Array.isArray(rawData[pluralResourceName])) {
+          processedData = rawData[pluralResourceName];
+        } else if (rawData.data && Array.isArray(rawData.data)) {
+          processedData = rawData.data;
+        } else if (Array.isArray(rawData)) {
+          processedData = rawData;
+        }
+      }
+      setDataRef.current(processedData);
       setLastFetched(Date.now());
-      return newData;
+      return processedData;
     } catch (err) {
       if (err.name === 'CanceledError') return; // żądanie anulowane
       const errorMessage = err.response?.data?.error || `Failed to fetch ${currentName}.`;

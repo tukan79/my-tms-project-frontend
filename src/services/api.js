@@ -1,13 +1,13 @@
-// src/api.js
+// src/servicecs/api.js
 import axios from 'axios';
 
 // Ustawienia globalne
 axios.defaults.withCredentials = true;
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://my-tms-project-production.up.railway.app';
 
 const api = axios.create({
-  baseURL: baseURL,
+  baseURL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
@@ -67,62 +67,55 @@ api.interceptors.response.use(
     }
 
     // 🔁 Obsługa 401 i odświeżanie tokena
-    if (isUnauthorized && !originalRequest._retry && !originalRequest.url.includes('/api/auth/login')) {
-      if (isRefreshing) {
-        // Inne zapytania czekają w kolejce
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return api(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
+    // if (isUnauthorized && !originalRequest._retry && !originalRequest.url.includes('/api/auth/login')) {
+    //   if (isRefreshing) {
+    //     // Inne zapytania czekają w kolejce
+    //     return new Promise((resolve, reject) => {
+    //       failedQueue.push({ resolve, reject });
+    //     })
+    //       .then((token) => {
+    //         originalRequest.headers.Authorization = `Bearer ${token}`;
+    //         return api(originalRequest);
+    //       })
+    //       .catch((err) => Promise.reject(err));
+    //   }
 
-      originalRequest._retry = true;
-      isRefreshing = true;
+    //   originalRequest._retry = true;
+    //   isRefreshing = true;
 
-      try {
-        console.info('🔄 Attempting token refresh...');
-        const refreshUrl = `${baseURL}/api/auth/refresh`; // Corrected URL
-        const { data } = await axios.post(refreshUrl, {}, { withCredentials: true });
+    //   try {
+    //     console.info('🔄 Attempting token refresh...');
+    //     const refreshUrl = `${baseURL}/api/auth/refresh`; // Corrected URL
+    //     const { data } = await axios.post(refreshUrl, {}, { withCredentials: true });
 
-        const newToken = data.accessToken;
-        if (!newToken) throw new Error('No token returned from refresh.');
+    //     const newToken = data.accessToken;
+    //     if (!newToken) throw new Error('No token returned from refresh.');
 
-        // 🔥 Aktualizujemy token
-        localStorage.setItem('token', newToken);
-        api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+    //     // 🔥 Aktualizujemy token
+    //     localStorage.setItem('token', newToken);
+    //     api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+    //     originalRequest.headers.Authorization = `Bearer ${newToken}`;
 
-        // Powiadamiamy aplikację (np. AuthContext)
-        window.dispatchEvent(new CustomEvent('token-refreshed', { detail: { accessToken: newToken } }));
+    //     // Powiadamiamy aplikację (np. AuthContext)
+    //     window.dispatchEvent(new CustomEvent('token-refreshed', { detail: { accessToken: newToken } }));
 
-        processQueue(null, newToken);
-        console.info('✅ Token refreshed successfully.');
+    //     processQueue(null, newToken);
+    //     console.info('✅ Token refreshed successfully.');
 
-        return api(originalRequest);
-      } catch (refreshError) {
-        console.error('❌ Refresh token failed:', refreshError);
-        processQueue(refreshError, null);
+    //     return api(originalRequest);
+    //   } catch (refreshError) {
+    //     console.error('❌ Refresh token failed:', refreshError);
+    //     processQueue(refreshError, null);
 
-        // Wyczyść token i wywołaj globalny event
-        localStorage.removeItem('token');
-        window.dispatchEvent(new Event('auth-error'));
+    //     // Wyczyść token i wywołaj globalny event
+    //     localStorage.removeItem('token');
+    //     window.dispatchEvent(new Event('auth-error'));
 
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
-    }
-
-    // Jeśli 403 lub inne błędy autoryzacji → wyloguj
-    if (error.response?.status === 403) {
-      console.warn('🚫 Forbidden (403) → forcing logout');
-      localStorage.removeItem('token');
-      window.dispatchEvent(new Event('auth-error'));
-    }
+    //     return Promise.reject(refreshError);
+    //   } finally {
+    //     isRefreshing = false;
+    //   }
+    // }
 
     console.log('❌ Response error:', error.response?.status || 'No Status', error.config?.url);
     console.log('❌ Error details:', error.response?.data || error.message || 'Unknown error');
