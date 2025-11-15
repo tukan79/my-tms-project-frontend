@@ -1,27 +1,29 @@
 // frontend/src/config/viewConfig.js
-import React from 'react';
 import { Printer } from 'lucide-react';
 
-// Importuj komponenty
-import RunManager from '../components/management/RunManager.jsx';
-import PlanItPage from '../pages/PlanItPage.jsx';
-import FinancePage from '../pages/FinancePage.jsx';
-import PricingPage from '../pages/PricingPage.jsx';
-import SurchargeTypesManager from '../components/SurchargeTypesManager.jsx';
-import DriverList from '../components/list/DriverList.jsx';
-import AddDriverForm from '../components/forms/AddDriverForm.jsx';
-import TruckList from '../components/list/TruckList.jsx';
-import AddTruckForm from '../components/forms/AddTruckForm.jsx';
-import CustomerList from '../components/list/CustomerList.jsx';
-import AddCustomerForm from '../components/forms/AddCustomerForm.jsx';
-import TrailerList from '../components/list/TrailerList.jsx';
-import AddTrailerForm from '../components/forms/AddTrailerForm.jsx';
-import UserList from '../components/list/UserList.jsx';
-import AddUserForm from '../components/forms/AddUserForm.jsx';
-import OrderList from '../components/list/OrderList.jsx';
-import AddOrderForm from '../components/AddOrderForm.jsx';
+// Import Pages and major components
+import PlanItPage from '@/pages/PlanItPage.jsx';
+import FinancePage from '@/pages/FinancePage.jsx';
+import PricingPage from '@/pages/PricingPage.jsx';
+import RunManager from '@/pages/RunManager.jsx';
+import SurchargeTypesManager from '@/components/SurchargeTypesManager.jsx';
 
-// Funkcja generująca konfigurację widoków
+// Import List Components
+import OrderList from '@/components/list/OrderList.jsx';
+import DriverList from '@/components/list/DriverList.jsx';
+import TruckList from '@/components/list/TruckList.jsx';
+import TrailerList from '@/components/list/TrailerList.jsx';
+import CustomerList from '@/components/list/CustomerList.jsx';
+import UserList from '@/components/list/UserList.jsx';
+
+// Import Form Components
+import AddOrderForm from '@/components/AddOrderForm.jsx';
+import AddDriverForm from '@/components/forms/AddDriverForm.jsx';
+import AddTruckForm from '@/components/forms/AddTruckForm.jsx';
+import AddTrailerForm from '@/components/forms/AddTrailerForm.jsx';
+import AddCustomerForm from '@/components/forms/AddCustomerForm.jsx';
+import AddUserForm from '@/components/forms/AddUserForm.jsx';
+
 export const generateViewConfig = ({
   user,
   data,
@@ -38,53 +40,145 @@ export const generateViewConfig = ({
 
   const isAdmin = user?.role === 'admin';
   const isDispatcher = user?.role === 'dispatcher';
-  const { orders, drivers, trucks, trailers, users, assignments, runs, customers, zones, surcharges, invoices } = data || {};
+
+  // Bezpieczne parsowanie danych
+  const safeData = {
+    orders: Array.isArray(data.orders) ? data.orders : [],
+    drivers: Array.isArray(data.drivers) ? data.drivers : [],
+    trucks: Array.isArray(data.trucks) ? data.trucks : [],
+    trailers: Array.isArray(data.trailers) ? data.trailers : [],
+    users: Array.isArray(data.users) ? data.users : [],
+    customers: Array.isArray(data.customers) ? data.customers : [],
+    assignments: Array.isArray(data.assignments) ? data.assignments : [],
+    runs: Array.isArray(data.runs) ? data.runs : [],
+    zones: Array.isArray(data.zones) ? data.zones : [],
+    surcharges: Array.isArray(data.surcharges) ? data.surcharges : [],
+    invoices: Array.isArray(data.invoices) ? data.invoices : [],
+  };
+
+  console.log('📊 Safe data for view config:', {
+    orders: safeData.orders.length,
+    drivers: safeData.drivers.length, 
+    trucks: safeData.trucks.length,
+    trailers: safeData.trailers.length,
+    users: safeData.users.length,
+    customers: safeData.customers.length
+  });
 
   const baseConfig = {
     runs: { 
       Component: RunManager,
-      props: { runs, trucks, trailers, drivers, onDataRefresh: refreshAll, onDeleteRequest: handleDeleteRequest, runActions: actions?.runs }
+      props: { 
+        runs: safeData.runs, 
+        trucks: safeData.trucks, 
+        trailers: safeData.trailers, 
+        drivers: safeData.drivers, 
+        onDataRefresh: refreshAll, 
+        onDeleteRequest: handleDeleteRequest, 
+        runActions: actions?.runs 
+      }
     },
     planit: { 
       Component: PlanItPage,
-      props: { orders, runs, assignments: Array.isArray(assignments) ? assignments : [], drivers, trucks, trailers, zones, pallets: data?.pallets || [], onAssignmentCreated: refreshAll, onEdit: handleEditOrderFromAnywhere, surcharges, runActions: actions?.runs, onDeleteRequest: handleDeleteRequest, bulkAssignOrders: actions?.assignments?.bulkCreate }
+      props: { 
+        orders: safeData.orders, 
+        runs: safeData.runs, 
+        assignments: safeData.assignments, 
+        drivers: safeData.drivers, 
+        trucks: safeData.trucks, 
+        trailers: safeData.trailers, 
+        zones: safeData.zones, 
+        pallets: data?.pallets || [], 
+        onAssignmentCreated: refreshAll, 
+        onEdit: handleEditOrderFromAnywhere, 
+        surcharges: safeData.surcharges, 
+        runActions: actions?.runs, 
+        onDeleteRequest: handleDeleteRequest, 
+        bulkAssignOrders: actions?.assignments?.bulkCreate 
+      }
     },
     finance: { 
       Component: FinancePage, 
-      props: { orders, customers, surcharges, invoices, onEdit: handleEditOrderFromAnywhere, onRefresh: refreshAll, invoiceActions: actions.invoices } 
+      props: { 
+        orders: safeData.orders, 
+        customers: safeData.customers, 
+        surcharges: safeData.surcharges, 
+        invoices: safeData.invoices, 
+        onEdit: handleEditOrderFromAnywhere, 
+        onRefresh: refreshAll, 
+        invoiceActions: actions.invoices 
+      } 
     },
     pricing: { 
       Component: PricingPage, 
-      props: { customers, zones, onRefresh: refreshAll } 
+      props: { 
+        customers: safeData.customers, 
+        zones: safeData.zones, 
+        onRefresh: refreshAll 
+      } 
     },
     surcharges: { 
       Component: SurchargeTypesManager, 
-      props: { surcharges } 
+      props: { 
+        surcharges: safeData.surcharges 
+      } 
     },
   };
 
-  const adminConfig = {
-    drivers: { ListComponent: DriverList, FormComponent: AddDriverForm, dataKey: 'drivers' },
-    trucks: { ListComponent: TruckList, FormComponent: AddTruckForm, dataKey: 'trucks' },
-    customers: { ListComponent: CustomerList, FormComponent: AddCustomerForm, dataKey: 'customers' },
-    trailers: { ListComponent: TrailerList, FormComponent: AddTrailerForm, dataKey: 'trailers' },
-    users: { ListComponent: UserList, FormComponent: AddUserForm, dataKey: 'users' },
+  // Funkcja helper do tworzenia konfiguracji list
+  const createListConfig = (ListComponent, FormComponent, dataKey, formProps = {}, customActions = []) => {
+    const config = {
+      dataKey,
+      ListComponent,
+    };
+    
+    if (FormComponent) {
+      config.FormComponent = FormComponent;
+      config.formProps = formProps;
+    }
+
+    // 🎯 Kluczowa poprawka: Upewnij się, że niestandardowe akcje są przekazywane.
+    if (customActions && customActions.length > 0) {
+      config.customActions = customActions;
+    }
+    
+    return config;
   };
 
-  // Konfiguracja dla admina, który ma dostęp do wszystkiego
+  const adminConfig = {
+    drivers: createListConfig(DriverList, AddDriverForm, 'drivers'),
+    trucks: createListConfig(TruckList, AddTruckForm, 'trucks'),
+    customers: createListConfig(CustomerList, AddCustomerForm, 'customers'),
+    trailers: createListConfig(TrailerList, AddTrailerForm, 'trailers'),
+    users: createListConfig(UserList, AddUserForm, 'users'),
+  };
+
+  // Konfiguracja dla admina
   const adminOnlyConfig = {
     ...adminConfig,
-    orders: { ListComponent: OrderList, FormComponent: AddOrderForm, formProps: { clients: Array.isArray(customers) ? customers : [], surcharges: Array.isArray(surcharges) ? surcharges : [] }, dataKey: 'orders', customActions: [{ icon: <Printer size={16} />, onClick: handlePrintLabels, title: 'Print Pallet Labels' }] },
-  }
+    orders: createListConfig(
+      OrderList, 
+      AddOrderForm, 
+      'orders', 
+      { 
+        clients: safeData.customers, 
+        surcharges: safeData.surcharges 
+      },
+      [{ icon: <Printer size={16} />, onClick: handlePrintLabels, title: 'Print Pallet Labels' }]
+    ),
+  };
 
   let finalConfig = { ...baseConfig };
   if (isAdmin) {
     finalConfig = { ...finalConfig, ...adminOnlyConfig };
   } else if (isDispatcher) {
-    // Dispatcher ma tylko dostęp do widoków bazowych (runs, planit, etc.)
-    finalConfig = { ...finalConfig };
+    // Dispatcher ma dostęp tylko do odczytu zamówień
+    finalConfig = { 
+      ...finalConfig,
+      orders: createListConfig(OrderList, null, 'orders')
+    };
   }
 
+  console.log('🎯 Final view config keys:', Object.keys(finalConfig));
   return finalConfig;
 };
-// ostatnia zmiana (30.05.2024, 13:14:12)

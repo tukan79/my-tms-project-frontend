@@ -1,9 +1,15 @@
+// src/hooks/useApiResource.js
 import { useState, useCallback, useEffect, useRef } from 'react';
+import axios from 'axios';
 import api from '@/services/api';
 
 /**
- * Uniwersalny hook do zarządzania danymi API z wbudowaną obsługą CRUD, 
- * optymistycznymi aktualizacjami i bezpieczeństwem przed race conditions.
+ * Solidny hook do CRUD + fetch + optimistic updates.
+ * Zwraca: data, isFetching, isMutating, error, lastFetched, enabled, fetchData, createResource, updateResource, deleteResource, bulkCreate, setData
+ *
+ * Ważne:
+ * - Jeśli resourceUrl === null/undefined -> enabled: false i nigdzie nie wykonujemy żądań.
+ * - Domyślnie opcja initialFetch kontroluje automatyczne pobranie przy mount (użyj initialFetch: false gdy chcesz sterować fetchami z zewnątrz).
  */
 export const useApiResource = (
   resourceUrl,
@@ -11,230 +17,238 @@ export const useApiResource = (
   initialData = [],
   options = { initialFetch: true }
 ) => {
-  const [data, setData] = useState(initialData); // zawsze tablica
-  const [isLoading, setIsLoading] = useState(false);
+  const enabled = Boolean(resourceUrl);
+
+  const [data, setData] = useState(Array.isArray(initialData) ? initialData : []);
+  const [isFetching, setIsFetching] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState(null);
   const [lastFetched, setLastFetched] = useState(null);
 
-  // ref, aby uniknąć problemu z nieaktualnymi wartościami
-  const setDataRef = useRef(setData);
-  useEffect(() => {
-    setDataRef.current = setData;
-  }, []);
+  // refs to keep stable access inside callbacks
+  const dataRef = useRef(data);
+  useEffect(() => { dataRef.current = data; }, [data]);
 
+  const setDataRef = useRef((v) => setData(v));
+  useEffect(() => { setDataRef.current = setData; }, [setData]);
 
   const resourceUrlRef = useRef(resourceUrl);
   const resourceNameRef = useRef(resourceName);
+  const optionsRef = useRef(options);
   const abortControllerRef = useRef(null);
 
   useEffect(() => {
     resourceUrlRef.current = resourceUrl;
     resourceNameRef.current = resourceName;
-  }, [resourceUrl, resourceName]);
+    optionsRef.current = options;
+    // When resourceUrl changes, reset lastFetched so that a new fetch is allowed
+    setLastFetched(null);
+  }, [resourceUrl, resourceName, options]);
 
-  /**
-   * Pobiera dane z API (bez efektów ubocznych w zależnościach).
-   * Chroni przed sytuacją, gdy starsza odpowiedź nadpisze nowsze dane.
-   */
-  const fetchData = useCallback(async () => {
+  const isCancelError = (err) => axios.isCancel?.(err) || err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError';
+
+  // Robust parser for different API shapes
+  const parseResponseData = (rawData) => {
+    if (!rawData) return [];
+    const commonKeys = ['data', 'results', 'items', 'rows'];
+    for (const k of commonKeys) {
+      if (Array.isArray(rawData[k])) return rawData[k];
+    }
+    const plural = resourceNameRef.current + 's';
+    if (Array.isArray(rawData[plural])) return rawData[plural];
+    if (Array.isArray(rawData)) return rawData;
+    if (typeof rawData === 'object') {
+      for (const key of Object.keys(rawData)) {
+        if (Array.isArray(rawData[key])) return rawData[key];
+      }
+    }
+    return [];
+  };
+
+  // FETCH
+  const fetchData = useCallback(async (params = {}) => {
     const currentUrl = resourceUrlRef.current;
     const currentName = resourceNameRef.current;
-    if (!currentUrl) return;
 
-    // Anuluj poprzednie żądanie (jeśli trwa)
+    if (!currentUrl) return null; // safety: do nothing when disabled
+
+    // abort previous
     if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+      try { abortControllerRef.current.abort(); } catch (e) { /* ignore */ }
     }
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    setIsLoading(true);
+    setIsFetching(true);
     setError(null);
 
     try {
-      const response = await api.get(currentUrl, { signal: controller.signal });
-      const rawData = response.data;
-      let processedData = [];
-
-      // Handle different API response structures:
-      // 1. If data is wrapped in a key matching the pluralized resource name (e.g., { users: [...] })
-      // 2. If data is wrapped in a generic 'data' key (e.g., { data: [...] })
-      // 3. If data is directly an array
-      if (rawData) {
-        const pluralResourceName = resourceName + 's'; // e.g., 'users' from 'user'
-        if (rawData[pluralResourceName] && Array.isArray(rawData[pluralResourceName])) {
-          processedData = rawData[pluralResourceName];
-        } else if (rawData.data && Array.isArray(rawData.data)) {
-          processedData = rawData.data;
-        } else if (Array.isArray(rawData)) {
-          processedData = rawData;
-        }
-      }
-      setDataRef.current(processedData);
+      const response = await api.get(currentUrl, { params, signal: controller.signal });
+      const processed = parseResponseData(response.data);
+      setDataRef.current(processed);
       setLastFetched(Date.now());
-      return processedData;
+      return processed;
     } catch (err) {
-      if (err.name === 'CanceledError') return; // żądanie anulowane
-      const errorMessage = err.response?.data?.error || `Failed to fetch ${currentName}.`;
-      setError(errorMessage);
+      if (isCancelError(err)) return null;
+      console.error(`fetchData error for ${currentName}:`, err);
+      setError(err.response?.data?.error || `Failed to fetch ${currentName}.`);
       setDataRef.current([]);
+      return null;
     } finally {
-      setIsLoading(false);
+      setIsFetching(false);
     }
   }, []);
 
-  /**
-   * Automatycznie pobiera dane przy zmianie adresu.
-   */
+  // auto-fetch (controlled by options.initialFetch)
   useEffect(() => {
-    if (resourceUrl && options.initialFetch && !lastFetched) {
+    const shouldInitialFetch = Boolean(optionsRef.current?.initialFetch);
+    if (!enabled) {
+      setData([]); // ensure cleared when endpoint not present
+      return;
+    }
+    if (enabled && shouldInitialFetch && !lastFetched) {
+      // schedule fetch (no double-calling if parent also triggers)
       fetchData();
-    } else {
-      setData([]);
     }
     return () => {
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [resourceUrl, options.initialFetch, lastFetched, fetchData]);
+  }, [enabled, lastFetched, fetchData]);
 
-  /**
-   * Tworzy nowy rekord z opcjonalnym optymistycznym UI.
-   */
-  const createResource = useCallback(async (resourceData, optimisticUpdate) => {
+  // deep clone helper (structuredClone where available)
+  const deepClone = (obj) => {
+    try {
+      if (typeof structuredClone === 'function') return structuredClone(obj);
+    } catch (e) { /* ignore */ }
+    return JSON.parse(JSON.stringify(obj));
+  };
+
+  // CREATE
+  const createResource = useCallback(async (resourceData, optimisticFn) => {
     const currentUrl = resourceUrlRef.current;
     const currentName = resourceNameRef.current;
+    if (!currentUrl) throw new Error(`createResource: resource ${currentName} not enabled`);
 
     let tempId = null;
-    if (optimisticUpdate) {
-      tempId = `temp-${Date.now()}`;
-      const optimisticItem = optimisticUpdate(resourceData, tempId);
-      setDataRef.current((prev) => [...prev, optimisticItem]);
+    if (typeof optimisticFn === 'function') {
+      tempId = `tmp-${Date.now()}`;
+      const optimisticItem = optimisticFn(resourceData, tempId);
+      setDataRef.current((prev) => Array.isArray(prev) ? [...prev, optimisticItem] : [optimisticItem]);
     }
 
-    setIsLoading(true);
+    setIsMutating(true);
     setError(null);
 
     try {
-      const response = await api.post(currentUrl, resourceData);
-      const newItem = response.data;
-
+      const resp = await api.post(currentUrl, resourceData);
+      const created = Array.isArray(resp.data) ? resp.data[0] : resp.data;
       setDataRef.current((prev) =>
-        optimisticUpdate
-          ? prev.map((item) => (item.id === tempId ? newItem : item))
-          : [...prev, newItem]
+        typeof optimisticFn === 'function'
+          ? (Array.isArray(prev) ? prev.map((it) => (it.id === tempId ? created : it)) : [created])
+          : (Array.isArray(prev) ? [...prev, created] : [created])
       );
-
-      return newItem;
+      return created;
     } catch (err) {
-      if (optimisticUpdate) {
-        setDataRef.current((prev) => prev.filter((i) => i.id !== tempId));
+      console.error(`createResource error for ${currentName}:`, err);
+      if (typeof optimisticFn === 'function') {
+        setDataRef.current((prev) => (Array.isArray(prev) ? prev.filter((i) => i.id !== tempId) : []));
       }
-      const errorMessage = err.response?.data?.error || `Failed to create ${currentName}.`;
-      setError(errorMessage);
+      setError(err.response?.data?.error || `Failed to create ${currentName}.`);
       return null;
     } finally {
-      setIsLoading(false);
+      setIsMutating(false);
     }
   }, []);
 
-  /**
-   * Aktualizuje istniejący rekord z rollbackiem przy błędzie.
-   */
+  // UPDATE
   const updateResource = useCallback(async (id, updates) => {
     const currentUrl = resourceUrlRef.current;
     const currentName = resourceNameRef.current;
+    if (!currentUrl) throw new Error(`updateResource: resource ${currentName} not enabled`);
 
-    let previousState;
-    setDataRef.current((prev) => {
-      previousState = prev;
-      return prev.map((item) => (item.id === id ? { ...item, ...updates } : item));
-    });
+    const previousState = deepClone(dataRef.current || []);
+    // optimistic local update
+    setDataRef.current((prev) => (Array.isArray(prev) ? prev.map((item) => (item.id === id ? { ...item, ...updates } : item)) : prev));
 
-    setIsLoading(true);
+    setIsMutating(true);
     setError(null);
 
     try {
-      const response = await api.put(`${currentUrl}/${id}`, updates);
-      const updatedItem = response.data;
-      setDataRef.current((prev) =>
-        prev.map((item) => (item.id === id ? updatedItem : item))
-      );
-      return updatedItem;
+      const resp = await api.put(`${currentUrl}/${id}`, updates);
+      const updated = resp.data;
+      setDataRef.current((prev) => (Array.isArray(prev) ? prev.map((item) => (item.id === id ? updated : item)) : prev));
+      return updated;
     } catch (err) {
-      if (previousState) setDataRef.current(previousState);
-      const errorMessage = err.response?.data?.error || `Failed to update ${currentName}.`;
-      setError(errorMessage);
+      console.error(`updateResource error for ${currentName}:`, err);
+      // rollback
+      setDataRef.current(previousState);
+      setError(err.response?.data?.error || `Failed to update ${currentName}.`);
       return null;
     } finally {
-      setIsLoading(false);
+      setIsMutating(false);
     }
   }, []);
 
-  /**
-   * Usuwa rekord z rollbackiem przy błędzie.
-   */
+  // DELETE
   const deleteResource = useCallback(async (id) => {
     const currentUrl = resourceUrlRef.current;
     const currentName = resourceNameRef.current;
+    if (!currentUrl) throw new Error(`deleteResource: resource ${currentName} not enabled`);
 
-    let deletedItem = null;
-    setDataRef.current((prev) => {
-      const index = prev.findIndex((i) => i.id === id);
-      if (index === -1) return prev;
-      deletedItem = prev[index];
-      return prev.filter((i) => i.id !== id);
-    });
+    const previousState = deepClone(dataRef.current || []);
+    setDataRef.current((prev) => (Array.isArray(prev) ? prev.filter((i) => i.id !== id) : prev));
 
-    setIsLoading(true);
+    setIsMutating(true);
     setError(null);
 
     try {
       await api.delete(`${currentUrl}/${id}`);
+      return true;
     } catch (err) {
-      if (deletedItem) {
-        setDataRef.current((prev) => [...prev, deletedItem]);
-      }
-      const errorMessage = err.response?.data?.error || `Failed to delete ${currentName}.`;
-      setError(errorMessage);
+      console.error(`deleteResource error for ${currentName}:`, err);
+      setDataRef.current(previousState);
+      setError(err.response?.data?.error || `Failed to delete ${currentName}.`);
+      return false;
     } finally {
-      setIsLoading(false);
+      setIsMutating(false);
     }
   }, []);
 
-  /**
-   * Tworzy wiele rekordów (bulk create).
-   */
+  // BULK CREATE
   const bulkCreate = useCallback(async (payload) => {
     const currentUrl = resourceUrlRef.current;
     const currentName = resourceNameRef.current;
+    if (!currentUrl) throw new Error(`bulkCreate: resource ${currentName} not enabled`);
 
-    setIsLoading(true);
+    setIsMutating(true);
     setError(null);
     try {
-      const response = await api.post(`${currentUrl}/bulk`, payload);
-      await fetchData(); // refetch po bulk-create
-      return { success: true, message: response.data.message || `${currentName} created successfully.` };
+      const resp = await api.post(`${currentUrl}/bulk`, payload);
+      // re-fetch to ensure canonical state
+      await fetchData();
+      return { success: true, message: resp.data?.message || `${currentName} created successfully.` };
     } catch (err) {
-      const errorMessage = err.response?.data?.error || `Failed to bulk create ${currentName}.`;
-      setError(errorMessage);
-      return { success: false, message: errorMessage };
+      console.error(`bulkCreate error for ${currentName}:`, err);
+      setError(err.response?.data?.error || `Failed to bulk create ${currentName}.`);
+      return { success: false, message: err.response?.data?.error || 'Bulk create failed' };
     } finally {
-      setIsLoading(false);
+      setIsMutating(false);
     }
   }, [fetchData]);
 
-  /**
-   * Stabilna funkcja setData — np. dla ręcznego modyfikowania listy.
-   */
   const stableSetData = useCallback((newData) => {
     setData(Array.isArray(newData) ? newData : []);
   }, []);
 
   return {
+    // state
     data,
-    isLoading,
+    isFetching,
+    isMutating,
     error,
     lastFetched,
+    enabled, // important: indicates whether this resource has an endpoint
+    // actions
     fetchData,
     createResource,
     updateResource,
@@ -243,5 +257,3 @@ export const useApiResource = (
     setData: stableSetData,
   };
 };
-
-// ostatnia zmiana (04.11.2025, 20:25:00)

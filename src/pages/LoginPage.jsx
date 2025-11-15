@@ -19,6 +19,7 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(!!localStorage.getItem('rememberedEmail'));
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
   const [isRateLimited, setIsRateLimited] = useState(false);
+  const [rateLimitTimeout, setRateLimitTimeout] = useState(null);
 
   // 🔹 Synchronizuj motyw z localStorage i <body>
   useEffect(() => {
@@ -52,24 +53,28 @@ const LoginPage = () => {
     } catch (err) {
       console.error('Login error:', err);
 
-      let errorMessage; // Declare errorMessage here
+      let errorMessage;
       // Sprawdzamy, czy błąd to 429 Too Many Requests
       if (err.response?.status === 429) {
         setIsRateLimited(true);
-        showToast('Too many login attempts. Please wait a moment.', 'warning');
-        // Odblokuj przycisk po 15 sekundach
-        setTimeout(() => setIsRateLimited(false), 15000);
+        const timeout = 15000;
+        errorMessage = 'Too many login attempts. Please wait a moment.';
+        showToast(errorMessage, 'warning');
+        setRateLimitTimeout(setTimeout(() => setIsRateLimited(false), timeout));
       } else {
-        const errorMessage =
-          err.response?.data?.error || 'Login failed. Please check your credentials.';
+        errorMessage = err.response?.data?.error || 'Login failed. Please check your credentials.';
         showToast(errorMessage, 'error');
       }
 
-      showToast(errorMessage, 'error');
       setCredentials((prev) => ({ ...prev, password: '' }));
       emailInputRef.current?.focus();
     }
   };
+  useEffect(() => {
+    return () => {
+      if (rateLimitTimeout) clearTimeout(rateLimitTimeout);
+    };
+  }, [rateLimitTimeout]);
 
 
   return (

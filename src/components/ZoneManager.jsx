@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useApiResource } from '@/hooks/useApiResource.js';
 import { useToast } from '@/contexts/ToastContext.jsx';
 import { Edit, Trash2, Plus, X, Download, Upload, ArrowUp, ArrowDown } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '@/services/api.js';
 import DataImporter from './DataImporter.jsx';
 
-const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
-  const { data: zonesFromApi, createResource, updateResource, fetchData: fetchZones } = useApiResource('/api/zones', 'zone', initialZones, { initialFetch: true });
+const ZoneManager = ({ zones = [], onRefresh }) => {
   const { showToast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingZone, setEditingZone] = useState(null);
@@ -18,7 +16,7 @@ const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
 
   const sortedZones = useMemo(() => {
     // Sortowanie stref po nazwie
-    return [...zonesFromApi].sort((a, b) => {
+    return [...zones].sort((a, b) => {
       const valA = a.zone_name;
       const valB = b.zone_name;
 
@@ -46,7 +44,7 @@ const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
       // Jeśli początki są takie same, dłuższa nazwa jest "większa"
       return sortConfig.direction === 'ascending' ? partsA.length - partsB.length : partsB.length - partsA.length;
     });
-  }, [zonesFromApi, sortConfig]);
+  }, [zones, sortConfig]);
 
   const handleSort = (key) => {
     let direction = 'ascending';
@@ -88,10 +86,10 @@ const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
 
     try {
       if (editingZone) {
-        await updateResource(editingZone.id, payload);
+        await api.put(`/api/zones/${editingZone.id}`, payload);
         showToast('Zone updated successfully!', 'success');
       } else {
-        await createResource(payload);
+        await api.post('/api/zones', payload);
         showToast('Zone created successfully!', 'success');
       }
       setIsFormOpen(false);
@@ -117,7 +115,7 @@ const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
   const handleRemovePattern = async (zone, patternToRemove) => {
     const updatedPatterns = zone.postcode_patterns.filter(p => p !== patternToRemove);
     try {
-      await updateResource(zone.id, { ...zone, postcode_patterns: updatedPatterns });
+      await api.put(`/api/zones/${zone.id}`, { postcode_patterns: updatedPatterns });
       showToast(`Pattern '${patternToRemove}' removed from ${zone.zone_name}.`, 'success');
       if (onRefresh) onRefresh(); // Odśwież dane po usunięciu wzorca
     } catch (error) {
@@ -150,8 +148,8 @@ const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
     try {
       // Aktualizujemy obie strefy. Używamy Promise.all, aby wykonać operacje równolegle.
       await Promise.all([
-        updateResource(sourceZone.id, { ...sourceZone, postcode_patterns: newSourcePatterns }),
-        updateResource(destZone.id, { ...destZone, postcode_patterns: [...new Set(newDestPatterns)] }) // Usuwamy duplikaty w strefie docelowej
+        api.put(`/api/zones/${sourceZone.id}`, { postcode_patterns: newSourcePatterns }),
+        api.put(`/api/zones/${destZone.id}`, { postcode_patterns: [...new Set(newDestPatterns)] })
       ]);
       showToast(`Moved '${pattern}' from ${sourceZone.zone_name} to ${destZone.zone_name}.`, 'success');
       if (onRefresh) onRefresh(); // Odśwież dane po przeniesieniu
@@ -179,8 +177,11 @@ const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
     postDataKey: 'zones', // Backend oczekuje obiektu { zones: [...] }
     dataMappingFn: (row) => ({
       zone_name: row.zone_name,
-      postcode_patterns: row.postcode_patterns, // Przekazujemy jako string, backend sobie poradzi
-      is_home_zone: ['true', '1', 'yes'].includes((row.is_home_zone || '').toLowerCase()),
+      // Przekształcamy string "pattern1;pattern2" na tablicę ["pattern1", "pattern2"]
+      postcode_patterns: row.postcode_patterns 
+        ? row.postcode_patterns.split(';').map(p => p.trim()).filter(Boolean) 
+        : [],
+      is_home_zone: ['true', '1', 'yes'].includes(String(row.is_home_zone || '').toLowerCase()),
     }),
     previewColumns: [
       { key: 'zone_name', header: 'Zone Name' },
@@ -191,7 +192,7 @@ const ZoneManager = ({ zones: initialZones = [], onRefresh }) => {
 
   const handleImportSuccess = () => {
     setShowImporter(false);
-    fetchZones(); // Bezpośrednio odświeżamy dane stref
+    if (onRefresh) onRefresh();
     showToast('Zones imported successfully!', 'success');
   };
 

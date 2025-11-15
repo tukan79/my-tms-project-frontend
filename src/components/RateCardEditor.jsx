@@ -43,9 +43,12 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
     setIsLoading(true);
     try {
       const response = await api.get(`/api/rate-cards/${selectedRateCardId}/entries`);
-        // Zabezpieczenie: Upewnij się, że rateCards jest zawsze tablicą
-        setRateCards(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
+      // 🎯 FIX: Update the correct state (rateEntries, not rateCards).
+      setRateEntries(Array.isArray(response.data) ? response.data : []);
+     } catch (error) {
+      // ✅ Enhanced error handling to catch and display specific error messages
+      const errorMessage = error.response?.data?.error || `Failed to fetch rate entries for rate card ${selectedRateCardId}.`;
+      showToast(errorMessage, 'error');
       showToast('Failed to fetch rate entries.', 'error');
     } finally {
       setIsLoading(false);
@@ -59,7 +62,9 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
     }
     try {
       const response = await api.get(`/api/rate-cards/${selectedRateCardId}/customers`);
-      setAssignedCustomers(response.data);
+      // 🎯 FIX: Ensure assignedCustomers is always an array to prevent .map() errors.
+      const data = response.data;
+      setAssignedCustomers(Array.isArray(data) ? data : (data?.customers && Array.isArray(data.customers) ? data.customers : []));
     } catch (error) {
       showToast('Failed to fetch assigned customers.', 'error');
     }
@@ -203,8 +208,8 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
 
   const unassignedCustomers = useMemo(() => {
     const assignedIds = new Set(assignedCustomers.map(c => c.id));
-    return customers.filter(c => !assignedIds.has(c.id));
-  }, [customers, assignedCustomers.length]);
+    return customers.filter(c => !assignedIds.has(c.id)); // The dependency on .length was not robust.
+  }, [customers, assignedCustomers]);
 
   return (
     <div>

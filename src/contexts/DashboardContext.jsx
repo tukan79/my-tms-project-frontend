@@ -11,6 +11,7 @@ import { useDataFetching } from '@/hooks/useDashboard.js';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useToast } from '@/contexts/ToastContext.jsx';
 import api from '@/services/api.js';
+import { safeParseData, logDataState } from '@/utils/dataHelpers.js';
 import { generateViewConfig } from '../config/viewConfig.jsx';
 
 const DashboardContext = createContext(null);
@@ -31,20 +32,20 @@ const useDashboardStateManagement = () => {
   const [modalState, setModalState] = React.useState({ isOpen: false });
   const [globalAutoRefresh, setGlobalAutoRefresh] = React.useState(true);
 
-  const handleViewChange = (view) => setCurrentView(view);
-  const handleEditClick = (item) => {
+  const handleViewChange = useCallback((view) => setCurrentView(view), []);
+  const handleEditClick = useCallback((item) => {
     setItemToEdit(item);
     setShowForm(true);
-  };
-  const handleCancelForm = () => {
+  }, []);
+  const handleCancelForm = useCallback(() => {
     setShowForm(false);
     setItemToEdit(null);
-  };
-  // Poprawka: Funkcja powinna ustawiać otrzymaną konfigurację, a nie próbować odczytywać z `importerConfig`.
-  const handleShowImporter = (config) => setImporterConfig(config);
-  const handleHideImporter = () => setImporterConfig(null);
-  const handleDeleteRequest = (message, onConfirm) => setModalState({ isOpen: true, message, onConfirm });
-  const handleCloseModal = () => setModalState({ isOpen: false });
+  }, []);
+
+  const handleShowImporter = useCallback((config) => setImporterConfig(config), []);
+  const handleHideImporter = useCallback(() => setImporterConfig(null), []);
+  const handleDeleteRequest = useCallback((message, onConfirm) => setModalState({ isOpen: true, message, onConfirm }), []);
+  const handleCloseModal = useCallback(() => setModalState({ isOpen: false }), []);
 
   // We use useMemo to stabilize the state object and prevent unnecessary re-renders in child components.
   return useMemo(
@@ -65,34 +66,26 @@ export const DashboardProvider = ({ children }) => {
   const { user, logout, isAuthenticated } = useAuth();
   const { showToast } = useToast();
 
-  // 🧩 Inicjalizacja stanu dashboardu
   const state = useDashboardStateManagement();
 
-  // 🔄 Pobieranie danych jest teraz bezwarunkowe.
-  // Hook `useDataFetching` jest wywoływany tylko po uwierzytelnieniu.
+  // Pobieranie danych
   const dataFetching = useDataFetching(isAuthenticated ? user?.role : null);
 
-
-  // Ref zabezpieczający przed spamem refreshy
   const isRefreshing = useRef(false);
 
-  /** 🔐 Wylogowanie z pełnym resetem */
   const handleLogout = useCallback(() => {
     logout();
     navigate('/login', { replace: true });
   }, [logout, navigate]);
 
-  /** ✅ Sukces po wysłaniu formularza */
   const handleFormSuccess = useCallback(async () => {
     if (isRefreshing.current) return;
     isRefreshing.current = true;
 
     try {
-      // Poprawka: Zamiast odświeżać wszystko, odświeżamy tylko dane dla bieżącego widoku.
-      // To zapobiega lawinie zapytań API po imporcie.
       await dataFetching.handleRefresh?.(state.currentView);
     } catch (err) {
-      console.error('❌ Error during refreshAll after form success:', err);
+      console.error('❌ Error during refresh after form success:', err);
       showToast('Failed to refresh dashboard data.', 'error');
     } finally {
       state.handleCancelForm?.();
@@ -102,7 +95,6 @@ export const DashboardProvider = ({ children }) => {
     }
   }, [dataFetching, showToast, state]);
 
-  /** 📤 Uniwersalny eksport */
   const handleGenericExport = useCallback(
     async (resource) => {
       try {
@@ -142,32 +134,80 @@ export const DashboardProvider = ({ children }) => {
     [showToast]
   );
 
-  // 🧩 Generacja konfiguracji widoku z pełnym zabezpieczeniem
   const viewConfig = useMemo(() => {
-    return generateViewConfig({
+    console.log('🔍 Generating view config with data:', {
+      hasData: !!dataFetching.data,
+      dataKeys: dataFetching.data ? Object.keys(dataFetching.data) : [],
+      userRole: user?.role
+    });
+
+    if (!dataFetching.data || Object.keys(dataFetching.data).length === 0) {
+      console.log('⚠️ No data available for view config');
+      return {};
+    }
+
+    const allExpectedDataKeys = [
+      'orders', 'drivers', 'trucks', 'trailers', 'users', 'assignments',
+      'customers', 'zones', 'surcharges', 'invoices', 'runs', 'pallets'
+    ];
+
+    const safeData = safeParseData(dataFetching.data || {}, allExpectedDataKeys);
+    logDataState(safeData, 'Dashboard Context');
+
+    const config = generateViewConfig({
       user,
-      data: dataFetching.data,
-      // Przekazujemy tylko te akcje, które są faktycznie potrzebne w konfiguracji widoków.
-      // Upraszcza to zależności i zapobiega błędom.
+      data: safeData,
       actions: dataFetching.actions,
       handleDeleteRequest: state.handleDeleteRequest,
-      refreshAll: dataFetching.handleRefresh, // Przekazujemy funkcję odświeżania
+      refreshAll: dataFetching.handleRefresh,
     });
+
+    console.log('🎯 Generated view config keys:', Object.keys(config));
+    return config;
+
   }, [user, dataFetching.data, dataFetching.actions, state.handleDeleteRequest, dataFetching.handleRefresh]);
 
-  // Set initial currentView based on user role and available views
   React.useEffect(() => {
-    // Only set if currentView is null (initial state) and viewConfig is available
-    if (state.currentView === null && viewConfig && Object.keys(viewConfig).length > 0) {
+    console.log('🔍 Initializing currentView:', {
+      currentView: state.currentView,
+      viewConfigKeys: Object.keys(viewConfig),
+      hasData: !!dataFetching.data,
+      isLoading: dataFetching.isLoading
+    });
+
+    if (state.currentView === null && 
+        Object.keys(viewConfig).length > 0 &&
+        !dataFetching.isLoading) {
+      
       const availableViews = Object.keys(viewConfig);
-      // Try to default to 'orders' if available, otherwise pick the first one
-      const defaultView = availableViews.includes('orders') ? 'orders' : availableViews[0];
+      console.log('📋 Available views:', availableViews);
+      
+      let defaultView = 'orders';
+      if (!availableViews.includes('orders')) {
+        defaultView = availableViews.includes('planit') ? 'planit' : availableViews[0];
+      }
+      
+      console.log('🎯 Setting default view to:', defaultView);
       state.handleViewChange(defaultView);
     }
-  }, [viewConfig, state.currentView, state.handleViewChange]);
+  }, [viewConfig, state.currentView, dataFetching.isLoading, state]);
 
+  const shouldRenderChildren = useMemo(() => {
+    const conditions = {
+      isLoading: dataFetching.isLoading,
+      noCurrentView: !state.currentView,
+      noViewConfig: !viewConfig[state.currentView],
+      hasData: !!dataFetching.data
+    };
 
-  // 🧱 Łączenie wszystkiego w jedno źródło prawdy
+    console.log('🔍 Render conditions:', conditions);
+
+    return !dataFetching.isLoading && 
+           state.currentView && 
+           viewConfig[state.currentView] && 
+           dataFetching.data;
+  }, [dataFetching.isLoading, state.currentView, viewConfig, dataFetching.data, state]);
+
   const value = useMemo(
     () => ({
       ...state,
@@ -191,14 +231,22 @@ export const DashboardProvider = ({ children }) => {
 
   return (
     <DashboardContext.Provider value={value}>
-      {/* Prevent children from rendering until the initial view is set */}
-      {!state.currentView ? (
-        <div className="loading">Initializing dashboard...</div>
-      ) : (
-        // Ta linia obsługuje przypadek, gdy prop 'children' jest obiektem,
-        // który sam w sobie zawiera właściwe elementy React pod kluczem 'children'.
-        // Jest to często spowodowane nieprawidłowym przekazywaniem propsów w komponencie nadrzędnym.
-        children.children || children
+      {shouldRenderChildren ?
+        children
+       : (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">
+              {dataFetching.isLoading ? 'Loading dashboard data...' : 'Initializing dashboard...'}
+            </p>
+            {state.currentView && !viewConfig[state.currentView] &&
+              <p className="text-sm text-orange-600 mt-2">
+                Configuring view: {state.currentView}
+              </p>
+            }
+          </div>
+        </div>
       )}
     </DashboardContext.Provider>
   );

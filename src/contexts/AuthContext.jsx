@@ -6,6 +6,7 @@ import React, {
   useState,
   useCallback,
 } from 'react';
+import axios from 'axios';
 import api from '@/services/api';
 import { useToast } from '@/contexts/ToastContext.jsx';
 
@@ -23,8 +24,10 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // Ładowanie początkowe
+  const [isLoading, setIsLoading] = useState(true); // initial loading state
   const { showToast } = useToast();
+
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
   // 🔹 Logowanie użytkownika
   const login = useCallback(
@@ -32,15 +35,16 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       try {
         const { data } = await api.post('/api/auth/login', { email, password });
-        localStorage.setItem('token', data.accessToken);
-        setUser(data.user);
-        setIsAuthenticated(true);
+        // login returns { accessToken, user }
+        if (data?.accessToken) {
+          localStorage.setItem('token', data.accessToken);
+        }
+        setUser(data?.user || null);
+        setIsAuthenticated(Boolean(data?.accessToken));
         showToast('Login successful', 'success');
-      } catch (error) { // Błąd jest teraz obsługiwany w LoginPage.jsx
-        // Logika ponawiania została usunięta, aby uniknąć blokady przez serwer (429 Too Many Requests).
-        // Komponent LoginPage wyświetli odpowiedni toast i obsłuży błąd.
+      } catch (error) {
         console.error('Login failed:', error);
-        throw error; // Throw the last error
+        throw error;
       } finally {
         setLoading(false);
       }
@@ -87,12 +91,12 @@ export const AuthProvider = ({ children }) => {
       const newToken = event.detail?.accessToken;
       if (newToken) {
         localStorage.setItem('token', newToken);
-        console.log('✅ Token updated in AuthContext.');
+        console.log('✅ Token updated in AuthContext (event).');
       }
     };
 
     const handleAuthError = () => {
-      console.warn('⚠️ Auth error received — logging out user.');
+      console.warn('⚠️ Auth error received — logging out user (event).');
       logout();
     };
 
@@ -106,6 +110,7 @@ export const AuthProvider = ({ children }) => {
 
   // === Wczytanie sesji przy starcie aplikacji ===
   useEffect(() => {
+    let isMounted = true;
     const initializeAuth = async () => {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -114,19 +119,61 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const { data } = await api.get('/api/auth/me');
-        setUser(data.user);
+        // First try: call /me with current token (api will attach Authorization header)
+        const resp = await api.get('/api/auth/me');
+        if (!isMounted) return;
+        // /api/auth/me returns the user payload directly (not wrapped as { user: ... })
+        setUser(resp.data);
         setIsAuthenticated(true);
-      } catch (err) {
-        console.error('Session validation failed:', err);
-        localStorage.removeItem('token');
-        setIsAuthenticated(false);
-      } finally {
         setIsLoading(false);
+        return;
+      } catch (err) {
+        // If we get 401, attempt one refresh attempt (raw axios call to avoid interceptor race)
+        const status = err?.response?.status;
+        console.warn('Initial /api/auth/me failed:', status, err?.message || err);
+
+        if (status === 401) {
+          try {
+            // Try refresh once using a raw axios POST to /api/auth/refresh with credentials
+            const refreshResp = await axios.post(
+              `${API_BASE}/api/auth/refresh`,
+              {},
+              { withCredentials: true }
+            );
+
+            const newToken = refreshResp?.data?.accessToken;
+            if (newToken) {
+              // Persist token and retry /me
+              localStorage.setItem('token', newToken);
+              // Retry to fetch user using api (will pick up new token from localStorage via interceptor)
+              const retried = await api.get('/api/auth/me');
+              if (!isMounted) return;
+              setUser(retried.data);
+              setIsAuthenticated(true);
+              setIsLoading(false);
+              // emit token-refreshed event (other listeners may rely on it)
+              window.dispatchEvent(new CustomEvent('token-refreshed', { detail: { accessToken: newToken } }));
+              return;
+            }
+          } catch (refreshErr) {
+            console.warn('Refresh attempt failed during initializeAuth:', refreshErr?.response?.data || refreshErr?.message || refreshErr);
+            // fallthrough to cleanup
+          }
+        }
+
+        // Any other error or failed refresh -> clear session
+        if (isMounted) {
+          localStorage.removeItem('token');
+          setUser(null);
+          setIsAuthenticated(false);
+          setIsLoading(false);
+        }
       }
     };
 
     initializeAuth();
+
+    return () => { isMounted = false; };
   }, []);
 
   return (
