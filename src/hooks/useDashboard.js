@@ -27,8 +27,8 @@ export function useDashboard() {
     try {
       setLoading(true);
       const [runsRes, surchargeRes] = await Promise.all([
-        api.get("/runs"),
-        api.get("/surcharge-types"),
+        api.get("/api/runs"),
+        api.get("/api/surcharge-types"),
       ]);
       setRuns(runsRes.data || []);
       setSurchargeTypes(surchargeRes.data || []);
@@ -70,7 +70,7 @@ export function useDashboard() {
   // 4. Actions
   const refreshRuns = async () => {
     try {
-      const res = await api.get("/runs");
+      const res = await api.get("/api/runs");
       setRuns(res.data || []);
     } catch (err) {
       console.error("❌ Failed to refresh runs:", err);
@@ -79,7 +79,7 @@ export function useDashboard() {
 
   const deleteRun = async (id) => {
     try {
-      await api.delete(`/runs/${id}`);
+      await api.delete(`/api/runs/${id}`);
       setRuns((prev) => prev.filter((r) => r._id !== id));
     } catch (err) {
       console.error("❌ Failed to delete run:", err);
