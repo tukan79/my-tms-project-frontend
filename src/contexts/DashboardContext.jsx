@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDataFetching } from '@/hooks/useDashboard.js';
+import { useDashboard as useDataFetching } from '@/hooks/useDashboard.js';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useToast } from '@/contexts/ToastContext.jsx';
 import api from '@/services/api.js';
@@ -170,7 +170,7 @@ export const DashboardProvider = ({ children }) => {
     return config;
 
   }, [user, dataFetching.data, dataFetching.actions, state.handleDeleteRequest, dataFetching.handleRefresh]);
-
+  
   React.useEffect(() => {
     console.log('🔍 Initializing currentView:', {
       currentView: state.currentView,
