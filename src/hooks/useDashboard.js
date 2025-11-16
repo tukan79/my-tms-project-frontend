@@ -30,8 +30,13 @@ export function useDashboard() {
         api.get("/api/runs"),
         api.get("/api/surcharge-types"),
       ]);
-      setRuns(runsRes.data || []);
-      setSurchargeTypes(surchargeRes.data || []);
+
+      // Safely extract array from response data
+      const runsData = Array.isArray(runsRes.data) ? runsRes.data : (runsRes.data?.runs || []);
+      const surchargesData = Array.isArray(surchargeRes.data) ? surchargeRes.data : (surchargeRes.data?.surcharges || surchargeRes.data?.data || []);
+
+      setRuns(runsData);
+      setSurchargeTypes(surchargesData);
     } catch (err) {
       console.error("❌ Error loading dashboard data:", err);
     } finally {
@@ -71,7 +76,9 @@ export function useDashboard() {
   const refreshRuns = async () => {
     try {
       const res = await api.get("/api/runs");
-      setRuns(res.data || []);
+      // Safely extract array from response data
+      const runsData = Array.isArray(res.data) ? res.data : (res.data?.runs || []);
+      setRuns(runsData);
     } catch (err) {
       console.error("❌ Failed to refresh runs:", err);
     }

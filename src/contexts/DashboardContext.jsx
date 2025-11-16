@@ -140,19 +140,19 @@ export const DashboardProvider = ({ children }) => {
 
   const viewConfig = useMemo(() => { // eslint-disable-line
     console.log('🔍 Generating view config with data:', {
-      hasData: !!dataFetching.data,
-      dataKeys: dataFetching.data ? Object.keys(dataFetching.data) : [],
+      hasRuns: !!dataFetching.runs,
+      runsCount: dataFetching.runs?.length,
       userRole: user?.role
     });
 
-    if (!dataFetching.data || Object.keys(dataFetching.data).length === 0) {
+    if (!dataFetching.runs) {
       console.log('⚠️ No data available for view config');
       return {};
     }
 
     const allExpectedDataKeys = [
       'orders', 'drivers', 'trucks', 'trailers', 'users', 'assignments',
-      'customers', 'zones', 'surcharges', 'invoices', 'runs', 'pallets'
+      'customers', 'zones', 'surcharges', 'invoices', 'runs'
     ];
 
     const safeData = safeParseData(dataFetching.data || {}, allExpectedDataKeys);
@@ -160,16 +160,17 @@ export const DashboardProvider = ({ children }) => {
 
     const config = generateViewConfig({
       user,
-      data: safeData,
-      actions: dataFetching.actions,
+      data: { runs: dataFetching.runs, surchargeTypes: dataFetching.surchargeTypes },
+      actions: { runs: { delete: dataFetching.deleteRun } },
       handleDeleteRequest: state.handleDeleteRequest,
-      refreshAll: dataFetching.handleRefresh,
+      handleRefresh: dataFetching.refreshRuns, // Przekazanie funkcji odświeżania
+      refreshAll: dataFetching.refreshRuns,
     });
 
     console.log('🎯 Generated view config keys:', Object.keys(config));
     return config;
 
-  }, [user, dataFetching.data, dataFetching.actions, state.handleDeleteRequest, dataFetching.handleRefresh]);
+  }, [user, dataFetching.runs, dataFetching.surchargeTypes, dataFetching.deleteRun, dataFetching.refreshRuns, state.handleDeleteRequest]);
   
   React.useEffect(() => {
     console.log('🔍 Initializing currentView:', {
@@ -200,19 +201,13 @@ export const DashboardProvider = ({ children }) => {
 
   const shouldRenderChildren = useMemo(() => {
     const conditions = {
-      isLoading: dataFetching.isLoading,
+      isLoading: dataFetching.loading,
       noCurrentView: !state.currentView,
       noViewConfig: !viewConfig[state.currentView],
-      hasData: !!dataFetching.data
     };
-
     console.log('🔍 Render conditions:', conditions);
-
-    return !dataFetching.isLoading && 
-           state.currentView && 
-           viewConfig[state.currentView] && 
-           dataFetching.data;
-  }, [dataFetching.isLoading, state.currentView, viewConfig, dataFetching.data, state]);
+    return !dataFetching.loading && state.currentView && viewConfig[state.currentView];
+  }, [dataFetching.loading, state.currentView, viewConfig]);
 
   const value = useMemo(
     () => ({
@@ -244,7 +239,7 @@ export const DashboardProvider = ({ children }) => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">
-              {dataFetching.isLoading ? 'Loading dashboard data...' : 'Initializing dashboard...'}
+              {dataFetching.loading ? 'Loading dashboard data...' : 'Initializing dashboard...'}
             </p>
             {state.currentView && !viewConfig[state.currentView] &&
               <p className="text-sm text-orange-600 mt-2">
