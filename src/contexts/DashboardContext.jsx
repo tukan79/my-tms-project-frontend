@@ -26,16 +26,16 @@ export const useDashboard = () => {
 };
 
 const useDashboardStateManagement = () => {
-  const [currentView, setCurrentView] = React.useState(null); // Initialize as null
+  const [currentView, setCurrentView] = React.useState("runs"); // Initialize as null
   const [showForm, setShowForm] = React.useState(false);
   const [itemToEdit, setItemToEdit] = React.useState(null);
   const [importerConfig, setImporterConfig] = React.useState(null);
-  const [modalState, setModalState] = React.useState({ isOpen: false });
+  const [modalState, setModalState] = React.useState(() => ({ isOpen: false }));
   const [globalAutoRefresh, setGlobalAutoRefresh] = React.useState(true);
 
   const handleViewChange = useCallback((view) => setCurrentView(view), []);
   const handleEditClick = useCallback((item) => {
-    setItemToEdit(item);
+    setItemToEdit(structuredClone(item));
     setShowForm(true);
   }, []);
   const handleCancelForm = useCallback(() => {
@@ -138,7 +138,7 @@ export const DashboardProvider = ({ children }) => {
     [showToast]
   );
 
-  const viewConfig = useMemo(() => {
+  const viewConfig = useMemo(() => { // eslint-disable-line
     console.log('🔍 Generating view config with data:', {
       hasData: !!dataFetching.data,
       dataKeys: dataFetching.data ? Object.keys(dataFetching.data) : [],

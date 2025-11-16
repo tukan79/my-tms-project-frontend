@@ -5,14 +5,9 @@ import api from '@/services/api';
 
 /**
  * Solidny hook do CRUD + fetch + optimistic updates.
- * Zwraca: data, isFetching, isMutating, error, lastFetched, enabled, fetchData, createResource, updateResource, deleteResource, bulkCreate, setData
- *
- * Ważne:
- * - Jeśli resourceUrl === null/undefined -> enabled: false i nigdzie nie wykonujemy żądań.
- * - Domyślnie opcja initialFetch kontroluje automatyczne pobranie przy mount (użyj initialFetch: false gdy chcesz sterować fetchami z zewnątrz).
  */
 export const useApiResource = (
-  resourceUrl,
+  resourceUrl, // np. /api/orders
   resourceName = 'resource',
   initialData = [],
   options = { initialFetch: true }
@@ -59,7 +54,7 @@ export const useApiResource = (
     if (Array.isArray(rawData[plural])) return rawData[plural];
     if (Array.isArray(rawData)) return rawData;
     if (typeof rawData === 'object') {
-      for (const key of Object.keys(rawData)) {
+      for (const key in rawData) {
         if (Array.isArray(rawData[key])) return rawData[key];
       }
     }
@@ -71,13 +66,13 @@ export const useApiResource = (
     const currentUrl = resourceUrlRef.current;
     const currentName = resourceNameRef.current;
 
+    if (!currentUrl) return null; // safety: do nothing when disabled
+
     if (inFlightRef.current) {
-      // Optional: return current cached data or null to avoid duplicate fetches
+      // Avoid duplicate fetches while one is in-flight
       return dataRef.current || null;
     }
     inFlightRef.current = true;
-
-    if (!currentUrl) return null; // safety: do nothing when disabled
 
     // abort previous
     if (abortControllerRef.current) {
@@ -96,18 +91,24 @@ export const useApiResource = (
       setLastFetched(Date.now());
       return processed;
     } catch (err) {
-      if (isCancelError(err)) return null;
+      if (isCancelError(err)) {
+        // request was canceled (not an application error)
+        return null;
+      }
       console.error(`fetchData error for ${currentName}:`, err);
       setError(err.response?.data?.error || `Failed to fetch ${currentName}.`);
       setDataRef.current([]);
       // Prevent immediate retry loops: set lastFetched so the auto-fetch effect doesn't refire instantly
       setLastFetched(Date.now());
       // optional: small delay to avoid spamming caller
-      await new Promise((res) => setTimeout(res, 250));
+      await new Promise((res) => setTimeout(res, 50));
       return null;
     } finally {
       inFlightRef.current = false;
       setIsFetching(false);
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
     }
   }, []);
 
@@ -138,6 +139,7 @@ export const useApiResource = (
   // CREATE
   const createResource = useCallback(async (resourceData, optimisticFn) => {
     const currentUrl = resourceUrlRef.current;
+    const { autoRefetch = false } = optionsRef.current;
     const currentName = resourceNameRef.current;
     if (!currentUrl) throw new Error(`createResource: resource ${currentName} not enabled`);
 
@@ -159,6 +161,9 @@ export const useApiResource = (
           ? (Array.isArray(prev) ? prev.map((it) => (it.id === tempId ? created : it)) : [created])
           : (Array.isArray(prev) ? [...prev, created] : [created])
       );
+      if (autoRefetch) {
+        await fetchData();
+      }
       return created;
     } catch (err) {
       console.error(`createResource error for ${currentName}:`, err);
@@ -175,6 +180,7 @@ export const useApiResource = (
   // UPDATE
   const updateResource = useCallback(async (id, updates) => {
     const currentUrl = resourceUrlRef.current;
+    const { autoRefetch = false } = optionsRef.current;
     const currentName = resourceNameRef.current;
     if (!currentUrl) throw new Error(`updateResource: resource ${currentName} not enabled`);
 
@@ -189,6 +195,9 @@ export const useApiResource = (
       const resp = await api.put(`${currentUrl}/${id}`, updates);
       const updated = resp.data;
       setDataRef.current((prev) => (Array.isArray(prev) ? prev.map((item) => (item.id === id ? updated : item)) : prev));
+      if (autoRefetch) {
+        await fetchData();
+      }
       return updated;
     } catch (err) {
       console.error(`updateResource error for ${currentName}:`, err);
@@ -204,6 +213,7 @@ export const useApiResource = (
   // DELETE
   const deleteResource = useCallback(async (id) => {
     const currentUrl = resourceUrlRef.current;
+    const { autoRefetch = false } = optionsRef.current;
     const currentName = resourceNameRef.current;
     if (!currentUrl) throw new Error(`deleteResource: resource ${currentName} not enabled`);
 
@@ -215,6 +225,9 @@ export const useApiResource = (
 
     try {
       await api.delete(`${currentUrl}/${id}`);
+      if (autoRefetch) {
+        await fetchData();
+      }
       return true;
     } catch (err) {
       console.error(`deleteResource error for ${currentName}:`, err);

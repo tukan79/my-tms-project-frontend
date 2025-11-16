@@ -3,7 +3,7 @@ import { useMemo, useCallback, useEffect, useRef } from 'react';
 import { useApiResource } from '@/hooks/useApiResource.js';
 
 /**
- * FIXED VERSION — Render Safe & No Infinite Fetch Loop
+ * useDataFetching (useDashboard) — orchestrator dla wszystkich zasobów dashboardu.
  */
 export const useDataFetching = (userRole) => {
   const endpoints = {
@@ -20,144 +20,183 @@ export const useDataFetching = (userRole) => {
     runs: '/api/runs',
   };
 
-  // Create resources — STATIC, NOT CHANGING
-  const resources = useMemo(() => {
-    return [
-      { key: 'orders', res: useApiResource(userRole === 'admin' ? endpoints.orders : null, 'order', [], { initialFetch: false }) },
-      { key: 'drivers', res: useApiResource(userRole === 'admin' ? endpoints.drivers : null, 'driver', [], { initialFetch: false }) },
-      { key: 'trucks', res: useApiResource(userRole === 'admin' ? endpoints.trucks : null, 'truck', [], { initialFetch: false }) },
-      { key: 'trailers', res: useApiResource(userRole === 'admin' ? endpoints.trailers : null, 'trailer', [], { initialFetch: false }) },
-      { key: 'users', res: useApiResource(userRole === 'admin' ? endpoints.users : null, 'user', [], { initialFetch: false }) },
-      { key: 'surcharges', res: useApiResource(userRole === 'admin' ? endpoints.surcharges : null, 'surcharge', [], { initialFetch: false }) },
-      { key: 'invoices', res: useApiResource(userRole === 'admin' ? endpoints.invoices : null, 'invoice', [], { initialFetch: false }) },
+  // Initialize resources (always at top level). We pass initialFetch: false — dashboard controls fetching.
+  const ordersResource = useApiResource(userRole === 'admin' ? endpoints.orders : null, 'order', [], { initialFetch: false });
+  const driversResource = useApiResource(userRole === 'admin' ? endpoints.drivers : null, 'driver', [], { initialFetch: false });
+  const trucksResource = useApiResource(userRole === 'admin' ? endpoints.trucks : null, 'truck', [], { initialFetch: false });
+  const trailersResource = useApiResource(userRole === 'admin' ? endpoints.trailers : null, 'trailer', [], { initialFetch: false });
+  const usersResource = useApiResource(userRole === 'admin' ? endpoints.users : null, 'user', [], { initialFetch: false });
+  const surchargesResource = useApiResource(userRole === 'admin' ? endpoints.surcharges : null, 'surcharge', [], { initialFetch: false });
+  const invoicesResource = useApiResource(userRole === 'admin' ? endpoints.invoices : null, 'invoice', [], { initialFetch: false });
 
-      // non-admin
-      { key: 'assignments', res: useApiResource(userRole ? endpoints.assignments : null, 'assignment', [], { initialFetch: false }) },
-      { key: 'customers', res: useApiResource(userRole ? endpoints.customers : null, 'customer', [], { initialFetch: false }) },
-      { key: 'zones', res: useApiResource(userRole ? endpoints.zones : null, 'zone', [], { initialFetch: false }) },
-      { key: 'runs', res: useApiResource(userRole ? endpoints.runs : null, 'run', [], { initialFetch: false }) },
-    ];
-  }, [userRole]);
+  // Non-admin resources (available to all authenticated roles)
+  const assignmentsResource = useApiResource(userRole ? endpoints.assignments : null, 'assignment', [], { initialFetch: false });
+  const customersResource = useApiResource(userRole ? endpoints.customers : null, 'customer', [], { initialFetch: false });
+  const zonesResource = useApiResource(userRole ? endpoints.zones : null, 'zone', [], { initialFetch: false });
+  const runsResource = useApiResource(userRole ? endpoints.runs : null, 'run', [], { initialFetch: false });
 
-  const resourcesMap = useMemo(
-    () => Object.fromEntries(resources.map(({ key, res }) => [key, res])),
-    [resources]
-  );
+  // Array & map for convenience
+  const resources = useMemo(() => [
+    { key: 'orders', res: ordersResource },
+    { key: 'drivers', res: driversResource },
+    { key: 'trucks', res: trucksResource },
+    { key: 'trailers', res: trailersResource },
+    { key: 'users', res: usersResource },
+    { key: 'surcharges', res: surchargesResource },
+    { key: 'invoices', res: invoicesResource },
+    { key: 'assignments', res: assignmentsResource },
+    { key: 'customers', res: customersResource },
+    { key: 'zones', res: zonesResource },
+    { key: 'runs', res: runsResource },
+  ], []);
 
-  const initialFetchDoneRef = useRef(false);
+  const resourcesMap = useMemo(() => Object.fromEntries(resources.map(({ key, res }) => [key, res])), [resources]);
+
+  // Refs to avoid duplicate initial fetch in StrictMode and reentrancy
+  const initialFetchPromiseRef = useRef(null);
+  const fetchAllRunningRef = useRef(false);
   const isRefreshing = useRef(false);
 
-  /** SEQUENTIAL FETCH (fixed: NEVER repeats, stable refs) */
-  const fetchAllSequentially = useCallback(async () => {
-    if (isRefreshing.current) return;
+  // Fetch sequentially but only for enabled resources that haven't been fetched yet.
+  const fetchAllSequentially = useCallback(async (opts = { delayMs: 120, filterKeys: null }) => {
+    if (fetchAllRunningRef.current) {
+      console.log('🔄 fetchAllSequentially already running — skipping.');
+      return;
+    }
+    fetchAllRunningRef.current = true;
+    console.log('🔄 Sequentially fetching dashboard data...', opts);
+    try {
+      const list = opts.filterKeys
+        ? resources.filter(r => opts.filterKeys.includes(r.key))
+        : resources;
+      for (const { key, res } of list) {
+        if (!res || !res.enabled) continue; // skip disabled
+        // if already fetched recently, skip
+        if (res.lastFetched && !res.error) continue;
+        if (typeof res.fetchData !== 'function') continue;
 
+        try {
+          await res.fetchData();
+          if (opts.delayMs) await new Promise((s) => setTimeout(s, opts.delayMs));
+        } catch (e) {
+          console.error(`Failed to fetch resource ${key}:`, e);
+        }
+      }
+      console.log('✅ Sequential fetch complete.');
+    } finally {
+      fetchAllRunningRef.current = false;
+    }
+  }, [resources]);
+
+  // Optionally fetch multiple in parallel (faster for non-dependent resources)
+  const fetchParallel = useCallback(async (keys = null) => {
+    if (isRefreshing.current) {
+      console.log('🔄 fetchParallel skipped - refresh in progress');
+      return;
+    }
+    const list = keys ? keys.map(k => resourcesMap[k]).filter(Boolean) : resources.map(r => r.res).filter(Boolean);
+    const enabledList = list.filter((r) => r && r.enabled && typeof r.fetchData === 'function');
+    if (enabledList.length === 0) return;
     isRefreshing.current = true;
+    try {
+      // use allSettled to avoid unhandled rejections and continue other requests
+      const promises = enabledList.map((r) => r.fetchData());
+      await Promise.allSettled(promises);
+    } finally {
+      // small delay to avoid immediate reentry
+      setTimeout(() => { isRefreshing.current = false; }, 400);
+    }
+  }, [resources, resourcesMap]);
 
-    console.log('🔄 [Dashboard] Sequential fetch start');
+  // Refresh helpers
+  const refreshAll = useCallback(async (opts) => {
+    if (isRefreshing.current) return;
+    return fetchParallel();
+  }, [fetchParallel]);
 
-    for (const { key, res } of resources) {
-      if (!res?.enabled) continue;
-      if (res.lastFetched) continue;
+  const handleRefresh = useCallback(async (viewKey) => {
+    if (!viewKey) return;
+    const res = resourcesMap[viewKey];
+    if (!res || !res.enabled) return;
+    if (typeof res.fetchData === 'function') {
+      if (isRefreshing.current) return;
+      isRefreshing.current = true;
       try {
         await res.fetchData();
       } catch (e) {
-        console.error(`❌ fetch error for ${key}`, e);
+        console.error(`handleRefresh failed for ${viewKey}:`, e);
+      } finally {
+        setTimeout(() => {
+          isRefreshing.current = false;
+        }, 200);
       }
-      await new Promise(r => setTimeout(r, 80));
-    }
-
-    console.log('✅ [Dashboard] Sequential fetch complete');
-
-    setTimeout(() => (isRefreshing.current = false), 500);
-  }, [resources]);
-
-  /** PARALLEL FETCH */
-  const fetchParallel = useCallback(async () => {
-    const list = resources
-      .filter(r => r.res?.enabled)
-      .map(r => r.res.fetchData);
-
-    await Promise.all(list.map(fn => fn()));
-  }, [resources]);
-
-  /** INITIAL FETCH — runs ONLY ONCE per login */
-  useEffect(() => {
-    if (!userRole) return;
-    if (initialFetchDoneRef.current) return;
-
-    initialFetchDoneRef.current = true;
-
-    (async () => {
-      console.log('🚀 Initial dashboard fetch');
-
-      // Fast minimal set
-      await fetchParallel();
-
-      // Then rest, slow sequential (safe for Render)
-      await fetchAllSequentially();
-    })();
-  }, [userRole, fetchParallel, fetchAllSequentially]);
-
-  /** Refresh specific view */
-  const handleRefresh = useCallback(async (viewKey) => {
-    const res = resourcesMap[viewKey];
-    if (!res?.enabled || !res.fetchData) return;
-
-    if (isRefreshing.current) return;
-    isRefreshing.current = true;
-
-    try {
-      await res.fetchData();
-    } finally {
-      setTimeout(() => (isRefreshing.current = false), 400);
     }
   }, [resourcesMap]);
 
-  /** Refresh ALL resources */
-  const refreshAll = useCallback(async () => {
-    if (isRefreshing.current) return;
-    isRefreshing.current = true;
-
-    try {
-      await fetchParallel();
-    } finally {
-      setTimeout(() => (isRefreshing.current = false), 500);
+  // Initial fetch: once when userRole appears (and only if not already done)
+  useEffect(() => {
+    if (!userRole) return;
+    if (initialFetchPromiseRef.current) {
+      // already running/ran
+      return;
     }
-  }, [fetchParallel]);
 
-  /** Derived data */
-  const data = useMemo(() => {
-    return Object.fromEntries(
-      resources.map(({ key, res }) => [key, Array.isArray(res.data) ? res.data : []])
-    );
+    initialFetchPromiseRef.current = (async () => {
+      try {
+        // first fetch essential resources (parallel), then heavier ones sequentially
+        await fetchParallel(['runs', 'assignments', 'customers']);
+        await fetchAllSequentially({ delayMs: 120 });
+      } catch (e) {
+        console.error('Initial data fetch error:', e);
+      } finally {
+        // keep the promise ref so we don't re-run initial fetch in StrictMode
+      }
+    })();
+
+    // no cleanup necessary here — the promise ref prevents re-run
+  }, [userRole, fetchAllSequentially, fetchParallel]);
+
+  // Reset resources when userRole changes (e.g., logout/login different user)
+  useEffect(() => {
+    // Clear data and lastFetched of resources that are no longer enabled
+    for (const { key, res } of resources) {
+      if (!res) continue;
+      if (!res.enabled) {
+        // clear stale data
+        try { res.setData([]); } catch (e) { /* ignore */ }
+      }
+      res.setData([]);
+      res.lastFetched = null;
+    }
+    // allow new initial fetch for changed role
+    initialFetchPromiseRef.current = null;
+  }, [userRole, resources]);
+
+  // Derived data + status
+  const data = useMemo(() => Object.fromEntries(
+    Object.entries(resourcesMap).map(([key, r]) => [key, Array.isArray(r?.data) ? r.data : []])
+  ), [resourcesMap]);
+
+  const isLoading = useMemo(() => resources.some(({ res }) => res?.isFetching || res?.isMutating), [resources]);
+
+  const anyError = useMemo(() => {
+    const found = resources.find(({ res }) => res?.error);
+    return found?.res?.error || null;
   }, [resources]);
 
-  const isLoading = useMemo(
-    () => resources.some(r => r.res?.isFetching || r.res?.isMutating),
-    [resources]
-  );
-
-  const anyError = useMemo(
-    () => resources.find(r => r.res?.error)?.res?.error || null,
-    [resources]
-  );
-
-  const actions = useMemo(
-    () => Object.fromEntries(
-      resources.map(({ key, res }) => [
-        key,
-        {
-          create: res?.createResource,
-          update: res?.updateResource,
-          delete: res?.deleteResource,
-          fetchData: res?.fetchData,
-          enabled: res?.enabled,
-          setData: res?.setData
-        }
-      ])
-    ),
-    [resources]
-  );
+  const actions = useMemo(() => Object.fromEntries(
+    Object.entries(resourcesMap).map(([key, res]) => [
+      key,
+      {
+        create: res?.createResource,
+        update: res?.updateResource,
+        delete: res?.deleteResource,
+        fetchData: res?.fetchData,
+        enabled: res?.enabled,
+        setData: res?.setData
+      }
+    ])
+  ), [resourcesMap]);
 
   return {
     data,
@@ -166,5 +205,7 @@ export const useDataFetching = (userRole) => {
     handleRefresh,
     refreshAll,
     actions,
+    _internal: { resources, resourcesMap },
   };
 };
+// src/hooks/useDashboard.js
