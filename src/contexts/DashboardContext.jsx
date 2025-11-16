@@ -162,7 +162,7 @@ export const DashboardProvider = ({ children }) => {
       user,
       data: { runs: dataFetching.runs, surchargeTypes: dataFetching.surchargeTypes },
       actions: { runs: { delete: dataFetching.deleteRun } },
-      handleDeleteRequest: state.handleDeleteRequest,
+            handleDeleteRequest: state.handleDeleteRequest,
       handleRefresh: dataFetching.refreshRuns, // Przekazanie funkcji odświeżania
       refreshAll: dataFetching.refreshRuns,
     });
