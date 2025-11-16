@@ -69,7 +69,9 @@ export const useDataFetching = (userRole) => {
   // Fetch sequentially but only for enabled resources that haven't been fetched yet.
   const fetchAllSequentially = useCallback(async (opts = { delayMs: 120, filterKeys: null }) => {
     console.log('🔄 Sequentially fetching dashboard data...', opts);
-    const list = filterKeys ? resources.filter(r => filterKeys.includes(r.key)) : resources;
+    const list = opts.filterKeys
+      ? resources.filter(r => opts.filterKeys.includes(r.key))
+      : resources;
     for (const { key, res } of list) {
       if (!res || !res.enabled) continue; // skip disabled
       if (res.lastFetched) continue; // already fetched

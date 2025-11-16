@@ -36,6 +36,7 @@ export const useApiResource = (
   const resourceNameRef = useRef(resourceName);
   const optionsRef = useRef(options);
   const abortControllerRef = useRef(null);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     resourceUrlRef.current = resourceUrl;
@@ -70,6 +71,12 @@ export const useApiResource = (
     const currentUrl = resourceUrlRef.current;
     const currentName = resourceNameRef.current;
 
+    if (inFlightRef.current) {
+      // Optional: return current cached data or null to avoid duplicate fetches
+      return dataRef.current || null;
+    }
+    inFlightRef.current = true;
+
     if (!currentUrl) return null; // safety: do nothing when disabled
 
     // abort previous
@@ -93,8 +100,13 @@ export const useApiResource = (
       console.error(`fetchData error for ${currentName}:`, err);
       setError(err.response?.data?.error || `Failed to fetch ${currentName}.`);
       setDataRef.current([]);
+      // Prevent immediate retry loops: set lastFetched so the auto-fetch effect doesn't refire instantly
+      setLastFetched(Date.now());
+      // optional: small delay to avoid spamming caller
+      await new Promise((res) => setTimeout(res, 250));
       return null;
     } finally {
+      inFlightRef.current = false;
       setIsFetching(false);
     }
   }, []);

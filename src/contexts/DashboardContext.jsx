@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDataFetching } from '@/hooks/useDashboard.js';
 import { useAuth } from '@/contexts/AuthContext.jsx';
@@ -70,6 +71,9 @@ export const DashboardProvider = ({ children }) => {
 
   // Pobieranie danych
   const dataFetching = useDataFetching(isAuthenticated ? user?.role : null);
+
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const isRefreshing = useRef(false);
 
@@ -188,7 +192,9 @@ export const DashboardProvider = ({ children }) => {
       }
       
       console.log('🎯 Setting default view to:', defaultView);
-      state.handleViewChange(defaultView);
+      if (mountedRef.current) {
+        state.handleViewChange(defaultView);
+      }
     }
   }, [viewConfig, state.currentView, dataFetching.isLoading, state]);
 

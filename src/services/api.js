@@ -18,8 +18,9 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+    const fullUrl = (config.baseURL || baseURL) + (config.url || '');
+    console.log('🔐 Request full URL:', fullUrl);
     console.log('🔐 Sending request with token:', token ? 'YES' : 'NO');
-    console.log('🔐 Request URL:', config.url);
 
     if (token) {
       config.headers = config.headers || {};
@@ -28,7 +29,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (err) => Promise.reject(err)
 );
 
 // === TOKEN REFRESH LOGIC ===
