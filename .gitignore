@@ -22,3 +22,7 @@ dist-ssr/
 .idea/
 .vscode/
 dist/
+exports/
+*.log
+.DS_Store
+.env
