@@ -1,5 +1,12 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://my-tms-projekt-backend-render.onrender.com/api/:path*" }
+    {
+      "source": "/api/:path*",
+      "destination": "https://my-tms-projekt-backend-render.onrender.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
