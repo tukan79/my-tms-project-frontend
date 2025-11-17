@@ -1,16 +1,8 @@
 {
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "https://my-tms-projekt-backend-render.onrender.com/api/$1"
-    },
-    {
-      "src": "/(assets|favicon\\.ico|manifest\\.json|logo\\.png|.*\\.svg)",
-      "dest": "/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/api/:path*",
+      "destination": "https://my-tms-projekt-backend-render.onrender.com/api/:path*"
     }
   ]
 }
