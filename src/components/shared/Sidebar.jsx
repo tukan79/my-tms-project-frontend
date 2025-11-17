@@ -59,9 +59,10 @@ const Sidebar = () => {
   const { user, handleLogout, currentView, handleViewChange, isLoading, globalAutoRefresh, setGlobalAutoRefresh } = useDashboard();
 
   return (
-    <nav className="sidebar">
-      <div className="sidebar-header">
-        <div className="user-avatar" title={user?.email}>
+    <nav className="sidebar w-64 flex-shrink-0 h-screen bg-white dark:bg-gray-800 border-r border-gray-300 dark:border-gray-700 flex flex-col">
+
+      <div className="sidebar-header flex items-center justify-between p-4 border-b border-gray-300 dark:border-gray-700">
+        <div className="user-avatar w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-lg font-bold" title={user?.email}>
           <span>{getInitials(user)}</span>
         </div>
         <button onClick={handleLogout} className="btn-icon btn-logout" title="Logout">
@@ -69,34 +70,50 @@ const Sidebar = () => {
         </button>
       </div>
 
-      {/* 🔄 Globalny przełącznik auto-refresh */}
-      <div className="sidebar-auto-refresh" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', marginLeft: '1rem' }}>
+      <div className="sidebar-auto-refresh flex items-center gap-2 p-4">
         <RefreshCw size={16} />
-        <label style={{ fontSize: '0.9rem', userSelect: 'none' }}>
+        <label className="text-sm">
           <input
             type="checkbox"
             checked={globalAutoRefresh}
             onChange={(e) => setGlobalAutoRefresh(e.target.checked)}
-            style={{ marginRight: '0.4rem' }}
+            className="mr-2"
           />
           Auto Refresh
         </label>
       </div>
 
-      <h1 className="sidebar-title">🚛 TMS System</h1>
-      {isLoading && <div className="global-loading">Loading...</div>}
-      <div className="sidebar-content">
+      <h1 className="sidebar-title px-4 py-2 text-lg font-semibold">🚛 TMS System</h1>
+
+      {isLoading && <div className="global-loading px-4 py-2">Loading...</div>}
+
+      <div className="sidebar-content flex-1 overflow-y-auto px-2">
         {navLinksConfig.map(section => (
-          <div key={section.title} className="sidebar-section">
-            <div className="sidebar-section-icon">{section.icon}</div>
+          <div key={section.title} className="sidebar-section mb-4">
+
+            <div className="sidebar-section-icon flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-300">
+              {section.icon}
+              <span className="text-sm">{section.title}</span>
+            </div>
+
             {section.links.filter(link => link.roles.includes(user?.role)).map(link => (
-              <button key={link.view} title={link.label} className={`tab ${currentView === link.view ? 'tab-active' : ''}`} onClick={() => handleViewChange(link.view)} disabled={isLoading}>
+              <button
+                key={link.view}
+                title={link.label}
+                className={`tab w-full flex items-center gap-3 px-4 py-2 rounded-md my-1 
+                ${currentView === link.view ? 'bg-blue-600 text-white' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                onClick={() => handleViewChange(link.view)}
+                disabled={isLoading}
+              >
                 {link.icon}
+                <span>{link.label}</span>
               </button>
             ))}
+
           </div>
         ))}
       </div>
+
     </nav>
   );
 };
