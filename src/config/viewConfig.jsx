@@ -30,6 +30,7 @@ export const generateViewConfig = ({
   actions,
   refreshAll,
   handleDeleteRequest,
+  handleRefresh, // Make sure to receive this
   handleEditOrderFromAnywhere,
   handlePrintLabels,
 }) => {
@@ -130,6 +131,7 @@ export const generateViewConfig = ({
     const config = {
       dataKey,
       ListComponent,
+      handleRefresh, // Pass it down to the config object
     };
     
     if (FormComponent) {
