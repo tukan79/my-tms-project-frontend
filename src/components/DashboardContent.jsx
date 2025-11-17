@@ -9,25 +9,32 @@ import { useDashboard } from '../contexts/DashboardContext.jsx';
 const DashboardContent = () => {
   const { modalState, handleCloseModal, globalAutoRefresh, viewConfig } = useDashboard();
 
-  // ⛔ Blokujemy render, dopóki viewConfig nie jest gotowy
   if (!viewConfig) {
     return <div className="loading">Loading dashboard...</div>;
   }
 
   return (
     <div className="flex h-screen w-full bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+
+      {/* LEWA KOLUMNA */}
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+
+      {/* PRAWA KOLUMNA */}
+      <div className="flex flex-col flex-1 min-w-0">
+
         <MainHeader viewConfig={viewConfig} />
+
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
-         <PopOutProvider>
+          <PopOutProvider>
             <ViewRenderer
               viewConfig={viewConfig}
               autoRefreshEnabled={globalAutoRefresh}
             />
           </PopOutProvider>
         </main>
+
       </div>
+
       {modalState?.isOpen && (
         <ConfirmationModal
           message={modalState?.message}
