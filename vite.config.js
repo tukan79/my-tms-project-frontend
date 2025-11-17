@@ -1,11 +1,15 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import removeConsole from 'vite-plugin-remove-console';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   base: '', // Zapewnia, że ścieżki do zasobów są generowane poprawnie
-  plugins: [react()],
+  plugins: [
+    react(),
+    removeConsole(), // Usuwa console.log na produkcji
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

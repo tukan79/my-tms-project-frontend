@@ -17,6 +17,15 @@ export function useDashboard() {
 
   const [runs, setRuns] = useState([]);
   const [surchargeTypes, setSurchargeTypes] = useState([]);
+  // Add placeholders for other resources to ensure data structure consistency
+  const [users, setUsers] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [trucks, setTrucks] = useState([]);
+  const [trailers, setTrailers] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ search: "", status: "all" });
 
@@ -97,6 +106,14 @@ export function useDashboard() {
   return {
     loading,
     runs: filteredRuns,
+    // Expose all data sets
+    users,
+    drivers,
+    trucks,
+    trailers,
+    customers,
+    orders,
+    invoices,
     surchargeTypes,
     filters,
     updateFilter,

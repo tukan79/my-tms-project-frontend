@@ -160,7 +160,7 @@ export const DashboardProvider = ({ children }) => {
 
     const config = generateViewConfig({
       user,
-      data: { runs: dataFetching.runs, surchargeTypes: dataFetching.surchargeTypes },
+      data: dataFetching,
       actions: { runs: { delete: dataFetching.deleteRun } },
             handleDeleteRequest: state.handleDeleteRequest,
       handleRefresh: dataFetching.refreshRuns, // Przekazanie funkcji odświeżania
@@ -170,8 +170,8 @@ export const DashboardProvider = ({ children }) => {
     console.log('🎯 Generated view config keys:', Object.keys(config));
     return config;
 
-  }, [user, dataFetching.runs, dataFetching.surchargeTypes, dataFetching.deleteRun, dataFetching.refreshRuns, state.handleDeleteRequest]);
-  
+  }, [user, dataFetching, state.handleDeleteRequest]);
+
   React.useEffect(() => {
     console.log('🔍 Initializing currentView:', {
       currentView: state.currentView,
@@ -180,13 +180,13 @@ export const DashboardProvider = ({ children }) => {
       isLoading: dataFetching.isLoading
     });
 
-    if (state.currentView === null && 
+    if (state.currentView === null &&
         Object.keys(viewConfig).length > 0 &&
         !dataFetching.isLoading) {
-      
+
       const availableViews = Object.keys(viewConfig);
       console.log('📋 Available views:', availableViews);
-      
+
       let defaultView = 'orders';
       if (!availableViews.includes('orders')) {
         defaultView = availableViews.includes('planit') ? 'planit' : availableViews[0];
@@ -206,7 +206,7 @@ export const DashboardProvider = ({ children }) => {
       noViewConfig: !viewConfig[state.currentView],
     };
     console.log('🔍 Render conditions:', conditions);
-    return !dataFetching.loading && state.currentView && viewConfig[state.currentView];
+    return !dataFetching.loading && state.currentView && viewConfig[state.currentView] != null;
   }, [dataFetching.loading, state.currentView, viewConfig]);
 
   const value = useMemo(

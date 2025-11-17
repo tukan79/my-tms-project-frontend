@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://twoja-domena/sitemap.xml
