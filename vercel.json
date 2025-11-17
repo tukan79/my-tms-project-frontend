@@ -1,9 +1,5 @@
 {
-  "version": 2,
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "https://my-tms-project-backend.onrender.com/api/$1"
-    }
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://my-tms-projekt-backend-render.onrender.com/api/:path*" }
   ]
 }
