@@ -1,29 +1,51 @@
-# Transport Management System (Frontend)
+Transport Management System — Frontend
 
-A modern web interface for managing transport operations — built with **React + Vite**.  
-This project allows users to manage deliveries, track drivers, and monitor logistics performance in real time.
+A modern and responsive web application for managing transport and logistics operations, built with React + Vite.
+The system provides tools for handling orders, planning runs, managing drivers and vehicles, and monitoring performance in real time.
 
-🌐 **Live Demo:** [my-tms-project-frontend.vercel.app](https://my-tms-project-frontend.vercel.app/login) usrer: admin@tms.com. password: Password123!
+🌐 Live Demo (Frontend):
+https://my-tms-project-frontend-krzysztofs-projects-36780459.vercel.app/login
 
+Demo Account:
+admin@tms.com — Password123!
 
-⚙️ **Backend API:** [my-tms-project-production.up.railway.app](https://my-tms-project-production.up.railway.app)
+⚙️ Backend (Render):
+https://my-tms-projekt-backend-render.onrender.com
 
----
+🗄️ PostgreSQL Database (Railway):
+Used as the main data storage for authentication, orders, runs, vehicles, drivers, customers and pricing tables.
+Connection handled server-side through environment variables.
 
-## 🚀 Tech Stack
-- React + Vite
-- Axios
-- React Router
-- TailwindCSS
-- Deployed on **Vercel**
+🚀 Tech Stack
 
----
+React + Vite
 
-## 🧠 Features
-- User authentication (login & registration)
-- Dashboard with delivery statistics
-- Driver & vehicle management
-- Real-time data from backend API
+React Router
 
----
+Axios
 
+TailwindCSS
+
+React Context API
+
+Deployed on Vercel
+
+🧠 Features
+
+🔐 User Authentication (login, registration)
+
+📊 Dashboard with live data preview
+
+📦 Order Management
+
+🔗 Runs Scheduling
+
+🚚 Drivers & Vehicles Management
+
+🧾 Customers, Pricing & Surcharges
+
+⚙️ Dynamic View Renderer
+
+🔄 Auto-refresh option
+
+🌙 Light/Dark mode
