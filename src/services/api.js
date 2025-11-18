@@ -6,7 +6,7 @@ const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:10000';
 console.log("🔧 Loaded BASE URL =", baseURL);
 
 // Global config
-axios.defaults.withCredentials = false;
+axios.defaults.withCredentials = true;
 
 const api = axios.create({
   baseURL,
