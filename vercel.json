@@ -1,9 +1,10 @@
 {
-  "version": 2,
   "rewrites": [
     {
       "source": "/api/:path*",
       "destination": "https://my-tms-projekt-backend-render.onrender.com/api/:path*"
     }
-  ]
+  ],
+  "redirects": [],
+  "cleanUrls": true
 }
