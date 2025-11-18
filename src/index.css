@@ -290,3 +290,10 @@ h2 {
 @media (max-width: 480px) {
   .form-actions { flex-direction: column; }
 }
+/* Layout wrapper so sidebar is on the left and dashboard on the right */
+.dashboard-wrapper {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}

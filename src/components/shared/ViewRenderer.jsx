@@ -58,9 +58,11 @@ const ViewRenderer = ({ viewConfig }) => {
   // 🔧 Widok z pojedynczym komponentem
   if (currentViewConfig.Component && !currentViewConfig.ListComponent) {
     return (
-      <ErrorBoundary>
-        <currentViewConfig.Component {...currentViewConfig.props} />
-      </ErrorBoundary>
+      <div className="card">
+        <ErrorBoundary>
+          <currentViewConfig.Component {...currentViewConfig.props} />
+        </ErrorBoundary>
+      </div>
     );
   }
 
@@ -69,15 +71,17 @@ const ViewRenderer = ({ viewConfig }) => {
     // Importer
     if (activeImporterConfig) {
       return (
-        <ErrorBoundary onReset={() => handleRefresh(currentView)}>
-          <DataImporter
-            {...activeImporterConfig}
-            onSuccess={handleFormSuccess}
-            onCancel={handleHideImporter}
-            // Przekazujemy dedykowaną funkcję odświeżania dla bieżącego widoku
-            refreshFn={() => handleRefresh(currentView)}
-          />
-        </ErrorBoundary>
+        <div className="card">
+          <ErrorBoundary onReset={() => handleRefresh(currentView)}>
+            <DataImporter
+              {...activeImporterConfig}
+              onSuccess={handleFormSuccess}
+              onCancel={handleHideImporter}
+              // Przekazujemy dedykowaną funkcję odświeżania dla bieżącego widoku
+              refreshFn={() => handleRefresh(currentView)}
+            />
+          </ErrorBoundary>
+        </div>
       );
     }
 
@@ -94,9 +98,11 @@ const ViewRenderer = ({ viewConfig }) => {
         return <div className="error-container">Form component not found.</div>;
       }
       return (
-        <ErrorBoundary onReset={() => handleRefresh(currentView)}>
-          <currentViewConfig.FormComponent {...formProps} />
-        </ErrorBoundary>
+        <div className="card">
+          <ErrorBoundary onReset={() => handleRefresh(currentView)}>
+            <currentViewConfig.FormComponent {...formProps} />
+          </ErrorBoundary>
+        </div>
       );
     }
 
@@ -120,9 +126,11 @@ const ViewRenderer = ({ viewConfig }) => {
     }
 
     return (
-      <ErrorBoundary onReset={() => handleRefresh(currentView)}>
-        <currentViewConfig.ListComponent {...listProps} />
-      </ErrorBoundary>
+      <div className="card">
+        <ErrorBoundary onReset={() => handleRefresh(currentView)}>
+          <currentViewConfig.ListComponent {...listProps} />
+        </ErrorBoundary>
+      </div>
     );
   }
 
