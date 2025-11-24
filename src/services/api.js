@@ -56,7 +56,7 @@ api.interceptors.response.use(
     const requestUrl = originalRequest?.url || '';
 
     // no original request = nothing to fix
-    if (!originalRequest) return Promise.reject(error);
+    if (!originalRequest) throw error;
 
     const isAuthMeEndpoint = requestUrl.includes('/api/auth/me');
     const isLoginEndpoint = requestUrl.includes('/api/auth/login');
@@ -64,13 +64,13 @@ api.interceptors.response.use(
     // Do NOT retry login errors
     if (isLoginEndpoint) {
       console.log("❌ Login failed, not retrying.");
-      return Promise.reject(error);
+      throw error;
     }
 
     // Do NOT retry refresh errors
     if (requestUrl.includes('/api/auth/refresh')) {
       console.log('❌ Refresh endpoint failed:', status);
-      return Promise.reject(error);
+      throw error;
     }
 
     // --- 401 → REFRESH TOKEN ---
@@ -83,7 +83,7 @@ api.interceptors.response.use(
             originalRequest.headers.Authorization = `Bearer ${token}`;
             return api(originalRequest);
           })
-          .catch((err) => Promise.reject(err));
+          .catch((err) => { throw err; });
       }
 
       originalRequest._retry = true;
@@ -106,7 +106,7 @@ api.interceptors.response.use(
         api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
 
-        window.dispatchEvent(
+        globalThis.dispatchEvent(
           new CustomEvent('token-refreshed', { detail: { accessToken: newToken } })
         );
 
@@ -119,7 +119,7 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
 
         localStorage.removeItem('token');
-        window.dispatchEvent(new Event('auth-error'));
+        globalThis.dispatchEvent(new Event('auth-error'));
 
         return Promise.reject(refreshError);
       } finally {
@@ -130,7 +130,7 @@ api.interceptors.response.use(
     console.log('❌ Response error:', status || 'No Status', requestUrl);
     console.log('❌ Error details:', error.response?.data || error.message);
 
-    return Promise.reject(error);
+    throw error;
   }
 );
 

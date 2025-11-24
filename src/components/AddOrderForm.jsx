@@ -1,7 +1,6 @@
 // AddOrderForm.jsx — z usprawnieniami (wersja 04.11.2025)
 import React, { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/contexts/ToastContext.jsx';
-import api from '@/services/api.js';
  
 const
  AddOrderForm = ({ onSuccess, orderToEdit, clients: customers = [], surcharges: initialSurcharges = [] }) => {
@@ -33,7 +32,7 @@ const
     if (!formData.sender.trim()) newErrors.sender = 'Sender is required';
     if (!formData.recipient.trim()) newErrors.recipient = 'Recipient is required';
     if (!formData.cargo.trim()) newErrors.cargo = 'Cargo details are required';
-    if (!formData.final_price || isNaN(formData.final_price)) newErrors.final_price = 'Valid price required';
+    if (!formData.final_price || Number.isNaN(formData.final_price)) newErrors.final_price = 'Valid price required';
     return newErrors;
   };
 

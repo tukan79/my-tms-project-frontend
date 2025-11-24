@@ -39,7 +39,7 @@ const ActiveRunView = ({ run, assignedOrders = [], onDeselect, onDeleteAssignmen
     in_progress: { label: 'In Progress', className: 'status-in_progress' },
     completed: { label: 'Completed', className: 'status-completed' },
   };
-  const statusMeta = STATUS_META[run.status] ?? { label: run.status.replace(/_/g, ' '), className: `status-${run.status}` };
+  const statusMeta = STATUS_META[run.status] ?? { label: run.status.replaceAll('_', ' '), className: `status-${run.status}` };
 
   const handleStatusChange = async (newStatus) => {
     setIsBusy(true);
@@ -63,14 +63,14 @@ const ActiveRunView = ({ run, assignedOrders = [], onDeselect, onDeleteAssignmen
         responseType: 'blob', // Ważne, aby otrzymać plik
       });
       // Dodajemy typ MIME dla pewności
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const url = globalThis.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `manifest_run_${run.id}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
+      globalThis.URL.revokeObjectURL(url);
       showToast('Manifest generated successfully!', 'success');
     } catch (error) {
       console.error("Failed to generate manifest:", error);

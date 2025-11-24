@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { useToast } from '@/contexts/ToastContext.jsx';
 import { Edit, Trash2, Plus, X, Download, Upload, ArrowUp, ArrowDown } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -32,7 +33,7 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
         const numA = parseInt(partA, 10);
         const numB = parseInt(partB, 10);
 
-        if (!isNaN(numA) && !isNaN(numB)) {
+        if (!Number.isNaN(numA) && !Number.isNaN(numB)) {
           if (numA !== numB) {
             return sortConfig.direction === 'ascending' ? numA - numB : numB - numA;
           }
@@ -101,7 +102,7 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
   };
 
   const handleDelete = async (zoneId) => {
-    if (window.confirm('Are you sure you want to delete this zone?')) {
+    if (globalThis.confirm('Are you sure you want to delete this zone?')) {
     try {
       await api.delete(`/api/zones/${zoneId}`);
       showToast('Zone deleted successfully.', 'success');
@@ -299,6 +300,11 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
       </div>
     </div>
   );
+};
+
+ZoneManager.propTypes = {
+  zones: PropTypes.array,
+  onRefresh: PropTypes.func,
 };
 
 export default ZoneManager;
