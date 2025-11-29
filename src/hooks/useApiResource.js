@@ -34,13 +34,17 @@ export const useApiResource = (
   const abortControllerRef = useRef(null);
   const inFlightRef = useRef(false);
 
+  // keep options ref in sync without resetting lastFetched on every render
+  useEffect(() => {
+    optionsRef.current = safeOptions;
+  }, [safeOptions]);
+
+  // When resourceUrl changes, reset lastFetched so that a new fetch is allowed
   useEffect(() => {
     resourceUrlRef.current = resourceUrl;
     resourceNameRef.current = resourceName;
-    optionsRef.current = safeOptions;
-    // When resourceUrl changes, reset lastFetched so that a new fetch is allowed
     setLastFetched(null);
-  }, [resourceUrl, resourceName, safeOptions]);
+  }, [resourceUrl, resourceName]);
 
   const isCancelError = (err) => axios.isCancel?.(err) || err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError';
 
