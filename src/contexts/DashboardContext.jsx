@@ -5,83 +5,138 @@ import React, {
   useCallback,
   useMemo,
   useRef,
-} from 'react';
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useDashboard as useDataFetching } from '@/hooks/useDashboard.js';
-import { useAuth } from '@/contexts/AuthContext.jsx';
-import { useToast } from '@/contexts/ToastContext.jsx';
-import api from '@/services/api.js';
-import { safeParseData, logDataState } from '@/utils/dataHelpers.js';
-import { generateViewConfig } from '../config/viewConfig.jsx';
+  useEffect,
+  useState,
+} from "react";
+
+import { useNavigate } from "react-router-dom";
+import { useDashboard as useDataFetching } from "@/hooks/useDashboard.js";
+import { useAuth } from "@/contexts/AuthContext.jsx";
+import { useToast } from "@/contexts/ToastContext.jsx";
+import api from "@/services/api.js";
+import { safeParseData, logDataState } from "@/utils/dataHelpers.js";
+import { generateViewConfig } from "../config/viewConfig.jsx";
+import PropTypes from 'prop-types';
 
 const DashboardContext = createContext(null);
 
 export const useDashboard = () => {
-  const context = useContext(DashboardContext);
-  if (!context) {
-    throw new Error('useDashboard must be used within a DashboardProvider');
-  }
-  return context;
+  const ctx = useContext(DashboardContext);
+  if (!ctx) throw new Error("useDashboard must be used within DashboardProvider");
+  return ctx;
 };
 
+/* -------------------------------------------------------------
+ *  STATE MANAGEMENT SUBHOOK
+ * ------------------------------------------------------------- */
 const useDashboardStateManagement = () => {
-  const [currentView, setCurrentView] = React.useState("runs"); // Initialize as null
-  const [showForm, setShowForm] = React.useState(false);
-  const [itemToEdit, setItemToEdit] = React.useState(null);
-  const [importerConfig, setImporterConfig] = React.useState(null);
-  const [modalState, setModalState] = React.useState(() => ({ isOpen: false }));
-  const [globalAutoRefresh, setGlobalAutoRefresh] = React.useState(true);
+  const [currentView, setCurrentView] = useState("runs");
+  const [showForm, setShowForm] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState(null);
+  const [importerConfig, setImporterConfig] = useState(null);
+  const [modalState, setModalState] = useState({ isOpen: false });
+  const [globalAutoRefresh, setGlobalAutoRefresh] = useState(true);
 
   const handleViewChange = useCallback((view) => setCurrentView(view), []);
+
   const handleEditClick = useCallback((item) => {
-    setItemToEdit(structuredClone(item));
+    setItemToEdit(item ? structuredClone(item) : null);
     setShowForm(true);
   }, []);
+
   const handleCancelForm = useCallback(() => {
     setShowForm(false);
     setItemToEdit(null);
   }, []);
 
-  const handleShowImporter = useCallback((config) => setImporterConfig(config), []);
-  const handleHideImporter = useCallback(() => setImporterConfig(null), []);
-  const handleDeleteRequest = useCallback((message, onConfirm) => setModalState({ isOpen: true, message, onConfirm }), []);
-  const handleCloseModal = useCallback(() => setModalState({ isOpen: false }), []);
+  const handleShowImporter = useCallback((config) => {
+    setImporterConfig(config);
+  }, []);
 
-  // We use useMemo to stabilize the state object and prevent unnecessary re-renders in child components.
+  const handleHideImporter = useCallback(() => {
+    setImporterConfig(null);
+  }, []);
+
+  const handleDeleteRequest = useCallback(
+    (message, onConfirm) => {
+      setModalState({ isOpen: true, message, onConfirm });
+    },
+    []
+  );
+
+  const handleCloseModal = useCallback(() => {
+    setModalState({ isOpen: false });
+  }, []);
+
   return useMemo(
     () => ({
-      currentView, handleViewChange,
-      showForm, setShowForm,
-      itemToEdit, setItemToEdit, handleEditClick, handleCancelForm,
-      importerConfig, handleShowImporter, handleHideImporter,
-      modalState, handleDeleteRequest, handleCloseModal,
-      globalAutoRefresh, setGlobalAutoRefresh,
+      currentView,
+      handleViewChange,
+
+      showForm,
+      setShowForm,
+      itemToEdit,
+      setItemToEdit,
+      handleEditClick,
+      handleCancelForm,
+
+      importerConfig,
+      handleShowImporter,
+      handleHideImporter,
+
+      modalState,
+      handleDeleteRequest,
+      handleCloseModal,
+
+      globalAutoRefresh,
+      setGlobalAutoRefresh,
     }),
-    [currentView, showForm, itemToEdit, importerConfig, modalState, globalAutoRefresh]
+    [
+      currentView,
+      showForm,
+      itemToEdit,
+      importerConfig,
+      modalState,
+      globalAutoRefresh,
+      handleViewChange,
+      handleEditClick,
+      handleCancelForm,
+      handleShowImporter,
+      handleHideImporter,
+      handleDeleteRequest,
+      handleCloseModal,
+    ]
   );
 };
 
+/* -------------------------------------------------------------
+ *  PROVIDER
+ * ------------------------------------------------------------- */
 export const DashboardProvider = ({ children }) => {
-  const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
   const { showToast } = useToast();
-
   const state = useDashboardStateManagement();
+  const navigate = useNavigate();
 
-  // Pobieranie danych
   const dataFetching = useDataFetching(isAuthenticated ? user?.role : null);
 
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const isRefreshing = useRef(false);
 
   const handleLogout = useCallback(() => {
     logout();
-    navigate('/login', { replace: true });
+    navigate("/login", { replace: true });
   }, [logout, navigate]);
 
+  /* -------------------------------------------------------------
+   * FORM SUCCESS → REFRESH DASHBOARD
+   * ------------------------------------------------------------- */
   const handleFormSuccess = useCallback(async () => {
     if (isRefreshing.current) return;
     isRefreshing.current = true;
@@ -89,127 +144,112 @@ export const DashboardProvider = ({ children }) => {
     try {
       await dataFetching.handleRefresh?.(state.currentView);
     } catch (err) {
-      console.error('❌ Error during refresh after form success:', err);
-      showToast('Failed to refresh dashboard data.', 'error');
+      console.error("Refresh error:", err);
+      showToast("Failed to refresh dashboard data.", "error");
     } finally {
-      state.handleCancelForm?.();
+      state.handleCancelForm();
       setTimeout(() => {
         isRefreshing.current = false;
-      }, 800);
+      }, 500);
     }
   }, [dataFetching, showToast, state]);
 
+  /* -------------------------------------------------------------
+   * EXPORT GENERIC
+   * ------------------------------------------------------------- */
   const handleGenericExport = useCallback(
     async (resource) => {
       try {
-        if (!resource) throw new Error('Resource not specified for export.');
-
         const response = await api.get(`/api/${resource}/export`, {
-          responseType: 'blob',
+          responseType: "blob",
         });
 
-        const contentType = response.headers['content-type'] || '';
+        const blob = new Blob([response.data]);
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `${resource}_${Date.now()}.csv`;
+        link.click();
+        URL.revokeObjectURL(link.href);
 
-        if (contentType.includes('application')) {
-          const blob = new Blob([response.data]);
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = `${resource}_export_${new Date().toISOString()}.csv`;
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          URL.revokeObjectURL(link.href);
-          showToast(`✅ Exported ${resource} successfully.`, 'success');
-        } else {
-          showToast(
-            response.data?.message || `Export for ${resource} completed.`,
-            'info'
-          );
-        }
-      } catch (error) {
-        console.error('❌ Export error:', error);
-        const errorMessage =
-          error.response?.data?.error ||
-          error.message ||
-          `Failed to export ${resource}.`;
-        showToast(errorMessage, 'error');
+        showToast(`Exported ${resource} successfully.`, "success");
+      } catch (err) {
+        console.error("Export error:", err);
+        showToast("Export failed.", "error");
       }
     },
     [showToast]
   );
 
-  const viewConfig = useMemo(() => { // eslint-disable-line
-    console.log('🔍 Generating view config with data:', {
-      hasRuns: !!dataFetching.runs,
-      runsCount: dataFetching.runs?.length,
-      userRole: user?.role
-    });
+  /* -------------------------------------------------------------
+   * VIEW CONFIG (critical logic)
+   * ------------------------------------------------------------- */
+  const viewConfig = useMemo(() => {
+    if (!dataFetching.data) return {};
 
-    if (!dataFetching.runs) {
-      console.log('⚠️ No data available for view config');
-      return {};
-    }
-
-    const allExpectedDataKeys = [
-      'orders', 'drivers', 'trucks', 'trailers', 'users', 'assignments',
-      'customers', 'zones', 'surcharges', 'invoices', 'runs'
+    const expectedKeys = [
+      "orders",
+      "drivers",
+      "trucks",
+      "trailers",
+      "users",
+      "assignments",
+      "customers",
+      "zones",
+      "surcharges",
+      "invoices",
+      "runs",
     ];
 
-    const safeData = safeParseData(dataFetching.data || {}, allExpectedDataKeys);
-    logDataState(safeData, 'Dashboard Context');
+    const safeData = safeParseData(dataFetching.data, expectedKeys);
+    logDataState(safeData, "DashboardContext");
 
-    const config = generateViewConfig({
+    return generateViewConfig({
       user,
       data: dataFetching,
-      actions: { runs: { delete: dataFetching.deleteRun } },
-            handleDeleteRequest: state.handleDeleteRequest,
-      handleRefresh: dataFetching.refreshRuns, // Przekazanie funkcji odświeżania
+      actions: {
+        runs: { delete: dataFetching.deleteRun },
+        assignments: dataFetching.actions?.assignments,
+        invoices: dataFetching.actions?.invoices,
+      },
+      handleDeleteRequest: state.handleDeleteRequest,
+      handleRefresh: dataFetching.refreshRuns,
       refreshAll: dataFetching.refreshRuns,
     });
-
-    console.log('🎯 Generated view config keys:', Object.keys(config));
-    return config;
-
   }, [user, dataFetching, state.handleDeleteRequest]);
 
-  React.useEffect(() => {
-    console.log('🔍 Initializing currentView:', {
-      currentView: state.currentView,
-      viewConfigKeys: Object.keys(viewConfig),
-      hasData: !!dataFetching.data,
-      isLoading: dataFetching.isLoading
-    });
+  /* -------------------------------------------------------------
+   * INITIAL VIEW SELECTION
+   * ------------------------------------------------------------- */
+  useEffect(() => {
+    if (!dataFetching.loading && state.currentView && viewConfig[state.currentView]) {
+      return;
+    }
 
-    if (state.currentView === null &&
-        Object.keys(viewConfig).length > 0 &&
-        !dataFetching.isLoading) {
+    if (!dataFetching.loading && Object.keys(viewConfig).length > 0) {
+      const preferredView = "orders";
+      const firstAvailable = Object.keys(viewConfig)[0];
+      const newView = viewConfig[preferredView] ? preferredView : firstAvailable;
 
-      const availableViews = Object.keys(viewConfig);
-      console.log('📋 Available views:', availableViews);
-
-      let defaultView = 'orders';
-      if (!availableViews.includes('orders')) {
-        defaultView = availableViews.includes('planit') ? 'planit' : availableViews[0];
-      }
-      
-      console.log('🎯 Setting default view to:', defaultView);
       if (mountedRef.current) {
-        state.handleViewChange(defaultView);
+        state.handleViewChange(newView);
       }
     }
-  }, [viewConfig, state.currentView, dataFetching.isLoading, state]);
+  }, [
+    dataFetching.loading,
+    state.currentView,
+    viewConfig,
+    state.handleViewChange,
+  ]);
 
-  const shouldRenderChildren = useMemo(() => {
-    const conditions = {
-      isLoading: dataFetching.loading,
-      noCurrentView: !state.currentView,
-      noViewConfig: !viewConfig[state.currentView],
-    };
-    console.log('🔍 Render conditions:', conditions);
-    return !dataFetching.loading && state.currentView && viewConfig[state.currentView] != null;
-  }, [dataFetching.loading, state.currentView, viewConfig]);
+  /* -------------------------------------------------------------
+   * RENDER GUARD
+   * ------------------------------------------------------------- */
+  const ready =
+    !dataFetching.loading &&
+    state.currentView &&
+    viewConfig[state.currentView];
 
-  const value = useMemo(
+  const providerValue = useMemo(
     () => ({
       ...state,
       ...dataFetching,
@@ -230,25 +270,26 @@ export const DashboardProvider = ({ children }) => {
     ]
   );
 
-  return (
-    <DashboardContext.Provider value={value}>
-      {shouldRenderChildren ?
-        children
-       : (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">
-              {dataFetching.loading ? 'Loading dashboard data...' : 'Initializing dashboard...'}
-            </p>
-            {state.currentView && !viewConfig[state.currentView] &&
-              <p className="text-sm text-orange-600 mt-2">
-                Configuring view: {state.currentView}
-              </p>
-            }
-          </div>
+  if (!ready) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {dataFetching.loading ? "Loading dashboard..." : "Preparing view..."}
+          </p>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <DashboardContext.Provider value={providerValue}>
+      {children}
     </DashboardContext.Provider>
   );
+};
+
+DashboardProvider.propTypes = {
+  children: PropTypes.node.isRequired,
 };

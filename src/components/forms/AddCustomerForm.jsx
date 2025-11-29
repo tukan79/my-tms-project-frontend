@@ -1,13 +1,16 @@
-// frontend/src/components/AddCustomerForm.jsx
+// src/components/forms/AddCustomerForm.jsx
 import React from 'react';
+import PropTypes from 'prop-types';
 import { X } from 'lucide-react';
-import api from '@/services/api.js';
+
 import { useToast } from '@/contexts/ToastContext.jsx';
 import { useForm } from '@/hooks/useForm.js';
 
+import TextField from './fields/TextField.jsx';
+import { validateCustomer } from './validators/customerValidator.js';
+import { createCustomer, updateCustomer } from './services/customerService.js';
+
 const initialFormData = {
-  // initialFormData jest teraz tylko wzorem, a nie stanem
-  // initialFormData is now just a template, not the state
   customer_code: '',
   name: '',
   address_line1: '',
@@ -33,26 +36,23 @@ const AddCustomerForm = ({ onSuccess, onCancel, itemToEdit }) => {
   const isEditMode = Boolean(itemToEdit);
   const { showToast } = useToast();
 
-  const validate = (data) => {
-    const newErrors = {};
-    if (!data.name) newErrors.name = 'Customer name is required.';
-    if (!data.customer_code) newErrors.customer_code = 'Customer code is required.';
-    return newErrors;
-  };
-
   const performSubmit = async (formData) => {
-    const request = isEditMode
-      ? api.put(`/api/customers/${itemToEdit.id}`, formData)
-      : api.post('/api/customers', formData);
-
     try {
-      await request;
-      showToast(`Customer ${isEditMode ? 'updated' : 'added'} successfully!`, 'success');
+      if (isEditMode) {
+        await updateCustomer(itemToEdit.id, formData);
+      } else {
+        await createCustomer(formData);
+      }
+
+      showToast(
+        `Customer ${isEditMode ? 'updated' : 'added'} successfully!`,
+        'success'
+      );
       onSuccess();
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'An unexpected error occurred.';
+      const errorMessage =
+        err.response?.data?.error || 'Unexpected error occurred.';
       showToast(errorMessage, 'error');
-      // Rzucamy błąd, aby hook useForm mógł go obsłużyć, jeśli zajdzie taka potrzeba
       throw new Error(errorMessage);
     }
   };
@@ -65,88 +65,156 @@ const AddCustomerForm = ({ onSuccess, onCancel, itemToEdit }) => {
     handleSubmit,
   } = useForm({
     initialState: initialFormData,
-    validate,
+    validate: validateCustomer,
     onSubmit: performSubmit,
     itemToEdit,
   });
 
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+      <div className="form-header">
         <h2>{isEditMode ? 'Edit Customer' : 'Add New Customer'}</h2>
-        <button onClick={onCancel} className="btn-icon"><X size={20} /></button>
+        <button type="button" onClick={onCancel} className="btn-icon">
+          <X size={20} />
+        </button>
       </div>
+
       {errors.form && <div className="error-message">{errors.form}</div>}
+
       <form onSubmit={handleSubmit} className="form">
         <div className="form-grid">
-          {/* Kolumna lewa */}
           <div className="form-column">
             <h4>Main Details</h4>
-            <div className="form-group">
-              <label>Customer Code</label>
-              <input type="text" name="customer_code" value={formData.customer_code ?? ''} onChange={handleChange} className={errors.customer_code ? 'input-error' : ''} />
-              {errors.customer_code && <span className="error-text">{errors.customer_code}</span>}
-            </div>
-            <div className="form-group">
-              <label>Customer Name *</label>
-              <input type="text" name="name" value={formData.name ?? ''} onChange={handleChange} required className={errors.name ? 'input-error' : ''} />
-              {errors.name && <span className="error-text">{errors.name}</span>}
-            </div>
-            <div className="form-group">
-              <label>Status</label>
-              <select name="status" value={formData.status} onChange={handleChange}>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Category</label>
-              <input type="text" name="category" value={formData.category ?? ''} onChange={handleChange} />
-            </div>
-            <div className="form-group">
-              <label>VAT Number</label>
-              <input type="text" name="vat_number" value={formData.vat_number ?? ''} onChange={handleChange} />
-            </div>
-            <div className="form-group">
-              <label>Payment Terms (days)</label>
-              <input type="number" name="payment_terms" value={formData.payment_terms ?? ''} onChange={handleChange} />
-            </div>
-             <div className="form-group">
-              <label>Currency</label>
-              <input type="text" name="currency" value={formData.currency ?? ''} onChange={handleChange} />
-            </div>
+
+            <TextField
+              label="Customer Code"
+              name="customer_code"
+              value={formData.customer_code}
+              onChange={handleChange}
+              error={errors.customer_code}
+              required
+            />
+
+            <TextField
+              label="Customer Name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              error={errors.name}
+              required
+            />
+
+            <TextField
+              label="Category"
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="VAT Number"
+              name="vat_number"
+              value={formData.vat_number}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="Payment Terms (days)"
+              name="payment_terms"
+              type="number"
+              value={formData.payment_terms}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="Currency"
+              name="currency"
+              value={formData.currency}
+              onChange={handleChange}
+            />
           </div>
 
-          {/* Kolumna prawa */}
           <div className="form-column">
             <h4>Address & Contact</h4>
-            <div className="form-group">
-              <label>Address Line 1</label>
-              <input type="text" name="address_line1" value={formData.address_line1 ?? ''} onChange={handleChange} />
-            </div>
-            <div className="form-group">
-              <label>Address Line 2</label>
-              <input type="text" name="address_line2" value={formData.address_line2 ?? ''} onChange={handleChange} />
-            </div>
-            <div className="form-group">
-              <label>Postcode</label>
-              <input type="text" name="postcode" value={formData.postcode ?? ''} onChange={handleChange} />
-            </div>
-            <div className="form-group">
-              <label>Phone Number</label>
-              <input type="tel" name="phone_number" value={formData.phone_number ?? ''} onChange={handleChange} />
-            </div>
+
+            <TextField
+              label="Address Line 1"
+              name="address_line1"
+              value={formData.address_line1}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="Address Line 2"
+              name="address_line2"
+              value={formData.address_line2}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="Address Line 3"
+              name="address_line3"
+              value={formData.address_line3}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="Address Line 4"
+              name="address_line4"
+              value={formData.address_line4}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="Country Code"
+              name="country_code"
+              value={formData.country_code}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="Postcode"
+              name="postcode"
+              value={formData.postcode}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="Phone Number"
+              name="phone_number"
+              value={formData.phone_number}
+              type="tel"
+              onChange={handleChange}
+            />
           </div>
         </div>
 
         <div className="form-actions">
-          <button type="button" onClick={onCancel} className="btn-secondary" disabled={loading}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={loading}>{loading ? 'Saving...' : 'Save Customer'}</button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn-secondary"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button type="submit" className="btn-primary" disabled={loading}>
+            {loading ? 'Saving...' : 'Save Customer'}
+          </button>
         </div>
       </form>
     </div>
   );
 };
 
+AddCustomerForm.propTypes = {
+  onSuccess: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  itemToEdit: PropTypes.object,
+};
+
+AddCustomerForm.defaultProps = {
+  itemToEdit: null,
+};
+
 export default AddCustomerForm;
-// ostatnia zmiana (30.05.2024, 13:14:12)

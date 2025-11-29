@@ -1,16 +1,22 @@
-// plik RunManager.jsx
 import React, { useState, useMemo, useCallback } from 'react';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import PropTypes from 'prop-types';
+import { Plus } from 'lucide-react';
+
 import AddRunForm from '@/components/forms/AddRunForm.jsx';
 import DataTable from '@/components/shared/DataTable.jsx';
 import { useToast } from '@/contexts/ToastContext.jsx';
 
-const RunManager = ({ runs = [], trucks = [], trailers = [], drivers = [], onDataRefresh, runActions }) => {
+const RunManager = ({
+  runs = [],
+  trucks = [],
+  trailers = [],
+  drivers = [],
+  runActions,
+}) => {
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [editingRun, setEditingRun] = useState(null);
   const { showToast } = useToast();
 
-  // Safeguard against undefined props during render cycles.
   const safeRuns = Array.isArray(runs) ? runs : [];
   const safeTrucks = Array.isArray(trucks) ? trucks : [];
   const safeTrailers = Array.isArray(trailers) ? trailers : [];
@@ -31,37 +37,82 @@ const RunManager = ({ runs = [], trucks = [], trailers = [], drivers = [], onDat
     setEditingRun(null);
   }, []);
 
-  const handleSaveRun = useCallback(async (runData) => {
-    try {
-      if (editingRun) {
-        await runActions.update(editingRun.id, runData);
-      } else {
-        await runActions.create(runData);
+  const handleSaveRun = useCallback(
+    async (runData) => {
+      try {
+        if (editingRun) {
+          await runActions.update(editingRun.id, runData);
+        } else {
+          await runActions.create(runData);
+        }
+
+        showToast('Run saved successfully!', 'success');
+      } catch (error) {
+        const message =
+          error?.response?.data?.error ||
+          'Failed to save run.';
+
+        showToast(message, 'error');
       }
-      showToast('Run saved successfully!', 'success');
-    } catch (error) {
-      showToast(error.response?.data?.error || 'Failed to save run.', 'error');
-    }
-    handleCancelForm();
-  }, [onDataRefresh, handleCancelForm]);
 
-  const driverMap = useMemo(() => new Map(safeDrivers.map(d => [d.id, `${d.first_name} ${d.last_name}`])), [safeDrivers]);
-  const truckMap = useMemo(() => new Map(safeTrucks.map(t => [t.id, t.registration_plate])), [safeTrucks]);
-  const trailerMap = useMemo(() => new Map(safeTrailers.map(t => [t.id, t.registration_plate])), [safeTrailers]);
+      handleCancelForm();
+    },
+    [editingRun, runActions, showToast, handleCancelForm]
+  );
 
-  const enrichedRuns = useMemo(() => safeRuns.map(run => ({
-    ...run,
-    driverName: driverMap.get(run.driver_id) || 'N/A',
-    truckPlate: truckMap.get(run.truck_id) || 'N/A',
-    trailerPlate: run.trailer_id ? trailerMap.get(run.trailer_id) : 'N/A',
-  })), [safeRuns, driverMap, truckMap, trailerMap]);
+  const driverMap = useMemo(
+    () =>
+      new Map(
+        safeDrivers.map((d) => [
+          d.id,
+          `${d.first_name} ${d.last_name}`,
+        ])
+      ),
+    [safeDrivers]
+  );
+
+  const truckMap = useMemo(
+    () =>
+      new Map(
+        safeTrucks.map((t) => [t.id, t.registration_plate])
+      ),
+    [safeTrucks]
+  );
+
+  const trailerMap = useMemo(
+    () =>
+      new Map(
+        safeTrailers.map((t) => [
+          t.id,
+          t.registration_plate,
+        ])
+      ),
+    [safeTrailers]
+  );
+
+  const enrichedRuns = useMemo(
+    () =>
+      safeRuns.map((run) => ({
+        ...run,
+        driverName:
+          driverMap.get(run.driver_id) || 'N/A',
+        truckPlate:
+          truckMap.get(run.truck_id) || 'N/A',
+        trailerPlate: run.trailer_id
+          ? trailerMap.get(run.trailer_id) ||
+            'N/A'
+          : 'N/A',
+      })),
+    [safeRuns, driverMap, truckMap, trailerMap]
+  );
 
   const columns = [
     {
       key: 'run_date',
       header: 'Date',
       sortable: true,
-      render: (item) => new Date(item.run_date).toLocaleDateString(),
+      render: (item) =>
+        new Date(item.run_date).toLocaleDateString(),
     },
     {
       key: 'driverName',
@@ -82,25 +133,45 @@ const RunManager = ({ runs = [], trucks = [], trailers = [], drivers = [], onDat
       key: 'type',
       header: 'Type',
       sortable: true,
-      render: (item) => <span style={{textTransform: 'capitalize'}}>{item.type}</span>
+      render: (item) => (
+        <span style={{ textTransform: 'capitalize' }}>
+          {item.type}
+        </span>
+      ),
     },
   ];
 
-  const handleDeleteRun = useCallback(async (run) => {
-    // Znajdź wzbogacone dane, aby wyświetlić czytelną nazwę w potwierdzeniu
-    const enrichedRun = enrichedRuns.find(r => r.id === run.id);
-    const driverName = enrichedRun?.driverName || 'N/A';
-    const runDate = new Date(run.run_date).toLocaleDateString();
+  const handleDeleteRun = useCallback(
+    async (run) => {
+      const enrichedRun = enrichedRuns.find(
+        (r) => r.id === run.id
+      );
 
-    if (window.confirm(`Are you sure you want to delete run for ${driverName} on ${runDate}?`)) {
+      const driverName =
+        enrichedRun?.driverName || 'N/A';
+
+      const runDate = new Date(
+        run.run_date
+      ).toLocaleDateString();
+
+      const confirmMessage = `Are you sure you want to delete run for ${driverName} on ${runDate}?`;
+
+      if (!globalThis.confirm(confirmMessage)) {
+        return;
+      }
+
       try {
         await runActions.delete(run.id);
         showToast('Run deleted successfully.', 'success');
       } catch (error) {
-        showToast(error.response?.data?.error || 'Failed to delete run.', 'error');
+        const message =
+          error?.response?.data?.error ||
+          'Failed to delete run.';
+        showToast(message, 'error');
       }
-    }
-  }, [runActions, showToast, enrichedRuns]);
+    },
+    [enrichedRuns, runActions, showToast]
+  );
 
   return (
     <div className="card flex flex-col h-full">
@@ -119,7 +190,11 @@ const RunManager = ({ runs = [], trucks = [], trailers = [], drivers = [], onDat
 
       <div className="card-header">
         <h3>Run Management</h3>
-        <button onClick={handleAddNewRun} className="btn-primary">
+        <button
+          type="button"
+          onClick={handleAddNewRun}
+          className="btn-primary"
+        >
           <Plus size={16} /> Add New Run
         </button>
       </div>
@@ -130,14 +205,37 @@ const RunManager = ({ runs = [], trucks = [], trailers = [], drivers = [], onDat
         onEdit={handleEditRun}
         onDelete={handleDeleteRun}
         filterPlaceholder="Filter runs..."
-        filterKeys={['run_date', 'driverName', 'truckPlate', 'trailerPlate', 'type']}
+        filterKeys={[
+          'run_date',
+          'driverName',
+          'truckPlate',
+          'trailerPlate',
+          'type',
+        ]}
         initialSortKey="run_date"
         initialSortOrder="desc"
-        // Usunięto prop `actions`, ponieważ DataTable używa `onEdit` i `onDelete`
       />
     </div>
   );
 };
 
+RunManager.propTypes = {
+  runs: PropTypes.arrayOf(PropTypes.object),
+  trucks: PropTypes.arrayOf(PropTypes.object),
+  trailers: PropTypes.arrayOf(PropTypes.object),
+  drivers: PropTypes.arrayOf(PropTypes.object),
+  runActions: PropTypes.shape({
+    create: PropTypes.func.isRequired,
+    update: PropTypes.func.isRequired,
+    delete: PropTypes.func.isRequired,
+  }).isRequired,
+};
+
+RunManager.defaultProps = {
+  runs: [],
+  trucks: [],
+  trailers: [],
+  drivers: [],
+};
+
 export default RunManager;
-// ostatnia zmiana (30.05.2024, 13:14:12)

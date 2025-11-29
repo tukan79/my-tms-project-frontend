@@ -1,5 +1,6 @@
 // PlanItOrders.jsx
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { RefreshCw as RotateCw } from 'lucide-react'; // 🔄 ikona "refresh"
 import { usePlanIt } from '@/contexts/PlanItContext.jsx';
@@ -17,7 +18,8 @@ const OrderRow = React.memo(({ order, columns, isSelected, handleClick, handleCo
   return (
     <Draggable draggableId={`order-${order.id}`} index={index}>
       {(provided, snapshot) => (
-        <div
+        <button
+          type="button"
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
@@ -30,23 +32,15 @@ const OrderRow = React.memo(({ order, columns, isSelected, handleClick, handleCo
           onContextMenu={(e) => handleContextMenu(e, order.id)}
           onMouseEnter={(e) => handleMouseEnter(e, order)}
           onMouseLeave={handleMouseLeave}
-          role="button"
-          tabIndex={0}
-          aria-selected={isSelected}
+          aria-pressed={isSelected}
           aria-label={`Order ${order.order_number || order.customer_reference || order.id}`}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleClick(e, order.id);
-            }
-          }}
         >
           {columns.map((col, i) => (
             <div key={`${order.id}-${i}`} className="planit-grid-cell">
               {col.accessor(order)}
             </div>
           ))}
-        </div>
+        </button>
       )}
     </Draggable>
   );
@@ -228,7 +222,7 @@ const PlanItOrders = ({ orders, homeZone, selectedDate, onRefresh }) => {
                 checked={autoRefresh}
                 onChange={(e) => setAutoRefresh(e.target.checked)}
               />
-              Auto refresh
+              <span>Auto refresh</span>
             </label>
             <button className="btn-secondary btn-sm" onClick={handleManualRefresh} title="Refresh now">
               <RotateCw size={14} />
@@ -319,5 +313,31 @@ const PlanItOrders = ({ orders, homeZone, selectedDate, onRefresh }) => {
   );
 };
 
+OrderRow.propTypes = {
+  order: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    order_number: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    customer_reference: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  }).isRequired,
+  columns: PropTypes.arrayOf(
+    PropTypes.shape({
+      header: PropTypes.string.isRequired,
+      accessor: PropTypes.func.isRequired,
+    })
+  ).isRequired,
+  isSelected: PropTypes.bool.isRequired,
+  handleClick: PropTypes.func.isRequired,
+  handleContextMenu: PropTypes.func.isRequired,
+  handleMouseEnter: PropTypes.func.isRequired,
+  handleMouseLeave: PropTypes.func.isRequired,
+  index: PropTypes.number.isRequired,
+};
+
+PlanItOrders.propTypes = {
+  orders: PropTypes.arrayOf(PropTypes.object),
+  homeZone: PropTypes.object,
+  selectedDate: PropTypes.string,
+  onRefresh: PropTypes.func,
+};
+
 export default React.memo(PlanItOrders);
-// ostatnia zmiana (30.05.2024, 13:14:12)

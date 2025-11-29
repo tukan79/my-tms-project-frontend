@@ -1,6 +1,7 @@
 // PlanItPage.jsx
 import React, { useCallback } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import PropTypes from 'prop-types';
+import { DragDropContext } from '@hello-pangea/dnd';
 import PlanItOrders, { useHomeZone } from '@/components/shared/PlanItOrders.jsx';
 import PlanItRuns from '@/components/plan-it/PlanItRuns.jsx';
 import { usePopOut } from '@/contexts/PopOutContext.jsx'; // Ścieżka względna, więc bez zmian
@@ -21,15 +22,16 @@ const PlanItPage = (props) => {
   } = sourceData;
 
   const handlePopOut = useCallback((view) => {
-    // Filtrujemy tylko dane, które można serializować
-    const serializableData = { ...restProps };
-    Object.keys(serializableData).forEach(key => {
-      if (typeof serializableData[key] === 'function') {
-        delete serializableData[key];
+    // 1. Bezpieczniejsza serializacja: Jawnie wybieramy, co zapisać.
+    const serializableKeys = ['orders', 'runs', 'assignments', 'drivers', 'trucks', 'trailers', 'zones', 'pallets'];
+    const dataToStore = {};
+    serializableKeys.forEach(key => {
+      if (restProps[key]) {
+        dataToStore[key] = restProps[key];
       }
     });
     
-    sessionStorage.setItem('popOutData', JSON.stringify(serializableData));
+    sessionStorage.setItem('popOutData', JSON.stringify(dataToStore));
     window.open(`/planit/popout`, `PlanIt View`, 'width=1200,height=800,resizable=yes,scrollbars=yes');
   }, [restProps]);
 
@@ -45,20 +47,15 @@ const PlanItContent = ({ isPopOut, handlePopOut }) => {
     selectedDate, activeRunId, editingRun, isFormVisible, selectedOrderIds, contextMenu, handleAddNewRun,
     setSelectedDate, setActiveRunId, setIsFormVisible, handleSaveRun, handleBulkAssign, handleBulkDelete, setContextMenu, triggerRefresh, handleEditRun, 
     enrichedRuns, availableOrders, activeRun, ordersForActiveRun, handleDragEnd, handleDeleteAssignment, handleDeleteRun, isLoadingRuns,
-    initialData: { drivers, trucks, trailers, zones, pallets }
+    initialData: { drivers, trucks, trailers, zones }
   } = usePlanIt();
 
-  // Zabezpieczenie: Jeśli kluczowe dane nie są jeszcze załadowane, wyświetl komunikat.
-  if (!drivers || !trucks || !trailers || !zones) {
-    return <div className="loading">Loading planning data...</div>;
-  }
-
-  const homeZone = useHomeZone(zones);
+  const homeZone = useHomeZone(zones || []);
 
   React.useEffect(() => {
     const handleClick = () => setContextMenu({ visible: false, x: 0, y: 0 });
-    window.addEventListener('click', handleClick);
-    return () => window.removeEventListener('click', handleClick);
+    globalThis.addEventListener('click', handleClick);
+    return () => globalThis.removeEventListener('click', handleClick);
   }, [setContextMenu]);
 
   const handleRunSelect = useCallback((runId) => {
@@ -67,15 +64,27 @@ const PlanItContent = ({ isPopOut, handlePopOut }) => {
 
   const handleDeselectRun = useCallback(() => setActiveRunId(null), [setActiveRunId]);
 
+  // Zabezpieczenie: Jeśli kluczowe dane nie są jeszcze załadowane, wyświetl komunikat.
+  if (!drivers || !trucks || !trailers || !zones) {
+    return <div className="loading">Loading planning data...</div>;
+  }
+
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
+      {/* 3. Optymalizacja: Renderuj formularz tylko wtedy, gdy jest widoczny. */}
       {isFormVisible && (
         <>
-          <div className="modal-backdrop" onClick={() => setIsFormVisible(false)} />
+          <button
+            type="button"
+            className="modal-backdrop"
+            onClick={() => setIsFormVisible(false)}
+            aria-label="Close form"
+          />
           <AddRunForm
             itemToEdit={editingRun ?? null}
             onSuccess={handleSaveRun}
             onCancel={() => setIsFormVisible(false)}
+            // Zabezpieczenie przed przekazaniem `undefined`
             drivers={drivers || []}
             trucks={trucks || []}
             trailers={trailers || []}
@@ -132,5 +141,27 @@ const PlanItContent = ({ isPopOut, handlePopOut }) => {
   );
 };
 
+PlanItContent.propTypes = {
+  isPopOut: PropTypes.bool,
+  handlePopOut: PropTypes.func,
+};
+
 export default PlanItPage;
+
+PlanItPage.propTypes = {
+  isPopOut: PropTypes.bool,
+  handlePopOut: PropTypes.func,
+};
+
+PlanItPage.propTypes = {
+  isPopOut: PropTypes.bool,
+  handlePopOut: PropTypes.func,
+  orders: PropTypes.array,
+  runs: PropTypes.array,
+  assignments: PropTypes.array,
+  drivers: PropTypes.array,
+  trucks: PropTypes.array,
+  trailers: PropTypes.array,
+  zones: PropTypes.array,
+};
 // ostatnia zmiana (30.05.2024, 13:14:12)

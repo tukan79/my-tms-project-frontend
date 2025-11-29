@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useRef,
 } from 'react';
+import PropTypes from 'prop-types';
 import api from '@/services/api.js';
 import { useToast } from '@/contexts/ToastContext.jsx';
 import { useAssignments } from '@/hooks/useAssignments.js';
@@ -65,6 +66,12 @@ export const PlanItProvider = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isRefreshingRef = useRef(false);
 
+  // 2. Uproszczenie logiki odświeżania: Używamy refa, aby uniknąć zależności w useCallback/useEffect.
+  const onAssignmentCreatedRef = useRef(onAssignmentCreated);
+  useEffect(() => {
+    onAssignmentCreatedRef.current = onAssignmentCreated;
+  }, [onAssignmentCreated]);
+
   /** --- Manualny trigger refreshu --- */
   const triggerRefresh = useCallback(async () => {
     if (isRefreshingRef.current) return; // blokada spam refreshy
@@ -72,7 +79,7 @@ export const PlanItProvider = ({
     setIsRefreshing(true);
 
     try {
-      if (onAssignmentCreated) await onAssignmentCreated();
+      if (onAssignmentCreatedRef.current) await onAssignmentCreatedRef.current();
     } catch (error) {
       console.error('❌ Error during manual refresh:', error);
       showToast('Failed to refresh data.', 'error');
@@ -82,7 +89,7 @@ export const PlanItProvider = ({
         isRefreshingRef.current = false;
       }, 500);
     }
-  }, [onAssignmentCreated, showToast]);
+  }, [showToast]);
 
   /** --- Auto-refresh co 30 sek --- */
   useEffect(() => {
@@ -104,15 +111,36 @@ export const PlanItProvider = ({
   const trailerMap = useMemo(() => new Map(trailers.map((t) => [t.id, t])), [trailers]);
   const orderMap = useMemo(() => new Map(orders.map((o) => [o.id, o])), [orders]);
 
+  /** --- Hook useAssignments --- */
+  const {
+    assignments,
+    availableOrders,
+    handleDragEnd,
+    handleDeleteAssignment,
+    error,
+  } = useAssignments({
+    initialAssignments,
+    orders,
+    onDataRefresh: triggerRefresh,
+  });
+
+  useEffect(() => {
+    if (error) {
+      console.error('❌ useAssignments error:', error);
+      showToast(error, 'error');
+    }
+  }, [error, showToast]);
+
   /** --- Grupowanie assignments po run_id --- */
+  // 1. Uspójnienie źródła danych: Używamy `assignments` z haka, a nie `initialAssignments`.
   const assignmentsByRun = useMemo(() => {
     const map = new Map();
-    for (const a of initialAssignments) {
+    for (const a of assignments) {
       if (!map.has(a.run_id)) map.set(a.run_id, []);
       map.get(a.run_id).push(a);
     }
     return map;
-  }, [initialAssignments]);
+  }, [assignments]);
 
   /** --- Enrichment runs (driver, truck, trailer, payload, etc.) --- */
   const enrichedRuns = useMemo(() => {
@@ -141,23 +169,24 @@ export const PlanItProvider = ({
           truck?.type_of_truck === 'rigid' ||
           (truck?.type_of_truck === 'tractor' && trailer);
 
-        const maxPayload =
-          hasCapacity &&
-          (truck?.type_of_truck === 'rigid'
-            ? truck.max_payload_kg
-            : trailer?.max_payload_kg);
+        let maxPayload = null;
+        let maxPallets = null;
+        if (hasCapacity) {
+          const isRigid = truck?.type_of_truck === 'rigid';
+          maxPayload = isRigid ? truck?.max_payload_kg ?? null : trailer?.max_payload_kg ?? null;
+          maxPallets = isRigid ? truck?.pallet_capacity ?? null : trailer?.max_spaces ?? null;
+        }
 
-        const maxPallets =
-          hasCapacity &&
-          (truck?.type_of_truck === 'rigid'
-            ? truck.pallet_capacity
-            : trailer?.max_spaces);
+        const displayDriver = driver ? `${driver.first_name} ${driver.last_name}` : 'No Driver';
+        const displayTruck = truck ? truck.registration_plate : 'No Truck';
+        const displayTrailer = trailer ? `+ ${trailer.registration_plate}` : '';
+        const displayText = displayTrailer
+          ? `${displayDriver} - ${displayTruck} ${displayTrailer}`
+          : `${displayDriver} - ${displayTruck}`;
 
         return {
           ...run,
-          displayText: `${driver ? `${driver.first_name} ${driver.last_name}` : 'No Driver'} - ${
-            truck ? truck.registration_plate : 'No Truck'
-          } ${trailer ? `+ ${trailer.registration_plate}` : ''}`,
+          displayText,
           totalKilos,
           totalSpaces,
           maxPayload,
@@ -166,28 +195,6 @@ export const PlanItProvider = ({
         };
       });
   }, [runs, selectedDate, driverMap, truckMap, trailerMap, assignmentsByRun, orderMap]);
-
-  /** --- Hook useAssignments --- */
-  const {
-    assignments,
-    availableOrders,
-    handleDragEnd,
-    handleDeleteAssignment,
-    bulkAssignOrders,
-    error,
-  } = useAssignments({
-    initialAssignments,
-    orders,
-    enrichedRuns,
-    onDataRefresh: triggerRefresh,
-  });
-
-  useEffect(() => {
-    if (error) {
-      console.error('❌ useAssignments error:', error);
-      showToast(error, 'error');
-    }
-  }, [error, showToast]);
 
   /** --- Active run i przypisane zlecenia --- */
   const activeRun = useMemo(
@@ -226,8 +233,8 @@ export const PlanItProvider = ({
         };
 
         if (editingRun) {
-          await runActions.update(editingRun.id, payload);
-          showToast('Run updated successfully!', 'success');
+          await runActions.update(editingRun.id, payload); // 3. Optymalizacja: Używamy `editingRun` bezpośrednio.
+          showToast(`Run updated successfully!`, 'success');
         } else {
           await runActions.create(payload);
           showToast('Run created successfully!', 'success');
@@ -249,7 +256,7 @@ export const PlanItProvider = ({
         );
       }
     },
-    [editingRun, runActions, showToast, triggerRefresh, selectedDate]
+    [editingRun, runActions, showToast, triggerRefresh, selectedDate] // Zależności są poprawne
   );
 
   const handleDeleteRun = useCallback(
@@ -325,66 +332,85 @@ export const PlanItProvider = ({
   }, [selectedOrderIds, onDeleteRequest, showToast, triggerRefresh]);
 
   /** --- Wartość kontekstu --- */
-  const value = useMemo(
-    () => ({
-      selectedDate,
-      activeRunId,
-      editingRun,
-      isFormVisible,
-      selectedOrderIds,
-      contextMenu,
-      enrichedRuns,
-      availableOrders,
-      activeRun,
-      ordersForActiveRun,
-      autoRefreshEnabled,
-      isRefreshing,
-      setSelectedDate,
-      setActiveRunId,
-      setIsFormVisible,
-      setSelectedOrderIds,
-      setContextMenu,
-      setAutoRefreshEnabled,
-      handleEditRun,
-      handleAddNewRun,
-      handleSaveRun,
-      handleDeleteRun,
-      handleDragEnd,
-      handleDeleteAssignment: handleDeleteAssignmentWithRefresh,
-      handleBulkAssign,
-      handleBulkDelete,
-      triggerRefresh,
-      initialData: { drivers, trucks, trailers, zones, pallets },
-    }),
-    [
-      selectedDate,
-      activeRunId,
-      editingRun,
-      isFormVisible,
-      selectedOrderIds,
-      contextMenu,
-      enrichedRuns,
-      availableOrders,
-      activeRun,
-      ordersForActiveRun,
-      autoRefreshEnabled,
-      isRefreshing,
-      handleEditRun,
-      handleAddNewRun,
-      handleSaveRun,
-      handleDeleteRun,
-      handleDragEnd,
-      handleDeleteAssignmentWithRefresh,
-      handleBulkAssign,
-      handleBulkDelete,
-      triggerRefresh,
-      drivers,
-      trucks,
-      trailers,
-      zones,
-      pallets,
-    ]
-  );
+  const value = useMemo(() => ({
+    selectedDate,
+    activeRunId,
+    editingRun,
+    isFormVisible,
+    selectedOrderIds,
+    contextMenu,
+    enrichedRuns,
+    availableOrders,
+    activeRun,
+    ordersForActiveRun,
+    autoRefreshEnabled,
+    isRefreshing,
+    setSelectedDate,
+    setActiveRunId,
+    setIsFormVisible,
+    setSelectedOrderIds,
+    setContextMenu,
+    setAutoRefreshEnabled,
+    handleEditRun,
+    handleAddNewRun,
+    handleSaveRun,
+    handleDeleteRun,
+    handleDragEnd,
+    handleDeleteAssignment: handleDeleteAssignmentWithRefresh,
+    handleBulkAssign,
+    handleBulkDelete,
+    triggerRefresh,
+    initialData: { drivers, trucks, trailers, zones, pallets },
+  }), [
+    selectedDate,
+    activeRunId,
+    editingRun,
+    isFormVisible,
+    selectedOrderIds,
+    contextMenu,
+    enrichedRuns,
+    availableOrders,
+    activeRun,
+    ordersForActiveRun,
+    autoRefreshEnabled,
+    isRefreshing,
+    handleEditRun,
+    handleAddNewRun,
+    handleSaveRun,
+    handleDeleteRun,
+    handleDragEnd,
+    handleDeleteAssignmentWithRefresh,
+    handleBulkAssign,
+    handleBulkDelete,
+    triggerRefresh,
+    drivers,
+    trucks,
+    trailers,
+    zones,
+    pallets,
+  ]);
 
   return <PlanItContext.Provider value={value}>{children}</PlanItContext.Provider>;
+};
+
+PlanItProvider.propTypes = {
+  children: PropTypes.node.isRequired,
+  initialData: PropTypes.shape({
+    orders: PropTypes.array,
+    runs: PropTypes.array,
+    drivers: PropTypes.array,
+    trucks: PropTypes.array,
+    trailers: PropTypes.array,
+    pallets: PropTypes.array,
+    assignments: PropTypes.array,
+    zones: PropTypes.array,
+  }),
+  runActions: PropTypes.shape({
+    update: PropTypes.func,
+    create: PropTypes.func,
+    delete: PropTypes.func,
+  }),
+  onAssignmentCreated: PropTypes.func,
+  onDeleteRequest: PropTypes.func,
+  bulkAssignOrders: PropTypes.func,
 };

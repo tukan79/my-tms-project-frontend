@@ -1,5 +1,6 @@
 //MainHeader.jsx
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import PropTypes from 'prop-types';
 import { Plus, Upload, Download, RefreshCw } from 'lucide-react';
 import { useDashboard } from '@/contexts/DashboardContext.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
@@ -105,3 +106,11 @@ const MainHeader = ({ viewConfig }) => {
 
 export default MainHeader;
 // ostatnia zmiana 05.11
+
+MainHeader.propTypes = {
+  viewConfig: PropTypes.objectOf(
+    PropTypes.shape({
+      FormComponent: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
+    })
+  ).isRequired,
+};

@@ -1,5 +1,6 @@
 // 📁 AddRateEntryForm.jsx
 import React, { useMemo, useRef, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { X } from 'lucide-react';
 import { useForm } from '@/hooks/useForm.js';
 import { useToast } from '@/contexts/ToastContext.jsx';
@@ -98,8 +99,8 @@ const AddRateEntryForm = ({ zones = [], onCancel, onSuccess, itemToEdit, autoRef
         <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
           {/* Typ taryfy */}
           <div className="form-group">
-            <label>Rate Type</label>
-            <select name="rate_type" value={formData.rate_type} onChange={handleChange}>
+            <label htmlFor="rate-type">Rate Type</label>
+            <select id="rate-type" name="rate_type" value={formData.rate_type} onChange={handleChange}>
               <option value="standard">Standard</option>
               <option value="surcharge">Surcharge</option>
             </select>
@@ -107,8 +108,9 @@ const AddRateEntryForm = ({ zones = [], onCancel, onSuccess, itemToEdit, autoRef
 
           {/* Strefa */}
           <div className="form-group">
-            <label>Zone *</label>
+            <label htmlFor="zone-id">Zone *</label>
             <select
+              id="zone-id"
               name="zone_id"
               value={formData.zone_id}
               onChange={handleChange}
@@ -128,8 +130,9 @@ const AddRateEntryForm = ({ zones = [], onCancel, onSuccess, itemToEdit, autoRef
 
           {/* Poziom serwisu */}
           <div className="form-group">
-            <label>Service Level *</label>
+            <label htmlFor="service-level">Service Level *</label>
             <select
+              id="service-level"
               name="service_level"
               value={formData.service_level}
               onChange={handleChange}
@@ -154,10 +157,11 @@ const AddRateEntryForm = ({ zones = [], onCancel, onSuccess, itemToEdit, autoRef
         >
           {priceColumns.map(col => (
             <div className="form-group" key={col}>
-              <label style={{ textTransform: 'capitalize' }}>
-                {col.replace('price_', '').replace(/_/g, ' ')}
+              <label htmlFor={`price-${col}`} style={{ textTransform: 'capitalize' }}>
+                {col.replace('price_', '').replaceAll('_', ' ')}
               </label>
               <input
+                id={`price-${col}`}
                 type="number"
                 step="0.01"
                 name={col}
@@ -176,7 +180,9 @@ const AddRateEntryForm = ({ zones = [], onCancel, onSuccess, itemToEdit, autoRef
             Cancel
           </button>
           <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Add Entry'}
+            {loading && 'Saving...'}
+            {!loading && isEditMode && 'Save Changes'}
+            {!loading && !isEditMode && 'Add Entry'}
           </button>
         </div>
       </form>
@@ -185,6 +191,21 @@ const AddRateEntryForm = ({ zones = [], onCancel, onSuccess, itemToEdit, autoRef
 };
 
 export default AddRateEntryForm;
+
+AddRateEntryForm.propTypes = {
+  zones: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      zone_name: PropTypes.string,
+    })
+  ),
+  onCancel: PropTypes.func.isRequired,
+  onSuccess: PropTypes.func,
+  itemToEdit: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  }),
+  autoRefreshTrigger: PropTypes.func,
+};
 
 // ✅ Ostatnia aktualizacja: 04.11.2025
 // - obsługa trybu edycji

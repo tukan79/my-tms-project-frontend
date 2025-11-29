@@ -13,8 +13,8 @@ export const importerConfigs = {
       }
       return {
         // Bezpieczne czyszczenie danych z niechcianych znaków
-        first_name: row.first_name?.replace(/"/g, '').trim() || null,
-        last_name: row.last_name?.replace(/"/g, '').trim() || null,
+        first_name: row.first_name?.replaceAll('"', '').trim() || null,
+        last_name: row.last_name?.replaceAll('"', '').trim() || null,
         phone_number: row.phone_number || null,
         license_number: row.license_number || null,
         cpc_number: row.cpc_number || null,
@@ -41,14 +41,14 @@ export const importerConfigs = {
       return {
         registration_plate: row.registration_plate?.trim() || '',
         // Bezpieczne czyszczenie danych z niechcianych znaków
-        brand: row.brand?.replace(/"/g, '').trim() || '',
-        model: row.model?.replace(/"/g, '').trim() || '',
+        brand: row.brand?.replaceAll('"', '').trim() || '',
+        model: row.model?.replaceAll('"', '').trim() || '',
         vin: row.vin || '',
-        production_year: row.production_year ? parseInt(row.production_year, 10) : null,
+        production_year: row.production_year ? Number.parseInt(row.production_year, 10) : null,
         type_of_truck: row.type_of_truck || 'tractor',
-        total_weight: row.total_weight ? parseInt(row.total_weight, 10) : null,
-        pallet_capacity: row.pallet_capacity ? parseInt(row.pallet_capacity, 10) : null,
-        max_payload_kg: row.max_payload_kg ? parseInt(row.max_payload_kg, 10) : null,
+        total_weight: row.total_weight ? Number.parseInt(row.total_weight, 10) : null,
+        pallet_capacity: row.pallet_capacity ? Number.parseInt(row.pallet_capacity, 10) : null,
+        max_payload_kg: row.max_payload_kg ? Number.parseInt(row.max_payload_kg, 10) : null,
         is_active: !['false', '0', 'no'].includes(String(row.is_active).toLowerCase()),
       };
     },
@@ -69,11 +69,11 @@ export const importerConfigs = {
       }
       return {
         registration_plate: row.registration_plate || '',
-        description: row.description?.replace(/"/g, '').trim() || '',
+        description: row.description?.replaceAll('"', '').trim() || '',
         category: row.category || 'Own',
-        brand: row.brand?.replace(/"/g, '').trim() || 'Unknown',
-        max_payload_kg: row.max_payload_kg ? parseInt(row.max_payload_kg, 10) : null,
-        max_spaces: row.max_spaces ? parseInt(row.max_spaces, 10) : null,
+        brand: row.brand?.replaceAll('"', '').trim() || 'Unknown',
+        max_payload_kg: row.max_payload_kg ? Number.parseInt(row.max_payload_kg, 10) : null,
+        max_spaces: row.max_spaces ? Number.parseInt(row.max_spaces, 10) : null,
         status: row.status ? row.status.toLowerCase() : 'inactive',
         is_active: !['false', '0', 'no', 'in-active'].includes(String(row.is_active || row.status).toLowerCase()),
       };
@@ -144,11 +144,11 @@ export const importerConfigs = {
 
       // Mapowanie ilości palet z różnych kolumn
       const pallets = [];
-      if (parseInt(row.FullQ, 10) > 0) pallets.push({ type: 'Full', quantity: parseInt(row.FullQ, 10) || 0 });
-      if (parseInt(row.HalfQ, 10) > 0) pallets.push({ type: 'Half', quantity: parseInt(row.HalfQ, 10) || 0 });
-      if (parseInt(row.HalfPlusQ, 10) > 0) pallets.push({ type: 'HalfPlus', quantity: parseInt(row.HalfPlusQ, 10) || 0 });
-      if (parseInt(row.QuarterQ, 10) > 0) pallets.push({ type: 'Quarter', quantity: parseInt(row.QuarterQ, 10) || 0 });
-      if (parseInt(row.MicroQ, 10) > 0) pallets.push({ type: 'Micro', quantity: parseInt(row.MicroQ, 10) || 0 });
+      if (Number.parseInt(row.FullQ, 10) > 0) pallets.push({ type: 'Full', quantity: Number.parseInt(row.FullQ, 10) || 0 });
+      if (Number.parseInt(row.HalfQ, 10) > 0) pallets.push({ type: 'Half', quantity: Number.parseInt(row.HalfQ, 10) || 0 });
+      if (Number.parseInt(row.HalfPlusQ, 10) > 0) pallets.push({ type: 'HalfPlus', quantity: Number.parseInt(row.HalfPlusQ, 10) || 0 });
+      if (Number.parseInt(row.QuarterQ, 10) > 0) pallets.push({ type: 'Quarter', quantity: Number.parseInt(row.QuarterQ, 10) || 0 });
+      if (Number.parseInt(row.MicroQ, 10) > 0) pallets.push({ type: 'Micro', quantity: Number.parseInt(row.MicroQ, 10) || 0 });
 
       // Funkcja do bezpiecznego parsowania daty
       const parseDate = (dateStr, timeStr = '00:00') => {
@@ -158,7 +158,7 @@ export const importerConfigs = {
           const dateTimeString = `${dateStr}T${timeStr || '00:00'}`;
           const date = new Date(dateTimeString);
           // Sprawdzamy, czy data jest prawidłowa
-          return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+          return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
         } catch (e) {
           return new Date().toISOString();
         }
@@ -188,7 +188,7 @@ export const importerConfigs = {
         cargo_details: {
           description: row.DeliveryNoteLine1 || 'No description',
           pallets: pallets,
-          total_weight_kg: parseFloat(row.TotalKilos || 0),
+          total_weight_kg: Number.parseFloat(row.TotalKilos || 0),
         },
       };
     },
@@ -212,20 +212,20 @@ export const importerConfigs = {
 
       // Mapowanie cen z kolumn CSV do obiektu 'prices'
       const prices = {
-        micro: parseFloat(row['Price Micro'] || 0),
-        quarter: parseFloat(row['Price Quarter'] || 0),
-        half: parseFloat(row['Price Half'] || 0),
-        half_plus: parseFloat(row['Price Half Plus'] || 0),
-        full_1: parseFloat(row['Price Full 1'] || 0),
-        full_2: parseFloat(row['Price Full 2'] || 0),
-        full_3: parseFloat(row['Price Full 3'] || 0),
-        full_4: parseFloat(row['Price Full 4'] || 0),
-        full_5: parseFloat(row['Price Full 5'] || 0),
-        full_6: parseFloat(row['Price Full 6'] || 0),
-        full_7: parseFloat(row['Price Full 7'] || 0),
-        full_8: parseFloat(row['Price Full 8'] || 0),
-        full_9: parseFloat(row['Price Full 9'] || 0),
-        full_10: parseFloat(row['Price Full 10'] || 0),
+        micro: Number.parseFloat(row['Price Micro'] || 0),
+        quarter: Number.parseFloat(row['Price Quarter'] || 0),
+        half: Number.parseFloat(row['Price Half'] || 0),
+        half_plus: Number.parseFloat(row['Price Half Plus'] || 0),
+        full_1: Number.parseFloat(row['Price Full 1'] || 0),
+        full_2: Number.parseFloat(row['Price Full 2'] || 0),
+        full_3: Number.parseFloat(row['Price Full 3'] || 0),
+        full_4: Number.parseFloat(row['Price Full 4'] || 0),
+        full_5: Number.parseFloat(row['Price Full 5'] || 0),
+        full_6: Number.parseFloat(row['Price Full 6'] || 0),
+        full_7: Number.parseFloat(row['Price Full 7'] || 0),
+        full_8: Number.parseFloat(row['Price Full 8'] || 0),
+        full_9: Number.parseFloat(row['Price Full 9'] || 0),
+        full_10: Number.parseFloat(row['Price Full 10'] || 0),
       };
 
       return {

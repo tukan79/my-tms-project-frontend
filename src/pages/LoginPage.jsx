@@ -7,7 +7,7 @@ import '@/Auth.css';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, loading } = useAuth();
+  const { login, loading, isAuthenticated } = useAuth(); // <-- Get isAuthenticated here
   const { showToast } = useToast();
   const emailInputRef = useRef(null);
 
@@ -26,6 +26,15 @@ const LoginPage = () => {
     document.body.dataset.theme = darkMode ? 'dark' : 'light';
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
+
+  // 🔹 Effect to navigate after successful authentication
+  useEffect(() => {
+    if (isAuthenticated) {
+      showToast('Login successful!', 'success'); // Show toast here, after auth state is confirmed
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate, showToast]); // Dependencies for useEffect
+
 
   // 🔹 Aktualizacja pól formularza
   const handleChange = (e) => {
@@ -138,7 +147,9 @@ const LoginPage = () => {
             disabled={loading || isRateLimited}
             aria-busy={loading || isRateLimited}
           >
-            {loading ? 'Logging in…' : isRateLimited ? 'Please wait...' : 'Login'}
+            {loading && 'Logging in…'}
+            {!loading && isRateLimited && 'Please wait...'}
+            {!loading && !isRateLimited && 'Login'}
           </button>
         </form>
 

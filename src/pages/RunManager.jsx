@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 const RunManager = (props) => {
   return (
@@ -10,3 +11,7 @@ const RunManager = (props) => {
 };
 
 export default RunManager;
+
+RunManager.propTypes = {
+  runs: PropTypes.array,
+};

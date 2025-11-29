@@ -41,7 +41,7 @@ export const useTableData = (
     if (!key) return safeData;
 
     const isAscending = direction === 'ascending';
-    const sorted = safeData.sort((a, b) => {
+    const sorted = safeData.toSorted((a, b) => {
       const valA = getNestedValue(a, key);
       const valB = getNestedValue(b, key);
 

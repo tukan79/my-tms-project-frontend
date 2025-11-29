@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 import DataImporter from '@/components/DataImporter.jsx';
 import { useDashboard } from '@/contexts/DashboardContext.jsx';
@@ -55,58 +56,41 @@ const ViewRenderer = ({ viewConfig }) => {
     );
   }
 
-  // 🔧 Widok z pojedynczym komponentem
-  if (currentViewConfig.Component && !currentViewConfig.ListComponent) {
+  const renderImporter = () => (
+    <div className="card">
+      <ErrorBoundary onReset={() => handleRefresh(currentView)}>
+        <DataImporter
+          {...activeImporterConfig}
+          onSuccess={handleFormSuccess}
+          onCancel={handleHideImporter}
+          // Przekazujemy dedykowaną funkcję odświeżania dla bieżącego widoku
+          refreshFn={() => handleRefresh(currentView)}
+        />
+      </ErrorBoundary>
+    </div>
+  );
+
+  const renderForm = () => {
+    const formProps = {
+      onSuccess: handleFormSuccess,
+      onCancel: handleCancelForm,
+      itemToEdit,
+      ...(currentView === 'orders' && { drivers, trucks, trailers, clients: customers, surcharges }),
+    };
+    if (typeof currentViewConfig.FormComponent !== 'function') {
+      console.error(`❌ Invalid FormComponent for view "${currentView}".`, currentViewConfig.FormComponent);
+      return <div className="error-container">Form component not found.</div>;
+    }
     return (
       <div className="card">
-        <ErrorBoundary>
-          <currentViewConfig.Component {...currentViewConfig.props} />
+        <ErrorBoundary onReset={() => handleRefresh(currentView)}>
+          <currentViewConfig.FormComponent {...formProps} />
         </ErrorBoundary>
       </div>
     );
-  }
+  };
 
-  // 📋 Widok z listą
-  if (currentViewConfig.ListComponent) {
-    // Importer
-    if (activeImporterConfig) {
-      return (
-        <div className="card">
-          <ErrorBoundary onReset={() => handleRefresh(currentView)}>
-            <DataImporter
-              {...activeImporterConfig}
-              onSuccess={handleFormSuccess}
-              onCancel={handleHideImporter}
-              // Przekazujemy dedykowaną funkcję odświeżania dla bieżącego widoku
-              refreshFn={() => handleRefresh(currentView)}
-            />
-          </ErrorBoundary>
-        </div>
-      );
-    }
-
-    // Formularz
-    if (showForm) {
-      const formProps = {
-        onSuccess: handleFormSuccess,
-        onCancel: handleCancelForm,
-        itemToEdit,
-        ...(currentView === 'orders' && { drivers, trucks, trailers, clients: customers, surcharges }),
-      };
-      if (typeof currentViewConfig.FormComponent !== 'function') {
-        console.error(`❌ Invalid FormComponent for view "${currentView}".`, currentViewConfig.FormComponent);
-        return <div className="error-container">Form component not found.</div>;
-      }
-      return (
-        <div className="card">
-          <ErrorBoundary onReset={() => handleRefresh(currentView)}>
-            <currentViewConfig.FormComponent {...formProps} />
-          </ErrorBoundary>
-        </div>
-      );
-    }
-
-    // Lista
+  const renderList = () => {
     let listProps = {
       items: safeDataForView,
       onRefresh: () => handleRefresh(currentView),
@@ -117,12 +101,14 @@ const ViewRenderer = ({ viewConfig }) => {
       autoRefreshEnabled: globalAutoRefresh
     };
 
-    // Dodaj dodatkowe propsy tylko dla widoku 'orders' i upewnij się, że dane istnieją
     if (currentView === 'orders') {
-      listProps.drivers = drivers ?? [];
-      listProps.trucks = trucks ?? [];
-      listProps.trailers = trailers ?? [];
-      listProps.zones = zones ?? [];
+      listProps = {
+        ...listProps,
+        drivers: drivers ?? [],
+        trucks: trucks ?? [],
+        trailers: trailers ?? [],
+        zones: zones ?? [],
+      };
     }
 
     return (
@@ -132,9 +118,41 @@ const ViewRenderer = ({ viewConfig }) => {
         </ErrorBoundary>
       </div>
     );
+  };
+
+  const renderComponent = () => (
+    <div className="card">
+      <ErrorBoundary>
+        <currentViewConfig.Component {...currentViewConfig.props} />
+      </ErrorBoundary>
+    </div>
+  );
+
+  // 🔧 Widok z pojedynczym komponentem
+  if (currentViewConfig.Component && !currentViewConfig.ListComponent) {
+    return renderComponent();
+  }
+
+  // 📋 Widok z listą
+  if (currentViewConfig.ListComponent) {
+    if (activeImporterConfig) return renderImporter();
+    if (showForm) return renderForm();
+    return renderList();
   }
 
   return <div>No component to render for this view.</div>;
 };
 
 export default ViewRenderer;
+
+const viewShape = PropTypes.shape({
+  dataKey: PropTypes.string,
+  Component: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
+  ListComponent: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
+  FormComponent: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
+  props: PropTypes.object,
+});
+
+ViewRenderer.propTypes = {
+  viewConfig: PropTypes.objectOf(viewShape),
+};

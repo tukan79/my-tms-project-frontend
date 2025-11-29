@@ -1,42 +1,76 @@
-import React from 'react';
+// src/components/forms/AddRunForm.jsx
+import React, { useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { X } from 'lucide-react';
-import api from '@/services/api.js';
+
 import { useToast } from '@/contexts/ToastContext.jsx';
 import { useForm } from '@/hooks/useForm.js';
 
+import { validateRun } from './validators/runValidator.js';
+import { createRun, updateRun } from './services/runService.js';
+
+import TextField from './fields/TextField.jsx';
+import SelectField from './fields/SelectField.jsx';
+
 const initialFormData = {
-  zone_name: '',
-  postcode_patterns: '',
-  is_home_zone: false,
+  run_date: new Date().toISOString().split('T')[0],
+  type: 'delivery',
+  driver_id: '',
+  truck_id: '',
+  trailer_id: '',
 };
-const AddZoneForm = ({ onSuccess, onCancel, itemToEdit }) => {
+
+const normalizeEditData = (itemToEdit) => {
+  if (!itemToEdit) {
+    return null;
+  }
+
+  return {
+    ...itemToEdit,
+    run_date: itemToEdit.run_date
+      ? new Date(itemToEdit.run_date).toISOString().split('T')[0]
+      : initialFormData.run_date,
+    driver_id: itemToEdit.driver_id ?? '',
+    truck_id: itemToEdit.truck_id ?? '',
+    trailer_id: itemToEdit.trailer_id ?? '',
+  };
+};
+
+const AddRunForm = ({
+  onSuccess,
+  onCancel,
+  itemToEdit,
+  drivers,
+  trucks,
+  trailers,
+}) => {
   const isEditMode = Boolean(itemToEdit);
   const { showToast } = useToast();
 
-  const validate = (data) => {
-    const newErrors = {};
-    if (!data.zone_name) newErrors.zone_name = 'Zone name is required.';
-    if (!data.postcode_patterns) newErrors.postcode_patterns = 'Postcode patterns are required.';
-    return newErrors;
-  };
+  const normalizedItem = useMemo(
+    () => normalizeEditData(itemToEdit),
+    [itemToEdit]
+  );
 
   const performSubmit = async (formData) => {
-    const payload = {
-      ...formData,
-      postcode_patterns: formData.postcode_patterns.split(';').map(p => p.trim()).filter(Boolean),
-    };
-
-    const request = isEditMode
-      ? api.put(`/api/zones/${itemToEdit.id}`, payload)
-      : api.post('/api/zones', payload);
     try {
-      await request;
-      showToast(`Zone ${isEditMode ? 'updated' : 'created'} successfully!`, 'success');
+      if (isEditMode) {
+        await updateRun(itemToEdit.id, formData);
+      } else {
+        await createRun(formData);
+      }
+
+      const successMessage = isEditMode
+        ? 'Run updated successfully.'
+        : 'Run created successfully.';
+
+      showToast(successMessage, 'success');
       onSuccess();
-    } catch (err) {
-      const errorMessage = err.response?.data?.error || 'An unexpected error occurred.';
-      showToast(errorMessage, 'error');
-      throw new Error(errorMessage);
+    } catch (error) {
+      const message =
+        error.response?.data?.error || 'Failed to save run.';
+      showToast(message, 'error');
+      throw new Error(message);
     }
   };
 
@@ -48,36 +82,122 @@ const AddZoneForm = ({ onSuccess, onCancel, itemToEdit }) => {
     handleSubmit,
   } = useForm({
     initialState: initialFormData,
-    validate,
+    validate: validateRun,
     onSubmit: performSubmit,
-    itemToEdit: itemToEdit ? { ...itemToEdit, postcode_patterns: (itemToEdit.postcode_patterns || []).join('; ') } : null,
+    itemToEdit: normalizedItem,
   });
 
+  const getSubmitLabel = () => {
+    if (loading) {
+      return 'Saving...';
+    }
+
+    if (isEditMode) {
+      return 'Save Changes';
+    }
+
+    return 'Add Run';
+  };
+
   return (
-    <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>{isEditMode ? 'Edit Zone' : 'Add New Zone'}</h2>
-        <button onClick={onCancel} className="btn-icon"><X size={20} /></button>
+    <div className="card modal-center">
+      <div className="form-header">
+        <h2>{isEditMode ? 'Edit Run' : 'Add New Run'}</h2>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="btn-icon"
+          aria-label="Close form"
+        >
+          <X size={20} />
+        </button>
       </div>
-      {errors.form && <div className="error-message">{errors.form}</div>}
-      <form onSubmit={handleSubmit} className="form">
-        <div className="form-group">
-          <label>Zone Name *</label>
-          <input type="text" name="zone_name" value={formData.zone_name} onChange={handleChange} required />
-        </div>
-        <div className="form-group">
-          <label>Postcode Patterns (semicolon-separated, e.g., SW1%; W1A; EC%) *</label>
-          <textarea name="postcode_patterns" value={formData.postcode_patterns} onChange={handleChange} required rows="3" />
-        </div>
-        <div className="form-group"><label><input type="checkbox" name="is_home_zone" checked={formData.is_home_zone} onChange={handleChange} /> Is Home Zone?</label></div>
+
+      <form onSubmit={handleSubmit} className="form" noValidate>
+        <TextField
+          label="Run Date"
+          type="date"
+          name="run_date"
+          value={formData.run_date}
+          onChange={handleChange}
+          error={errors.run_date}
+          required
+        />
+
+        <SelectField
+          label="Driver"
+          name="driver_id"
+          value={formData.driver_id}
+          onChange={handleChange}
+          error={errors.driver_id}
+          required
+          options={drivers.map((driver) => ({
+            value: driver.id,
+            label: `${driver.first_name} ${driver.last_name}`,
+          }))}
+        />
+
+        <SelectField
+          label="Truck"
+          name="truck_id"
+          value={formData.truck_id}
+          onChange={handleChange}
+          error={errors.truck_id}
+          required
+          options={trucks.map((truck) => ({
+            value: truck.id,
+            label: truck.registration_plate,
+          }))}
+        />
+
+        <SelectField
+          label="Trailer"
+          name="trailer_id"
+          value={formData.trailer_id}
+          onChange={handleChange}
+          options={trailers.map((trailer) => ({
+            value: trailer.id,
+            label: trailer.registration_plate,
+          }))}
+        />
+
         <div className="form-actions">
-          <button type="button" onClick={onCancel} className="btn-secondary" disabled={loading}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={loading}>{loading ? 'Saving...' : 'Save Zone'}</button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn-secondary"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={loading}
+          >
+            {getSubmitLabel()}
+          </button>
         </div>
       </form>
     </div>
   );
 };
 
-export default AddZoneForm;
-// ostatnia zmiana (30.05.2024, 13:14:12)
+AddRunForm.propTypes = {
+  onSuccess: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  itemToEdit: PropTypes.object,
+  drivers: PropTypes.arrayOf(PropTypes.object),
+  trucks: PropTypes.arrayOf(PropTypes.object),
+  trailers: PropTypes.arrayOf(PropTypes.object),
+};
+
+AddRunForm.defaultProps = {
+  itemToEdit: null,
+  drivers: [],
+  trucks: [],
+  trailers: [],
+};
+
+export default AddRunForm;

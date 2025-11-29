@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import ZoneManager from '@/components/ZoneManager.jsx';
 import RateCardEditor from '@/components/RateCardEditor.jsx';
 import { RefreshCw } from 'lucide-react';
@@ -144,5 +145,11 @@ const PricingPage = ({ customers = [], zones = [], onRefresh }) => {
 };
 
 export default PricingPage;
+
+PricingPage.propTypes = {
+  customers: PropTypes.array,
+  zones: PropTypes.array,
+  onRefresh: PropTypes.func,
+};
 
 // ostatnia zmiana (04.11.2025, 23:23)

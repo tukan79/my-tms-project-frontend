@@ -4,7 +4,7 @@ export const filterKeys = (obj = {}, allowedKeys = []) => {
   if (!Array.isArray(allowedKeys) || allowedKeys.length === 0) return { ...obj };
   const out = {};
   for (const k of allowedKeys) {
-    if (Object.prototype.hasOwnProperty.call(obj, k)) {
+    if (Object.hasOwn(obj, k)) {
       out[k] = obj[k];
     }
   }

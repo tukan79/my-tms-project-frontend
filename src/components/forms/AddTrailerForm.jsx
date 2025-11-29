@@ -1,60 +1,87 @@
-import React from 'react';
+// src/components/forms/AddTrailerForm.jsx
+import React, { useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { X } from 'lucide-react';
-import api from '@/services/api.js';
-import { useToast } from '@/contexts/ToastContext.jsx';
+
 import { useForm } from '@/hooks/useForm.js';
+import { useToast } from '@/contexts/ToastContext.jsx';
 
-const AddTrailerForm = ({ onSuccess, onCancel, itemToEdit }) => {
-  const initialFormData = {
-    registration_plate: '',
-    description: '',
-    category: 'Own',
-    brand: '',
-    max_payload_kg: '',
-    max_spaces: '',
-    length_m: '',
-    width_m: '',
-    height_m: '',
-    weight_kg: '',
-    status: 'active',
-  };
+import { validateTrailer } from './validators/trailerValidator.js';
+import {
+  createTrailer,
+  updateTrailer,
+} from './services/trailerService.js';
 
+import TextField from './fields/TextField.jsx';
+import SelectField from './fields/SelectField.jsx';
+
+const initialFormData = {
+  registration_plate: '',
+  description: '',
+  category: 'Own',
+  brand: '',
+  max_payload_kg: '',
+  max_spaces: '',
+  length_m: '',
+  width_m: '',
+  height_m: '',
+  weight_kg: '',
+  status: 'active',
+};
+
+const normalizeEditData = (item) => {
+  if (!item) {
+    return null;
+  }
+  return { ...item };
+};
+
+const normalizeSubmitData = (data) => ({
+  ...data,
+  max_payload_kg: data.max_payload_kg ? Number(data.max_payload_kg) : null,
+  max_spaces: data.max_spaces ? Number(data.max_spaces) : null,
+  length_m: data.length_m ? Number(data.length_m) : null,
+  width_m: data.width_m ? Number(data.width_m) : null,
+  height_m: data.height_m ? Number(data.height_m) : null,
+  weight_kg: data.weight_kg ? Number(data.weight_kg) : null,
+});
+
+const AddTrailerForm = ({
+  onSuccess,
+  onCancel,
+  itemToEdit,
+}) => {
   const isEditMode = Boolean(itemToEdit);
   const { showToast } = useToast();
-  
-  const validate = (data) => {
-    const newErrors = {};
-    if (!data.registration_plate) newErrors.registration_plate = 'Trailer Code is required.';
-    if (!data.description) newErrors.description = 'Description is required.';
-    if (!data.brand) newErrors.brand = 'Brand is required.';
-    if (!data.max_payload_kg) newErrors.max_payload_kg = 'Max Payload is required.';
-    if (!data.max_spaces) newErrors.max_spaces = 'Max Pallet Spaces is required.';
-    return newErrors;
-  };
+
+  const normalizedItem = useMemo(
+    () => normalizeEditData(itemToEdit),
+    [itemToEdit]
+  );
 
   const performSubmit = async (formData) => {
-    const dataToSend = {
-      ...formData,
-      // Ensure numeric fields are sent as numbers
-      max_payload_kg: formData.max_payload_kg ? Number(formData.max_payload_kg) : null,
-      max_spaces: formData.max_spaces ? Number(formData.max_spaces) : null,
-      length_m: formData.length_m ? Number(formData.length_m) : null,
-      width_m: formData.width_m ? Number(formData.width_m) : null,
-      height_m: formData.height_m ? Number(formData.height_m) : null,
-      weight_kg: formData.weight_kg ? Number(formData.weight_kg) : null,
-    };
-    
-    const endpoint = isEditMode ? `/api/trailers/${itemToEdit.id}` : '/api/trailers';
-    const method = isEditMode ? 'put' : 'post';
-
     try {
-      await api[method](endpoint, dataToSend);
-      showToast(`Trailer ${isEditMode ? 'updated' : 'added'} successfully!`, 'success');
+      const payload = normalizeSubmitData(formData);
+
+      if (isEditMode) {
+        await updateTrailer(itemToEdit.id, payload);
+      } else {
+        await createTrailer(payload);
+      }
+
+      const successMessage = isEditMode
+        ? 'Trailer updated successfully!'
+        : 'Trailer added successfully!';
+
+      showToast(successMessage, 'success');
       onSuccess();
-    } catch (err) {
-      const errorMessage = err.response?.data?.error || `An error occurred while ${isEditMode ? 'updating' : 'adding'} the trailer.`;
-      showToast(errorMessage, 'error');
-      throw new Error(errorMessage);
+    } catch (error) {
+      const message =
+        error.response?.data?.error ||
+        'An error occurred while saving the trailer.';
+
+      showToast(message, 'error');
+      throw new Error(message);
     }
   };
 
@@ -64,88 +91,169 @@ const AddTrailerForm = ({ onSuccess, onCancel, itemToEdit }) => {
     loading,
     handleChange,
     handleSubmit,
-  } = useForm({ initialState: initialFormData, validate, onSubmit: performSubmit, itemToEdit });
+  } = useForm({
+    initialState: initialFormData,
+    validate: validateTrailer,
+    onSubmit: performSubmit,
+    itemToEdit: normalizedItem,
+  });
+
+  const getSubmitLabel = () => {
+    if (loading) {
+      return 'Saving...';
+    }
+
+    if (isEditMode) {
+      return 'Save Changes';
+    }
+
+    return 'Add Trailer';
+  };
 
   return (
-    <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+    <div className="card modal-center">
+      <div className="form-header">
         <h2>{isEditMode ? 'Edit Trailer' : 'Add New Trailer'}</h2>
-        <button onClick={onCancel} className="btn-icon">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="btn-icon"
+          aria-label="Close form"
+        >
           <X size={20} />
         </button>
       </div>
 
-      {errors.form && <div className="error-message">{errors.form}</div>}
+      {errors.form && (
+        <div className="error-message">
+          {errors.form}
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit} className="form">
+      <form onSubmit={handleSubmit} className="form" noValidate>
         <div className="form-grid">
           <div className="form-column">
-            <div className="form-group">
-              <label>Trailer Code (Reg. Plate) *</label>
-              <input type="text" name="registration_plate" value={formData.registration_plate} onChange={handleChange} required className={errors.registration_plate ? 'input-error' : ''} />
-              {errors.registration_plate && <span className="error-text">{errors.registration_plate}</span>}
-            </div>
-            <div className="form-group">
-              <label>Description *</label>
-              <input type="text" name="description" value={formData.description} onChange={handleChange} required className={errors.description ? 'input-error' : ''} />
-              {errors.description && <span className="error-text">{errors.description}</span>}
-            </div>
-            <div className="form-group">
-              <label>Brand *</label>
-              <input type="text" name="brand" value={formData.brand} onChange={handleChange} required className={errors.brand ? 'input-error' : ''} />
-              {errors.brand && <span className="error-text">{errors.brand}</span>}
-            </div>
-            <div className="form-group">
-              <label>Category</label>
-              <select name="category" value={formData.category} onChange={handleChange}>
-                <option value="Own">Own</option>
-                <option value="Subcontractor">Subcontractor</option>
-              </select>
-            </div>
-             <div className="form-group">
-              <label>Status</label>
-              <select name="status" value={formData.status} onChange={handleChange}>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
+            <TextField
+              label="Trailer Code"
+              name="registration_plate"
+              value={formData.registration_plate}
+              onChange={handleChange}
+              error={errors.registration_plate}
+              required
+            />
+
+            <TextField
+              label="Description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              error={errors.description}
+              required
+            />
+
+            <TextField
+              label="Brand"
+              name="brand"
+              value={formData.brand}
+              onChange={handleChange}
+              error={errors.brand}
+              required
+            />
+
+            <SelectField
+              label="Category"
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              options={[
+                { value: 'Own', label: 'Own' },
+                { value: 'Subcontractor', label: 'Subcontractor' },
+              ]}
+            />
+
+            <SelectField
+              label="Status"
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+              ]}
+            />
           </div>
+
           <div className="form-column">
-            <div className="form-group">
-              <label>Max Payload (kg) *</label>
-              <input type="number" name="max_payload_kg" value={formData.max_payload_kg} onChange={handleChange} required className={errors.max_payload_kg ? 'input-error' : ''} />
-              {errors.max_payload_kg && <span className="error-text">{errors.max_payload_kg}</span>}
-            </div>
-            <div className="form-group">
-              <label>Max Pallet Spaces *</label>
-              <input type="number" name="max_spaces" value={formData.max_spaces} onChange={handleChange} required className={errors.max_spaces ? 'input-error' : ''} />
-              {errors.max_spaces && <span className="error-text">{errors.max_spaces}</span>}
-            </div>
-            <div className="form-group">
-              <label>Length (m)</label>
-              <input type="number" step="0.01" name="length_m" value={formData.length_m} onChange={handleChange} />
-            </div>
-            <div className="form-group">
-              <label>Width (m)</label>
-              <input type="number" step="0.01" name="width_m" value={formData.width_m} onChange={handleChange} />
-            </div>
-            <div className="form-group">
-              <label>Height (m)</label>
-              <input type="number" step="0.01" name="height_m" value={formData.height_m} onChange={handleChange} />
-            </div>
-            <div className="form-group">
-              <label>Weight (kg)</label>
-              <input type="number" name="weight_kg" value={formData.weight_kg} onChange={handleChange} />
-            </div>
+            <TextField
+              label="Max Payload (kg)"
+              name="max_payload_kg"
+              type="number"
+              value={formData.max_payload_kg}
+              onChange={handleChange}
+              error={errors.max_payload_kg}
+              required
+            />
+
+            <TextField
+              label="Max Pallet Spaces"
+              name="max_spaces"
+              type="number"
+              value={formData.max_spaces}
+              onChange={handleChange}
+              error={errors.max_spaces}
+              required
+            />
+
+            <TextField
+              label="Length (m)"
+              name="length_m"
+              type="number"
+              value={formData.length_m}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="Width (m)"
+              name="width_m"
+              type="number"
+              value={formData.width_m}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="Height (m)"
+              name="height_m"
+              type="number"
+              value={formData.height_m}
+              onChange={handleChange}
+            />
+
+            <TextField
+              label="Weight (kg)"
+              name="weight_kg"
+              type="number"
+              value={formData.weight_kg}
+              onChange={handleChange}
+            />
           </div>
         </div>
 
         <div className="form-actions">
-          <button type="button" onClick={onCancel} className="btn-secondary" disabled={loading}>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn-secondary"
+            disabled={loading}
+          >
             Cancel
           </button>
-          <button type="submit" disabled={loading} className="btn-primary">
-            {loading ? (isEditMode ? 'Saving...' : 'Adding...') : (isEditMode ? 'Save Changes' : 'Add Trailer')}
+
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={loading}
+          >
+            {getSubmitLabel()}
           </button>
         </div>
       </form>
@@ -153,5 +261,14 @@ const AddTrailerForm = ({ onSuccess, onCancel, itemToEdit }) => {
   );
 };
 
+AddTrailerForm.propTypes = {
+  onSuccess: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  itemToEdit: PropTypes.object,
+};
+
+AddTrailerForm.defaultProps = {
+  itemToEdit: null,
+};
+
 export default AddTrailerForm;
-// ostatnia zmiana (30.05.2024, 13:14:12)

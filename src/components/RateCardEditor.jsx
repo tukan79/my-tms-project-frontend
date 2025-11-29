@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '@/services/api.js';
 import { useToast } from '@/contexts/ToastContext.jsx';
-import { Plus, Trash2, X, Edit, Save, XCircle, Download, Upload, UploadCloud, FileText, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Edit, Save, XCircle, Download, Upload } from 'lucide-react';
 import AddRateEntryForm from './AddRateEntryForm.jsx';
 import DataImporter from './DataImporter.jsx';
+import PropTypes from 'prop-types';
 
 const RateCardEditor = ({ customers = [], zones = [] }) => {
   const [rateCards, setRateCards] = useState([]);
@@ -27,6 +28,7 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
         const data = Array.isArray(response.data) ? response.data : response.data?.data || [];
         setRateCards(data);
       } catch (error) {
+        console.error('Fetch rate cards failed', error);
         showToast('Failed to fetch rate cards.', 'error');
       } finally {
         setIsLoading(false);
@@ -48,6 +50,7 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
      } catch (error) {
       // ✅ Enhanced error handling to catch and display specific error messages
       const errorMessage = error.response?.data?.error || `Failed to fetch rate entries for rate card ${selectedRateCardId}.`;
+      console.error('Fetch rate entries failed', error);
       showToast(errorMessage, 'error');
       showToast('Failed to fetch rate entries.', 'error');
     } finally {
@@ -62,10 +65,17 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
     }
     try {
       const response = await api.get(`/api/rate-cards/${selectedRateCardId}/customers`);
-      // 🎯 FIX: Ensure assignedCustomers is always an array to prevent .map() errors.
+      // 🎯 Ensure assignedCustomers is always an array to prevent .map() errors.
       const data = response.data;
-      setAssignedCustomers(Array.isArray(data) ? data : (data?.customers && Array.isArray(data.customers) ? data.customers : []));
+      let customersFromResponse = [];
+      if (Array.isArray(data)) {
+        customersFromResponse = data;
+      } else if (Array.isArray(data?.customers)) {
+        customersFromResponse = data.customers;
+      }
+      setAssignedCustomers(customersFromResponse);
     } catch (error) {
+      console.error('Fetch assigned customers failed', error);
       showToast('Failed to fetch assigned customers.', 'error');
     }
   }, [selectedRateCardId, showToast]);
@@ -89,6 +99,7 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
         setRateCards(prev => [...prev, response.data]);
         showToast('Rate card created.', 'success');
       } catch (error) {
+        console.error('Create rate card failed', error);
         showToast('Failed to create rate card.', 'error');
       }
     }
@@ -107,6 +118,7 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
       setCustomersToAssign([]); // Wyczyść wybór po przypisaniu
       showToast(`${customersToAssign.length} customer(s) assigned successfully.`, 'success');
     } catch (error) {
+      console.error('Assign customers failed', error);
       showToast('Failed to assign customers.', 'error');
     }
   };
@@ -118,6 +130,7 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
       fetchAssignedCustomers();
       showToast('Customer unassigned.', 'success');
     } catch (error) {
+      console.error('Unassign customer failed', error);
       showToast('Failed to unassign customer.', 'error');
     }
   };
@@ -161,12 +174,13 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
   };
 
   const handleDeleteRateEntry = async (entryId) => {
-    if (window.confirm('Are you sure you want to delete this rate entry?')) {
+    if (globalThis.confirm('Are you sure you want to delete this rate entry?')) {
       try {
         await api.delete(`/api/rate-cards/entries/${entryId}`);
         setRateEntries(prev => prev.filter(entry => entry.id !== entryId));
         showToast('Rate entry deleted.', 'success');
       } catch (error) {
+        console.error('Delete rate entry failed', error);
         showToast(error.response?.data?.error || 'Failed to delete rate entry.', 'error');
       }
     }
@@ -178,16 +192,18 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
       const response = await api.get(`/api/rate-cards/${selectedRateCardId}/export`, {
         responseType: 'blob', // Ważne, aby otrzymać plik
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = globalThis.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
       const rateCardName = rateCards.find(rc => rc.id === selectedRateCardId)?.name || 'rate-card';
-      link.setAttribute('download', `${rateCardName.replace(/\s+/g, '_')}_export.csv`);
+      const safeRateCardName = rateCardName.split(/\s+/).join('_');
+      link.setAttribute('download', `${safeRateCardName}_export.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       showToast('Export started successfully!', 'success');
     } catch (error) {
+      console.error('Export rate card failed', error);
       showToast('Failed to export rate card.', 'error');
     }
   };
@@ -196,7 +212,7 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
     const { name, value } = e.target;
     setEditingEntry(prev => ({
       ...prev,
-      [name]: value === '' ? null : parseFloat(value)
+      [name]: value === '' ? null : Number.parseFloat(value)
     }));
   };
 
@@ -216,8 +232,8 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
         <div>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
             <div className="form-group" style={{ margin: 0 }}>
-              <label>Select Rate Card</label>
-              <select value={selectedRateCardId} onChange={e => setSelectedRateCardId(e.target.value)}>
+              <label htmlFor="rate-card-select">Select Rate Card</label>
+              <select id="rate-card-select" value={selectedRateCardId} onChange={e => setSelectedRateCardId(e.target.value)}>
                 <option value="">-- Select Rate Card --</option>
                 {rateCards.map(rc => (
                   <option key={rc.id} value={rc.id}>{rc.name}</option>
@@ -235,9 +251,10 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
               <div className="card">
                 <h5>Assigned Customers</h5>
                 <div className="form-group">
-                  <label>Assign new customers</label>
+                  <label htmlFor="assign-customers-select">Assign new customers</label>
                   {/* Używamy `select multiple` dla prostoty, można to zastąpić bardziej zaawansowanym komponentem */}
                   <select
+                    id="assign-customers-select"
                     multiple
                     value={customersToAssign}
                     onChange={(e) => setCustomersToAssign(Array.from(e.target.selectedOptions, option => option.value))}
@@ -301,51 +318,58 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
                           <th>Service</th>
                           {priceColumns.map(col => (
                             <th key={col} style={{ minWidth: '100px', textTransform: 'capitalize' }}>
-                              {col.replace('price_', '').replace(/_/g, ' ')}
+                              {col.replace('price_', '').replaceAll('_', ' ')}
                             </th>
                           ))}
                           <th>Actions</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        {isLoading ? (
-                          <tr><td colSpan={priceColumns.length + 4} style={{ textAlign: 'center' }}>Loading...</td></tr>
-                        ) : rateEntries.length > 0 ?
-                          rateEntries.map(entry => {
-                            const zoneName = zones.find(z => z.id === entry.zone_id)?.zone_name || 'N/A';
-                            const isEditing = editingEntry?.id === entry.id;
-                            return (
-                              <tr key={entry.id}>
-                                <td style={{ textTransform: 'capitalize' }}>{entry.rate_type.replace('_', ' ')}</td>
-                                <td>{zoneName}</td>
-                                <td>{entry.service_level}</td>
-                                {priceColumns.map(col => (
-                                  <td key={`${entry.id}-${col}`}>
-                                    {isEditing ? (
-                                      <input type="number" step="0.01" name={col} value={editingEntry[col] ?? ''} onChange={handleEditChange} style={{ width: '80px' }} autoFocus={col === priceColumns[0]} />
-                                    ) : ( entry[col] )}
-                                  </td>
-                                ))}
-                                <td className="actions-cell">
-                                  {isEditing ? (
-                                    <>
-                                      <button onClick={handleUpdateRateEntry} className="btn-icon" title="Save"><Save size={16} /></button>
-                                      <button onClick={() => setEditingEntry(null)} className="btn-icon" title="Cancel"><XCircle size={16} /></button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <button onClick={() => setEditingEntry({ ...entry })} className="btn-icon" title="Edit Rate Entry"><Edit size={16} /></button>
-                                      <button onClick={() => handleDeleteRateEntry(entry.id)} className="btn-icon btn-danger" title="Delete Rate Entry"><Trash2 size={16} /></button>
-                                    </>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })
-                         : (
-                          <tr><td colSpan={priceColumns.length + 4} style={{ textAlign: 'center' }}>No rate entries found for this rate card.</td></tr>
-                        )}
-                      </tbody>
+                  <tbody>
+                    {isLoading && (
+                      <tr>
+                        <td colSpan={priceColumns.length + 4} style={{ textAlign: 'center' }}>Loading...</td>
+                      </tr>
+                    )}
+
+                    {!isLoading && rateEntries.length > 0 && rateEntries.map((entry) => {
+                      const zoneName = zones.find((z) => z.id === entry.zone_id)?.zone_name || 'N/A';
+                      const isEditing = editingEntry?.id === entry.id;
+
+                      return (
+                        <tr key={entry.id}>
+                          <td style={{ textTransform: 'capitalize' }}>{entry.rate_type.replaceAll('_', ' ')}</td>
+                          <td>{zoneName}</td>
+                          <td>{entry.service_level}</td>
+                          {priceColumns.map((col) => (
+                            <td key={`${entry.id}-${col}`}>
+                              {isEditing ? (
+                                <input type="number" step="0.01" name={col} value={editingEntry[col] ?? ''} onChange={handleEditChange} style={{ width: '80px' }} autoFocus={col === priceColumns[0]} />
+                              ) : ( entry[col] )}
+                            </td>
+                          ))}
+                          <td className="actions-cell">
+                            {isEditing ? (
+                              <>
+                                <button onClick={handleUpdateRateEntry} className="btn-icon" title="Save"><Save size={16} /></button>
+                                <button onClick={() => setEditingEntry(null)} className="btn-icon" title="Cancel"><XCircle size={16} /></button>
+                              </>
+                            ) : (
+                              <>
+                                <button onClick={() => setEditingEntry({ ...entry })} className="btn-icon" title="Edit Rate Entry"><Edit size={16} /></button>
+                                <button onClick={() => handleDeleteRateEntry(entry.id)} className="btn-icon btn-danger" title="Delete Rate Entry"><Trash2 size={16} /></button>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {!isLoading && rateEntries.length === 0 && (
+                      <tr>
+                        <td colSpan={priceColumns.length + 4} style={{ textAlign: 'center' }}>No rate entries found for this rate card.</td>
+                      </tr>
+                    )}
+                  </tbody>
                     </table>
                   </div>
                 </div>
@@ -360,3 +384,8 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
 
 export default RateCardEditor;
 // ostatnia zmiana (30.05.2024, 13:14:12)
+
+RateCardEditor.propTypes = {
+  customers: PropTypes.arrayOf(PropTypes.object),
+  zones: PropTypes.arrayOf(PropTypes.object),
+};

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import Papa from 'papaparse';
 import { X, UploadCloud, FileText, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
 import api from '@/services/api';
 import { useToast } from '@/contexts/ToastContext.jsx';
 
-const getNestedValue = (obj, path) => path.split('.').reduce((acc, part) => acc && acc[part], obj);
+const getNestedValue = (obj, path) => path?.split('.')?.reduce((acc, part) => acc?.[part], obj);
 
 const DataImporter = ({
   title,
@@ -23,6 +24,7 @@ const DataImporter = ({
   const [parsingErrors, setParsingErrors] = useState([]);
   const [error, setError] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(initialAutoRefresh);
+  const fileInputRef = useRef(null);
   const { showToast } = useToast();
 
   const handleFileChange = (e) => {
@@ -96,8 +98,11 @@ const DataImporter = ({
   };
 
   const toggleAutoRefresh = () => {
-    setAutoRefresh(prev => !prev);
-    showToast(`Auto-refresh ${!autoRefresh ? 'enabled' : 'disabled'}`, 'info');
+    setAutoRefresh((prev) => {
+      const next = !prev;
+      showToast(`Auto-refresh ${next ? 'enabled' : 'disabled'}`, 'info');
+      return next;
+    });
   };
 
   return (
@@ -129,24 +134,7 @@ const DataImporter = ({
       )}
 
       {/* 🔹 Główna część UI */}
-      {!file ? (
-        <div
-          className="dropzone"
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onClick={() => document.getElementById('file-input-generic').click()}
-        >
-          <UploadCloud size={48} />
-          <p>Drag & drop a CSV file here, or click to select a file.</p>
-          <input
-            type="file"
-            id="file-input-generic"
-            accept=".csv"
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-          />
-        </div>
-      ) : (
+      {file ? (
         <div>
           {/* Plik */}
           <div className="file-info" style={{ marginTop: '1.5rem' }}>
@@ -175,8 +163,8 @@ const DataImporter = ({
             >
               <strong>Parsing Errors Found:</strong>
               <ul>
-                {parsingErrors.slice(0, 5).map((err, index) => (
-                  <li key={index}>Row {err.row}: {err.message}</li>
+                {parsingErrors.slice(0, 5).map((err) => (
+                  <li key={`parse-error-${err.row ?? err.message}`}>Row {err.row}: {err.message}</li>
                 ))}
               </ul>
               {parsingErrors.length > 5 && <p>...and {parsingErrors.length - 5} more errors.</p>}
@@ -197,15 +185,25 @@ const DataImporter = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {parsedData.slice(0, 5).map((row, index) => (
-                      <tr key={index}>
+                    {parsedData.slice(0, 5).map((row) => {
+                      const fallbackKey = JSON.stringify(row);
+                      const rowKey = row?.id
+                        ?? row?.order_number
+                        ?? row?.customer_reference
+                        ?? row?.email
+                        ?? row?.code
+                        ?? fallbackKey;
+
+                      return (
+                        <tr key={`preview-row-${rowKey}`}>
                         {previewColumns.map(col => (
                           <td key={col.key}>
                             {col.render ? col.render(row) : getNestedValue(row, col.key)}
                           </td>
                         ))}
-                      </tr>
-                    ))}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -231,9 +229,45 @@ const DataImporter = ({
             </button>
           </div>
         </div>
+      ) : (
+        <button
+          type="button"
+          className="dropzone"
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <UploadCloud size={48} />
+          <p>Drag & drop a CSV file here, or click to select a file.</p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+        </button>
       )}
     </div>
   );
+};
+
+DataImporter.propTypes = {
+  title: PropTypes.string.isRequired,
+  apiEndpoint: PropTypes.string.isRequired,
+  postDataKey: PropTypes.string,
+  dataMappingFn: PropTypes.func.isRequired,
+  previewColumns: PropTypes.arrayOf(
+    PropTypes.shape({
+      key: PropTypes.string.isRequired,
+      header: PropTypes.string.isRequired,
+      render: PropTypes.func,
+    })
+  ).isRequired,
+  onSuccess: PropTypes.func,
+  onCancel: PropTypes.func.isRequired,
+  refreshFn: PropTypes.func,
+  initialAutoRefresh: PropTypes.bool,
 };
 
 export default DataImporter;

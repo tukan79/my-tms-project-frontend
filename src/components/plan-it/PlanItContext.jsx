@@ -1,5 +1,13 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import api from '@/services/api.js';
+// src/components/plan-it/PlanItContext.jsx
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+} from 'react';
+import PropTypes from 'prop-types';
 import { useToast } from '@/contexts/ToastContext.jsx';
 import { useAssignments } from '@/hooks/useAssignments.js';
 
@@ -13,23 +21,30 @@ export const usePlanIt = () => {
   return context;
 };
 
-export const PlanItProvider = ({ children, initialData = {}, runActions, onAssignmentCreated, onDeleteRequest, bulkAssignOrders: bulkAssignOrdersFromHook }) => {
+export const PlanItProvider = ({
+  children,
+  initialData = {},
+  runActions,
+  onAssignmentCreated,
+  onDeleteRequest,
+  bulkAssignOrders,
+}) => {
   const { showToast } = useToast();
-  
-  // Zapewniamy domyślne puste tablice dla wszystkich danych, aby uniknąć błędów
-  const { 
-    orders = [], 
-    runs = [], 
-    drivers = [], 
-    trucks = [], 
-    trailers = [], 
+
+  const {
+    orders = [],
+    runs = [],
+    drivers = [],
+    trucks = [],
+    trailers = [],
     pallets = [],
-    assignments: initialAssignmentsFromData = [],
-    zones = [] 
+    assignments: initialAssignments = [],
+    zones = [],
   } = initialData;
 
-  // --- State Management ---
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split('T')[0]
+  );
   const [activeRunId, setActiveRunId] = useState(null);
   const [editingRun, setEditingRun] = useState(null);
   const [isFormVisible, setIsFormVisible] = useState(false);
@@ -40,92 +55,167 @@ export const PlanItProvider = ({ children, initialData = {}, runActions, onAssig
     y: 0,
   });
 
-  // --- Auto Refresh toggle ---
+  const getStoredAutoRefresh = () => {
+    try {
+      if (!globalThis?.localStorage) {
+        return null;
+      }
+      return JSON.parse(
+        globalThis.localStorage.getItem('autoRefreshEnabled')
+      );
+    } catch {
+      return null;
+    }
+  };
+
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(() => {
-    // zapamiętaj preferencję użytkownika między sesjami
-    const saved = localStorage.getItem('autoRefreshEnabled');
-    return saved ? JSON.parse(saved) : true;
+    const value = getStoredAutoRefresh();
+    return typeof value === 'boolean' ? value : true;
   });
+
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const triggerRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    if (onAssignmentCreated) await onAssignmentCreated();
-    setTimeout(() => setIsRefreshing(false), 500);
+    if (onAssignmentCreated) {
+      await onAssignmentCreated();
+    }
+
+    if (globalThis?.setTimeout) {
+      globalThis.setTimeout(() => setIsRefreshing(false), 500);
+    } else {
+      setIsRefreshing(false);
+    }
   }, [onAssignmentCreated]);
 
-  // --- Auto Refresh every X seconds ---
-  React.useEffect(() => {
-    localStorage.setItem('autoRefreshEnabled', JSON.stringify(autoRefreshEnabled));
-    if (!autoRefreshEnabled) return;
+  useEffect(() => {
+    if (!globalThis?.localStorage) return;
+    globalThis.localStorage.setItem(
+      'autoRefreshEnabled',
+      JSON.stringify(autoRefreshEnabled)
+    );
+  }, [autoRefreshEnabled]);
 
-    const REFRESH_INTERVAL = 30000; // 30 sekund
-    const interval = setInterval(() => {
-      console.log('🔄 Auto-refresh triggered...');
-      triggerRefresh();
-    }, REFRESH_INTERVAL);
+  useEffect(() => {
+    if (!autoRefreshEnabled || !globalThis?.setInterval) {
+      return undefined;
+    }
 
-    return () => clearInterval(interval); // czyszczenie przy odmontowaniu
+    const REFRESH_INTERVAL = 30000;
+    const interval = globalThis.setInterval(
+      triggerRefresh,
+      REFRESH_INTERVAL
+    );
+
+    return () => {
+      if (globalThis?.clearInterval) {
+        globalThis.clearInterval(interval);
+      }
+    };
   }, [autoRefreshEnabled, triggerRefresh]);
 
-  // --- Optymalizacja wydajności: Tworzenie map (lookup tables) do szybkiego wyszukiwania ---
-  const driverMap = useMemo(() => new Map(drivers.map(d => [d.id, d])), [drivers]);
-  const truckMap = useMemo(() => new Map(trucks.map(t => [t.id, t])), [trucks]);
-  const trailerMap = useMemo(() => new Map(trailers.map(t => [t.id, t])), [trailers]);
-  const orderMap = useMemo(() => new Map(orders.map(o => [o.id, o])), [orders]);
+  const driverMap = useMemo(
+    () => new Map(drivers.map(d => [d.id, d])),
+    [drivers]
+  );
+  const truckMap = useMemo(
+    () => new Map(trucks.map(t => [t.id, t])),
+    [trucks]
+  );
+  const trailerMap = useMemo(
+    () => new Map(trailers.map(t => [t.id, t])),
+    [trailers]
+  );
+  const orderMap = useMemo(
+    () => new Map(orders.map(o => [o.id, o])),
+    [orders]
+  );
 
-  // Grupowanie przypisań po run_id dla błyskawicznego dostępu O(1) w pętli
   const assignmentsByRun = useMemo(() => {
     const map = new Map();
-    for (const assignment of initialAssignmentsFromData) {
-      if (!map.has(assignment.run_id)) {
-        map.set(assignment.run_id, []);
-      }
-      map.get(assignment.run_id).push(assignment);
-    }
-    return map;
-  }, [initialAssignmentsFromData]);
 
-  // --- Memoized Data Derivations ---
-  const enrichedRuns = useMemo(() => {
-    const filteredRuns = runs.filter(run => run.run_date?.startsWith(selectedDate));
-
-    return filteredRuns.map(run => {
-      const driver = driverMap.get(run.driver_id);
-      const truck = truckMap.get(run.truck_id);
-      const trailer = run.trailer_id ? trailerMap.get(run.trailer_id) : null;
-
-      const runAssignments = assignmentsByRun.get(run.id) || [];
-      const assignedOrders = runAssignments.map(a => orderMap.get(a.order_id)).filter(Boolean);
-
-      const { totalKilos, totalSpaces } = assignedOrders.reduce((acc, order) => {
-        acc.totalKilos += order.cargo_details?.total_kilos || 0;
-        acc.totalSpaces += order.cargo_details?.total_spaces || 0;
-        return acc;
-      }, { totalKilos: 0, totalSpaces: 0 });
-
-      const hasCapacity = truck?.type_of_truck === 'rigid' || (truck?.type_of_truck === 'tractor' && trailer);
-      const maxPayload = hasCapacity ? (truck?.type_of_truck === 'rigid' ? truck.max_payload_kg : trailer?.max_payload_kg) : null;
-      const maxPallets = hasCapacity ? (truck?.type_of_truck === 'rigid' ? truck.pallet_capacity : trailer?.max_spaces) : null;
-
-      return {
-        ...run,
-        displayText: `${driver ? `${driver.first_name} ${driver.last_name}` : 'No Driver'} - ${truck ? truck.registration_plate : 'No Truck'} ${trailer ? `+ ${trailer.registration_plate}` : ''}`,
-        totalKilos,
-        totalSpaces,
-        maxPayload,
-        maxPallets,
-        hasCapacity,
-      };
+    initialAssignments.forEach(a => {
+      const list = map.get(a.run_id) ?? [];
+      list.push(a);
+      map.set(a.run_id, list);
     });
-  }, [runs, selectedDate, driverMap, truckMap, trailerMap, assignmentsByRun, orderMap]);
 
-  const assignmentsData = useMemo(() => ({
-    initialAssignments: initialAssignmentsFromData,
-    orders,
-    enrichedRuns,
-    onDataRefresh: triggerRefresh,
-  }), [initialAssignmentsFromData, orders, enrichedRuns, triggerRefresh]);
+    return map;
+  }, [initialAssignments]);
+
+  const enrichedRuns = useMemo(() => {
+    return runs
+      .filter(run => run.run_date?.startsWith(selectedDate))
+      .map(run => {
+        const driver = driverMap.get(run.driver_id);
+        const truck = truckMap.get(run.truck_id);
+        const trailer = trailerMap.get(run.trailer_id);
+
+        const runAssignments = assignmentsByRun.get(run.id) ?? [];
+        const assignedOrders = runAssignments
+          .map(a => orderMap.get(a.order_id))
+          .filter(Boolean);
+
+        let totalKilos = 0;
+        let totalSpaces = 0;
+
+        assignedOrders.forEach(order => {
+          totalKilos += order?.cargo_details?.total_kilos ?? 0;
+          totalSpaces += order?.cargo_details?.total_spaces ?? 0;
+        });
+
+        const isRigid = truck?.type_of_truck === 'rigid';
+        const hasCapacity = Boolean(isRigid || trailer);
+
+        let maxPayload = null;
+        let maxPallets = null;
+
+        if (hasCapacity) {
+          if (isRigid) {
+            maxPayload = truck?.max_payload_kg ?? null;
+            maxPallets = truck?.pallet_capacity ?? null;
+          } else {
+            maxPayload = trailer?.max_payload_kg ?? null;
+            maxPallets = trailer?.max_spaces ?? null;
+          }
+        }
+
+        const driverName = driver
+          ? `${driver.first_name} ${driver.last_name}`
+          : 'No Driver';
+
+        const truckPlate = truck?.registration_plate ?? 'No Truck';
+        const trailerPlate = trailer?.registration_plate ?? '';
+
+        return {
+          ...run,
+          displayText: `${driverName} - ${truckPlate} ${trailerPlate}`,
+          totalKilos,
+          totalSpaces,
+          maxPayload,
+          maxPallets,
+          hasCapacity,
+        };
+      });
+  }, [
+    runs,
+    selectedDate,
+    driverMap,
+    truckMap,
+    trailerMap,
+    assignmentsByRun,
+    orderMap,
+  ]);
+
+  const assignmentsData = useMemo(
+    () => ({
+      initialAssignments,
+      orders,
+      enrichedRuns,
+      onDataRefresh: triggerRefresh,
+    }),
+    [initialAssignments, orders, enrichedRuns, triggerRefresh]
+  );
 
   const {
     assignments,
@@ -135,18 +225,20 @@ export const PlanItProvider = ({ children, initialData = {}, runActions, onAssig
     error,
   } = useAssignments(assignmentsData);
 
-  // Centralna obsługa błędów z hooka useAssignments
-  React.useEffect(() => {
+  useEffect(() => {
     if (error) {
-      console.error('❌ useAssignments error:', error);
       showToast(error, 'error');
     }
   }, [error, showToast]);
 
-  const activeRun = useMemo(() => activeRunId ? enrichedRuns.find(run => run.id === activeRunId) : null, [activeRunId, enrichedRuns]);
+  const activeRun = useMemo(() => {
+    if (!activeRunId) return null;
+    return enrichedRuns.find(r => r.id === activeRunId) ?? null;
+  }, [activeRunId, enrichedRuns]);
 
   const ordersForActiveRun = useMemo(() => {
     if (!activeRun) return [];
+
     return assignments
       .filter(a => a.run_id === activeRun.id)
       .map(a => {
@@ -156,7 +248,6 @@ export const PlanItProvider = ({ children, initialData = {}, runActions, onAssig
       .filter(Boolean);
   }, [activeRun, assignments, orderMap]);
 
-  // --- Handlers ---
   const handleEditRun = useCallback((run) => {
     setEditingRun(run);
     setIsFormVisible(true);
@@ -167,131 +258,85 @@ export const PlanItProvider = ({ children, initialData = {}, runActions, onAssig
     setIsFormVisible(true);
   }, []);
 
-  const handleSaveRun = useCallback(async (runData) => {
-    try {
-      const payload = { ...runData, trailer_id: runData.trailer_id || null };
+  const handleDeleteAssignmentWithRefresh = useCallback(
+    async (id) => {
+      await handleDeleteAssignment(id);
+      await triggerRefresh();
+    },
+    [handleDeleteAssignment, triggerRefresh]
+  );
 
-      if (editingRun) {
-        await runActions.update(editingRun.id, payload);
-        showToast('Run updated successfully!', 'success');
-      } else {
-        await runActions.create(payload);
-        showToast('Run created successfully!', 'success');
-      }
-      setIsFormVisible(false);
-      setEditingRun(null);
-      triggerRefresh();
-      if (payload?.run_date && payload.run_date !== selectedDate) {
-        setSelectedDate(payload.run_date);
-        setActiveRunId(null);
-      }
-    } catch (err) {
-      console.error('❌ Error saving run:', err);
-      showToast(err.response?.data?.message || err.message || 'Failed to save run', 'error');
-    }
-  }, [editingRun, runActions, showToast, triggerRefresh, selectedDate]);
+  const contextValue = useMemo(
+    () => ({
+      selectedDate,
+      activeRunId,
+      editingRun,
+      isFormVisible,
+      selectedOrderIds,
+      contextMenu,
+      enrichedRuns,
+      availableOrders,
+      activeRun,
+      ordersForActiveRun,
+      assignments,
+      isRefreshing,
+      autoRefreshEnabled,
 
-  const handleDeleteRun = useCallback(async (run) => {
-    onDeleteRequest(
-      `Are you sure you want to delete run: ${run.displayText}?`,
-      async () => {
-        try {
-          await runActions.delete(run.id);
-          showToast(`Run "${run.displayText}" deleted.`, 'success');
-          triggerRefresh();
-        } catch (err) {
-          console.error('❌ Error deleting run:', err);
-          showToast(err.response?.data?.error || 'Failed to delete run.', 'error');
-        }
-      }
-    );
-  }, [runActions, showToast, triggerRefresh, onDeleteRequest]);
+      setSelectedDate,
+      setActiveRunId,
+      setEditingRun,
+      setIsFormVisible,
+      setSelectedOrderIds,
+      setContextMenu,
+      setAutoRefreshEnabled,
 
-  const handleDeleteAssignmentWithRefresh = useCallback(async (assignmentId) => {
-    try {
-      await handleDeleteAssignment(assignmentId);
-      triggerRefresh();
-    } catch (err) {
-      console.error('❌ Error during assignment deletion and refresh:', err);
-      // Błąd jest już obsłużony w `useAssignments`, więc nie trzeba go tu ponownie pokazywać
-    }
-  }, [handleDeleteAssignment, triggerRefresh]);
+      handleEditRun,
+      handleAddNewRun,
+      handleDeleteAssignment: handleDeleteAssignmentWithRefresh,
+      handleDragEnd,
 
-  const handleBulkAssign = useCallback(async () => {
-    if (!activeRunId) return showToast('Please select an active run first.', 'error');
-    if (selectedOrderIds.length === 0) return showToast('No orders selected for assignment.', 'error');
+      initialData: { drivers, trucks, trailers, zones, pallets },
+      triggerRefresh,
+    }),
+    [
+      selectedDate,
+      activeRunId,
+      editingRun,
+      isFormVisible,
+      selectedOrderIds,
+      contextMenu,
+      enrichedRuns,
+      availableOrders,
+      activeRun,
+      ordersForActiveRun,
+      assignments,
+      isRefreshing,
+      autoRefreshEnabled,
+      handleEditRun,
+      handleAddNewRun,
+      handleDeleteAssignmentWithRefresh,
+      handleDragEnd,
+      drivers,
+      trucks,
+      trailers,
+      zones,
+      pallets,
+      triggerRefresh,
+    ]
+  );
 
-    try {
-      const result = await bulkAssignOrdersFromHook({ run_id: activeRunId, order_ids: selectedOrderIds });
-      if (result.success) {
-        showToast(result.message, 'success');
-        setSelectedOrderIds([]);
-        triggerRefresh();
-      } else {
-        showToast(result.message, 'error');
-      }
-    } catch (err) {
-      console.error('❌ Bulk assign failed:', err);
-      showToast(err.response?.data?.message || 'An unexpected error occurred.', 'error');
-    }
-  }, [activeRunId, selectedOrderIds, bulkAssignOrdersFromHook, showToast, triggerRefresh]);
-
-  const handleBulkDelete = useCallback(() => {
-    if (selectedOrderIds.length === 0) return showToast('No orders selected for deletion.', 'error');
-    
-    const onConfirm = async () => {
-      try {
-        await api.delete('/api/orders/bulk', { data: { ids: selectedOrderIds } });
-        showToast(`${selectedOrderIds.length} orders deleted successfully.`, 'success');
-        setSelectedOrderIds([]);
-        triggerRefresh();
-      } catch (err) {
-        console.error('❌ Bulk delete failed:', err);
-        showToast(err.response?.data?.error || 'Failed to delete orders.', 'error');
-      }
-    };
-    
-    onDeleteRequest(`Are you sure you want to delete ${selectedOrderIds.length} selected orders? This action cannot be undone.`, onConfirm);
-  }, [selectedOrderIds, onDeleteRequest, showToast, triggerRefresh]);
-
-  // --- Context Value ---
-  const value = useMemo(() => ({
-    selectedDate,
-    activeRunId,
-    editingRun,
-    isFormVisible,
-    selectedOrderIds,
-    contextMenu,
-    setSelectedDate,
-    setActiveRunId,
-    setIsFormVisible,
-    setSelectedOrderIds,
-    setContextMenu,
-    handleEditRun,
-    handleAddNewRun,
-    handleSaveRun,
-    handleBulkAssign,
-    handleBulkDelete,
-    handleDeleteRun,
-    enrichedRuns,
-    availableOrders,
-    activeRun,
-    ordersForActiveRun,
-    handleDragEnd,
-    handleDeleteAssignment: handleDeleteAssignmentWithRefresh,
-    initialData: { drivers, trucks, trailers, zones, pallets },
-    triggerRefresh,
-    autoRefreshEnabled,
-    setAutoRefreshEnabled,
-    isRefreshing,
-  }), [
-    selectedDate, activeRunId, editingRun, isFormVisible, selectedOrderIds, contextMenu,
-    handleEditRun, handleAddNewRun, handleSaveRun, handleBulkAssign, handleBulkDelete, handleDeleteRun,
-    enrichedRuns, availableOrders, activeRun, ordersForActiveRun, handleDragEnd, handleDeleteAssignmentWithRefresh,
-    drivers, trucks, trailers, zones, pallets, triggerRefresh,
-    autoRefreshEnabled, setAutoRefreshEnabled, isRefreshing
-  ]);
-
-  return <PlanItContext.Provider value={value}>{children}</PlanItContext.Provider>;
+  return (
+    <PlanItContext.Provider value={contextValue}>
+      {children}
+    </PlanItContext.Provider>
+  );
 };
-// ostatnia zmiana (30.05.2024, 13:14:12)
+
+PlanItProvider.propTypes = {
+  children: PropTypes.node.isRequired,
+  initialData: PropTypes.object,
+  runActions: PropTypes.object,
+  onAssignmentCreated: PropTypes.func,
+  onDeleteRequest: PropTypes.func,
+  bulkAssignOrders: PropTypes.func,
+};

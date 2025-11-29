@@ -8,10 +8,11 @@ import api from '@/services/api';
  */
 export const useApiResource = (
   resourceUrl, // np. /api/orders
+  options,
   resourceName = 'resource',
   initialData = [],
-  options = { initialFetch: true }
 ) => {
+  const safeOptions = options ?? { initialFetch: true };
   const enabled = Boolean(resourceUrl);
 
   const [data, setData] = useState(Array.isArray(initialData) ? initialData : []);
@@ -29,17 +30,17 @@ export const useApiResource = (
 
   const resourceUrlRef = useRef(resourceUrl);
   const resourceNameRef = useRef(resourceName);
-  const optionsRef = useRef(options);
+  const optionsRef = useRef(safeOptions);
   const abortControllerRef = useRef(null);
   const inFlightRef = useRef(false);
 
   useEffect(() => {
     resourceUrlRef.current = resourceUrl;
     resourceNameRef.current = resourceName;
-    optionsRef.current = options;
+    optionsRef.current = safeOptions;
     // When resourceUrl changes, reset lastFetched so that a new fetch is allowed
     setLastFetched(null);
-  }, [resourceUrl, resourceName, options]);
+  }, [resourceUrl, resourceName, safeOptions]);
 
   const isCancelError = (err) => axios.isCancel?.(err) || err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError';
 
@@ -76,7 +77,7 @@ export const useApiResource = (
 
     // abort previous
     if (abortControllerRef.current) {
-      try { abortControllerRef.current.abort(); } catch (e) { /* ignore */ }
+      try { abortControllerRef.current.abort(); } catch (e) { console.error('Abort previous request failed', e); }
     }
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -132,8 +133,10 @@ export const useApiResource = (
   const deepClone = (obj) => {
     try {
       if (typeof structuredClone === 'function') return structuredClone(obj);
-    } catch (e) { /* ignore */ }
-    return JSON.parse(JSON.stringify(obj));
+    } catch (e) {
+      console.error('structuredClone failed', e);
+    }
+    return obj;
   };
 
   // CREATE
@@ -156,11 +159,13 @@ export const useApiResource = (
     try {
       const resp = await api.post(currentUrl, resourceData);
       const created = Array.isArray(resp.data) ? resp.data[0] : resp.data;
-      setDataRef.current((prev) =>
-        typeof optimisticFn === 'function'
-          ? (Array.isArray(prev) ? prev.map((it) => (it.id === tempId ? created : it)) : [created])
-          : (Array.isArray(prev) ? [...prev, created] : [created])
-      );
+      setDataRef.current((prev) => {
+        const current = Array.isArray(prev) ? prev : [];
+        if (typeof optimisticFn === 'function') {
+          return current.map((it) => (it.id === tempId ? created : it));
+        }
+        return [...current, created];
+      });
       if (autoRefetch) {
         await fetchData();
       }

@@ -6,11 +6,20 @@ import ConfirmationModal from './shared/ConfirmationModal.jsx';
 import { PopOutProvider } from '@/contexts/PopOutContext.jsx';
 import { useDashboard } from '../contexts/DashboardContext.jsx';
 
-const DashboardContent = () => {
-  const { modalState, handleCloseModal, globalAutoRefresh, viewConfig } = useDashboard();
+const DashboardContent = () => {  
+  // 1. KRYTYCZNA POPRAWKA: Usunięto podwójne pobieranie danych.
+  // Wszystkie potrzebne dane i stany są teraz pobierane z jednego źródła - kontekstu DashboardContext.
+  const dashboardData = useDashboard();
+  const { 
+    modalState, 
+    handleCloseModal, 
+    globalAutoRefresh, 
+    viewConfig 
+  } = dashboardData;
 
-  if (!viewConfig) {
-    return <div className="loading">Loading dashboard...</div>;
+  // Zabezpieczenie: Jeśli konfiguracja widoku nie jest jeszcze gotowa, wyświetl ekran ładowania.
+  if (!viewConfig || Object.keys(viewConfig).length === 0) {
+    return <div className="loading">Initializing dashboard...</div>;
   }
 
   return (
@@ -27,6 +36,7 @@ const DashboardContent = () => {
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <PopOutProvider>
             <ViewRenderer
+              data={dashboardData} // Przekazujemy cały obiekt z kontekstu, aby ViewRenderer miał dostęp do wszystkiego.
               viewConfig={viewConfig}
               autoRefreshEnabled={globalAutoRefresh}
             />
@@ -37,8 +47,8 @@ const DashboardContent = () => {
 
       {modalState?.isOpen && (
         <ConfirmationModal
-          message={modalState?.message}
-          onConfirm={modalState?.onConfirm}
+          message={modalState.message}
+          onConfirm={modalState.onConfirm}
           onCancel={handleCloseModal}
         />
       )}

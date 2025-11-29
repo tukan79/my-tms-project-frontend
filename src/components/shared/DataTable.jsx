@@ -1,16 +1,15 @@
-// DataTable.js
-import React, { useState, useEffect } from 'react';
+// src/components/shared/DataTable.jsx
+import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { ArrowUp, ArrowDown, Edit, Trash2, RefreshCcw, RefreshCw } from 'lucide-react';
+import { ArrowUp, ArrowDown, Edit, Trash2, RefreshCcw } from 'lucide-react';
 import SkeletonRow from '@/components/shared/SkeletonRow.jsx';
 import { useTableData } from '@/hooks/useTableData';
 
+// ✅ Poprawione pod Sonar – optional chaining
 const getNestedValue = (obj, path) => {
-  if (!obj || !path || typeof obj !== 'object') return undefined;
   try {
-    return path.split('.').reduce((acc, part) => acc && acc[part], obj);
-  } catch (error) {
-    console.warn('Error accessing nested value:', { path, obj, error });
+    return path?.split('.')?.reduce((acc, part) => acc?.[part], obj);
+  } catch {
     return undefined;
   }
 };
@@ -23,49 +22,42 @@ const DataTable = ({
   onDelete,
   title = '',
   customActions = [],
-  filterPlaceholder = "Search...",
+  filterPlaceholder = 'Search...',
   initialSortKey,
   filterKeys = [],
   currentUser,
   isLoading = false,
-  loadingText = "Loading...",
+  loadingText = 'Loading...',
   onContextMenu,
   footerData = {},
-  autoRefreshEnabled = false
+  autoRefreshEnabled = false,
 }) => {
-  if (!Array.isArray(columns)) {
-    console.error('DataTable: columns must be an array');
-    return null;
-  }
-
+  // ✅ Zawsze wywołuj hooki – bez warunków
   const safeItems = Array.isArray(items) ? items : [];
   const safeColumns = Array.isArray(columns) ? columns : [];
 
-  // ✅ Twarde zabezpieczenia
+  const tableHook = useTableData(safeItems, { initialSortKey, filterKeys });
+
   const {
     sortedAndFilteredData = [],
     sortConfig = {},
     filterText = '',
     setFilterText = () => {},
     handleSort = () => {},
-  } = useTableData?.(safeItems, { initialSortKey, filterKeys }) || {};
-
-  // ✅ Zawsze zwracaj tablicę
-  const safeSortedData = Array.isArray(sortedAndFilteredData)
-    ? sortedAndFilteredData
-    : [];
-
-  // Dodatkowa diagnostyka
-  console.log('🧠 DataTable debug:', {
-    itemsType: typeof items,
-    itemsIsArray: Array.isArray(items),
-    safeSortedDataLength: safeSortedData.length,
-    columnsLength: Array.isArray(columns) ? columns.length : '❌ not array',
-  });
+  } = tableHook ?? {};
 
   const [inputValue, setInputValue] = useState(filterText);
 
-  // 🔍 Debouncing filtra
+  const safeSortedData = useMemo(
+    () => (Array.isArray(sortedAndFilteredData) ? sortedAndFilteredData : []),
+    [sortedAndFilteredData]
+  );
+
+  const hasActions = Boolean(
+    onEdit || onDelete || (Array.isArray(customActions) && customActions.length > 0)
+  );
+
+  // ✅ Debounce filtra
   useEffect(() => {
     const timer = setTimeout(() => {
       setFilterText(inputValue);
@@ -73,47 +65,59 @@ const DataTable = ({
     return () => clearTimeout(timer);
   }, [inputValue, setFilterText]);
 
-  // 🕐 Auto-refresh co X sekund
+  // ✅ Auto refresh
   useEffect(() => {
     if (!autoRefreshEnabled || !onRefresh) return;
 
     const interval = setInterval(() => {
-      console.log('🔁 Auto refresh triggered');
       onRefresh();
-    }, 30000); // 30 sekund
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [autoRefreshEnabled, onRefresh]);
 
   const getSortIcon = (key) => {
-    if (sortConfig.key === key) {
-      return sortConfig.direction === 'ascending'
-        ? <ArrowUp size={14} />
-        : <ArrowDown size={14} />;
-    }
-    return null;
+    if (sortConfig?.key !== key) return null;
+    return sortConfig?.direction === 'ascending'
+      ? <ArrowUp size={14} />
+      : <ArrowDown size={14} />;
+  };
+
+  // ✅ Usunięty nested ternary
+  const getAriaSort = (colKey) => {
+    if (sortConfig?.key !== colKey) return 'none';
+    return sortConfig?.direction === 'ascending'
+      ? 'ascending'
+      : 'descending';
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>{title} ({safeSortedData?.length ?? 0})</h2>
+        <h2>{title} ({safeSortedData.length})</h2>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <input
             type="text"
+            aria-label="Search table"
             placeholder={filterPlaceholder}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             className="filter-input"
           />
 
-          {/* 🔄 Manual refresh */}
           {onRefresh && (
-            <button onClick={onRefresh} className="btn-icon" title="Refresh now" disabled={isLoading}>
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="btn-icon"
+              title="Refresh now"
+              disabled={isLoading}
+              aria-label="Refresh data"
+            >
               <RefreshCcw size={18} className={isLoading ? 'animate-spin' : ''} />
             </button>
           )}
-
         </div>
       </div>
 
@@ -124,73 +128,93 @@ const DataTable = ({
               {safeColumns.map((col) => (
                 <th
                   key={col.key}
-                  onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                  aria-sort={
-                    sortConfig.key === col.key
-                      ? sortConfig.direction === 'ascending'
-                        ? 'ascending'
-                        : 'descending'
-                      : 'none'
-                  }
+                  aria-sort={col.sortable ? getAriaSort(col.key) : undefined}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {col.icon}
+                  {col.sortable ? (
+                    <button
+                      type="button"
+                      className="table-sort-button"
+                      onClick={() => handleSort(col.key)}
+                    >
+                      {col.icon}
+                      <span>{col.header}</span>
+                      {getSortIcon(col.key)}
+                    </button>
+                  ) : (
                     <span>{col.header}</span>
-                    {col.sortable && getSortIcon(col.key)}
-                  </div>
+                  )}
                 </th>
               ))}
-              {(onEdit || onDelete || (Array.isArray(customActions) && customActions.length > 0)) && (
-                <th>Actions</th>
-              )}
+              {hasActions && <th>Actions</th>}
             </tr>
           </thead>
 
           <tbody>
-            {isLoading ? (
+            {isLoading && (
               Array.from({ length: 10 }).map((_, i) => (
                 <SkeletonRow
-                  key={i}
+                  key={`skeleton-${safeColumns.length}-${loadingText}-${i}`}
                   columns={safeColumns}
-                  hasActions={onEdit || onDelete || (Array.isArray(customActions) && customActions.length > 0)}
+                  hasActions={hasActions}
                 />
               ))
-            ) : safeSortedData?.length > 0 ? (
-              safeSortedData.map((item) => (
+            )}
+
+            {!isLoading && safeSortedData.length > 0 && safeSortedData.map((item) => {
+              const isCurrentUserRow = currentUser?.id === item.id;
+
+              return (
                 <tr
-                  key={item.id}
+                  key={item.id ?? `row-${crypto.randomUUID()}`}
                   onContextMenu={onContextMenu ? (e) => onContextMenu(e, item) : undefined}
-                  style={onContextMenu ? { cursor: 'context-menu' } : {}}
+                  style={onContextMenu ? { cursor: 'context-menu' } : undefined}
                 >
                   {safeColumns.map((col) => (
-                    <td key={`${item.id}-${col?.key}`}>
+                    <td key={`${item.id}-${col.key}`}>
                       {col.render ? col.render(item) : getNestedValue(item, col.key)}
                     </td>
                   ))}
-                  {(onEdit || onDelete || (Array.isArray(customActions) && customActions.length > 0)) && (
+
+                  {hasActions && (
                     <td className="actions-cell">
-                      {currentUser && currentUser.id === item.id ? (
-                        <span className="text-muted" aria-label="Current user">This is you</span>
+                      {isCurrentUserRow ? (
+                        <span className="text-muted">This is you</span>
                       ) : (
                         <>
                           {onEdit && (
-                            <button onClick={() => onEdit(item)} className="btn-icon" title="Edit">
+                            <button
+                              type="button"
+                              onClick={() => onEdit(item)}
+                              className="btn-icon"
+                              title="Edit"
+                              aria-label="Edit item"
+                            >
                               <Edit size={16} />
                             </button>
                           )}
+
                           {onDelete && (
-                            <button onClick={() => onDelete(item)} className="btn-icon btn-danger" title="Delete">
+                            <button
+                              type="button"
+                              onClick={() => onDelete(item)}
+                              className="btn-icon btn-danger"
+                              title="Delete"
+                              aria-label="Delete item"
+                            >
                               <Trash2 size={16} />
                             </button>
                           )}
                         </>
                       )}
-                      {customActions.map((action, index) => (
+
+                      {(customActions ?? []).map((action) => (
                         <button
-                          key={index}
+                          key={action.title}
+                          type="button"
                           onClick={() => action.onClick(item)}
                           className="btn-icon"
                           title={action.title}
+                          aria-label={action.title}
                         >
                           {action.icon}
                         </button>
@@ -198,8 +222,8 @@ const DataTable = ({
                     </td>
                   )}
                 </tr>
-              ))
-            ) : null}
+              );
+            })}
           </tbody>
 
           {footerData && (
@@ -207,12 +231,10 @@ const DataTable = ({
               <tr>
                 {safeColumns.map((col) => (
                   <td key={`footer-${col.key}`}>
-                    {footerData?.[col.key] ? (
-                      <strong>{footerData[col.key]}</strong>
-                    ) : null}
+                    {footerData?.[col.key] ? <strong>{footerData[col.key]}</strong> : null}
                   </td>
                 ))}
-                {(onEdit || onDelete || (Array.isArray(customActions) && customActions.length > 0)) && <td></td>}
+                {hasActions && <td></td>}
               </tr>
             </tfoot>
           )}
@@ -220,7 +242,9 @@ const DataTable = ({
 
         {!isLoading && safeSortedData.length === 0 && (
           <p className="no-results-message" aria-live="polite">
-            {filterText ? 'No results match the search criteria.' : 'No data in the database.'}
+            {filterText
+              ? 'No results match the search criteria.'
+              : 'No data in the database.'}
           </p>
         )}
       </div>
@@ -230,13 +254,15 @@ const DataTable = ({
 
 DataTable.propTypes = {
   items: PropTypes.array,
-  columns: PropTypes.arrayOf(PropTypes.shape({
-    key: PropTypes.string.isRequired,
-    header: PropTypes.string.isRequired,
-    sortable: PropTypes.bool,
-    render: PropTypes.func,
-    icon: PropTypes.node,
-  })),
+  columns: PropTypes.arrayOf(
+    PropTypes.shape({
+      key: PropTypes.string.isRequired,
+      header: PropTypes.string.isRequired,
+      sortable: PropTypes.bool,
+      render: PropTypes.func,
+      icon: PropTypes.node,
+    })
+  ),
   onEdit: PropTypes.func,
   onDelete: PropTypes.func,
   onRefresh: PropTypes.func,
@@ -248,8 +274,9 @@ DataTable.propTypes = {
   currentUser: PropTypes.object,
   onContextMenu: PropTypes.func,
   footerData: PropTypes.object,
-  autoRefreshEnabled: PropTypes.bool, // Dodajemy prop do walidacji
+  autoRefreshEnabled: PropTypes.bool,
+  isLoading: PropTypes.bool,
+  loadingText: PropTypes.string,
 };
 
 export default DataTable;
-// ostatnia zmiana (04.11.2025)

@@ -1,9 +1,17 @@
+// src/components/forms/AddRunForm.jsx
 import React, { useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { X } from 'lucide-react';
-import { useToast } from '@/contexts/ToastContext.jsx';
-import { useForm } from '@/hooks/useForm.js'; // Poprawiona ścieżka
 
-// Przeniesiono poza komponent, aby uniknąć ponownego tworzenia przy każdym renderowaniu
+import { useToast } from '@/contexts/ToastContext.jsx';
+import { useForm } from '@/hooks/useForm.js';
+
+import { validateRun } from './validators/runValidator.js';
+import { createRun, updateRun } from './services/runService.js';
+
+import TextField from './fields/TextField.jsx';
+import SelectField from './fields/SelectField.jsx';
+
 const initialFormData = {
   run_date: new Date().toISOString().split('T')[0],
   type: 'delivery',
@@ -12,24 +20,57 @@ const initialFormData = {
   trailer_id: '',
 };
 
-const AddRunForm = ({ onSuccess, onCancel, itemToEdit, drivers = [], trucks = [], trailers = [] }) => {
+const normalizeEditData = (itemToEdit) => {
+  if (!itemToEdit) {
+    return null;
+  }
+
+  return {
+    ...itemToEdit,
+    run_date: itemToEdit.run_date
+      ? new Date(itemToEdit.run_date).toISOString().split('T')[0]
+      : initialFormData.run_date,
+    driver_id: itemToEdit.driver_id ?? '',
+    truck_id: itemToEdit.truck_id ?? '',
+    trailer_id: itemToEdit.trailer_id ?? '',
+  };
+};
+
+const AddRunForm = ({
+  onSuccess,
+  onCancel,
+  itemToEdit,
+  drivers,
+  trucks,
+  trailers,
+}) => {
   const isEditMode = Boolean(itemToEdit);
   const { showToast } = useToast();
 
-  const validate = (data) => {
-    const newErrors = {};
-    if (!data.run_date) newErrors.run_date = 'Run date is required.';
-    if (!data.driver_id) newErrors.driver_id = 'Driver is required.';
-    if (!data.truck_id) newErrors.truck_id = 'Truck is required.';
-    return newErrors;
-  };
+  const normalizedItem = useMemo(
+    () => normalizeEditData(itemToEdit),
+    [itemToEdit]
+  );
 
   const performSubmit = async (formData) => {
     try {
-      await onSuccess(formData);
+      if (isEditMode) {
+        await updateRun(itemToEdit.id, formData);
+      } else {
+        await createRun(formData);
+      }
+
+      const successMessage = isEditMode
+        ? 'Run updated successfully.'
+        : 'Run created successfully.';
+
+      showToast(successMessage, 'success');
+      onSuccess();
     } catch (error) {
-      showToast(error.message || `Failed to ${isEditMode ? 'update' : 'create'} run.`, 'error');
-      throw error; // Rzucamy błąd dalej
+      const message =
+        error.response?.data?.error || 'Failed to save run.';
+      showToast(message, 'error');
+      throw new Error(message);
     }
   };
 
@@ -41,59 +82,101 @@ const AddRunForm = ({ onSuccess, onCancel, itemToEdit, drivers = [], trucks = []
     handleSubmit,
   } = useForm({
     initialState: initialFormData,
-    validate,
+    validate: validateRun,
     onSubmit: performSubmit,
-    // Poprawka: Używamy useMemo, aby ustabilizować obiekt `itemToEdit` i uniknąć pętli renderowania.
-    itemToEdit: useMemo(() => (
-      itemToEdit ? {
-        ...itemToEdit,
-        run_date: itemToEdit.run_date ? new Date(itemToEdit.run_date).toISOString().split('T')[0] : initialFormData.run_date,
-        driver_id: itemToEdit.driver_id || '',
-        truck_id: itemToEdit.truck_id || '',
-        trailer_id: itemToEdit.trailer_id || '',
-      } : null
-    ), [itemToEdit]),
+    itemToEdit: normalizedItem,
   });
 
+  const getSubmitLabel = () => {
+    if (loading) {
+      return 'Saving...';
+    }
+
+    if (isEditMode) {
+      return 'Save Changes';
+    }
+
+    return 'Add Run';
+  };
+
   return (
-    <div className="card" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1010, width: '400px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+    <div className="card modal-center">
+      <div className="form-header">
         <h2>{isEditMode ? 'Edit Run' : 'Add New Run'}</h2>
-        <button type="button" onClick={onCancel} className="btn-icon" aria-label="Close add run form"><X size={20} /></button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="btn-icon"
+          aria-label="Close form"
+        >
+          <X size={20} />
+        </button>
       </div>
-      <form onSubmit={handleSubmit} className="form">
-        <div className="form-group">
-          <label>Run Date</label>
-          <input type="date" name="run_date" value={formData.run_date} onChange={handleChange} required className={errors.run_date ? 'input-error' : ''} />
-          {errors.run_date && <span className="error-text">{errors.run_date}</span>}
-        </div>
-        <div className="form-group">
-          <label>Driver</label>
-          <select name="driver_id" value={formData.driver_id} onChange={handleChange} required className={errors.driver_id ? 'input-error' : ''}>
-            <option value="">Select a driver...</option>
-            {drivers.map(driver => <option key={driver.id} value={driver.id}>{driver.first_name} {driver.last_name}</option>)}
-          </select>
-          {errors.driver_id && <span className="error-text">{errors.driver_id}</span>}
-        </div>
-        <div className="form-group">
-          <label>Truck</label>
-          <select name="truck_id" value={formData.truck_id} onChange={handleChange} required className={errors.truck_id ? 'input-error' : ''}>
-            <option value="">Select a truck...</option>
-            {trucks.map(truck => <option key={truck.id} value={truck.id}>{truck.registration_plate}</option>)}
-          </select>
-          {errors.truck_id && <span className="error-text">{errors.truck_id}</span>}
-        </div>
-        <div className="form-group">
-          <label>Trailer (optional)</label>
-          <select name="trailer_id" value={formData.trailer_id} onChange={handleChange}>
-            <option value="">Select a trailer...</option>
-            {trailers.map(trailer => <option key={trailer.id} value={trailer.id}>{trailer.registration_plate}</option>)}
-          </select>
-        </div>
+
+      <form onSubmit={handleSubmit} className="form" noValidate>
+        <TextField
+          label="Run Date"
+          type="date"
+          name="run_date"
+          value={formData.run_date}
+          onChange={handleChange}
+          error={errors.run_date}
+          required
+        />
+
+        <SelectField
+          label="Driver"
+          name="driver_id"
+          value={formData.driver_id}
+          onChange={handleChange}
+          error={errors.driver_id}
+          required
+          options={drivers.map((driver) => ({
+            value: driver.id,
+            label: `${driver.first_name} ${driver.last_name}`,
+          }))}
+        />
+
+        <SelectField
+          label="Truck"
+          name="truck_id"
+          value={formData.truck_id}
+          onChange={handleChange}
+          error={errors.truck_id}
+          required
+          options={trucks.map((truck) => ({
+            value: truck.id,
+            label: truck.registration_plate,
+          }))}
+        />
+
+        <SelectField
+          label="Trailer"
+          name="trailer_id"
+          value={formData.trailer_id}
+          onChange={handleChange}
+          options={trailers.map((trailer) => ({
+            value: trailer.id,
+            label: trailer.registration_plate,
+          }))}
+        />
+
         <div className="form-actions">
-          <button type="button" onClick={onCancel} className="btn-secondary" disabled={loading}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Add Run')}
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn-secondary"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={loading}
+          >
+            {getSubmitLabel()}
           </button>
         </div>
       </form>
@@ -101,5 +184,20 @@ const AddRunForm = ({ onSuccess, onCancel, itemToEdit, drivers = [], trucks = []
   );
 };
 
+AddRunForm.propTypes = {
+  onSuccess: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  itemToEdit: PropTypes.object,
+  drivers: PropTypes.arrayOf(PropTypes.object),
+  trucks: PropTypes.arrayOf(PropTypes.object),
+  trailers: PropTypes.arrayOf(PropTypes.object),
+};
+
+AddRunForm.defaultProps = {
+  itemToEdit: null,
+  drivers: [],
+  trucks: [],
+  trailers: [],
+};
+
 export default AddRunForm;
-// ostatnia zmiana (30.05.2024, 13:14:12)

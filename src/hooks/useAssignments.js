@@ -72,24 +72,29 @@ export const useAssignments = ({
     const handler = (ev) => {
       try {
         const msg = ev?.data;
-        if (!msg || !msg.type) return;
+        if (!msg?.type) return;
+        const shouldRefresh = msg.type === 'REFRESH_ALL' || (msg.type === 'REFRESH_VIEW' && msg.view === 'assignments');
+        if (!shouldRefresh) return;
         const now = Date.now();
         if (now - lastHandled < MIN_MS) return;
-        if (msg.type === 'REFRESH_ALL') {
-          lastHandled = now;
-          if (enabled) fetchData();
-        } else if (msg.type === 'REFRESH_VIEW' && msg.view === 'assignments') {
-          lastHandled = now;
-          if (enabled) fetchData();
-        }
+        lastHandled = now;
+        if (enabled) fetchData();
       } catch (e) {
         console.error('Broadcast handler error (assignments):', e);
       }
     };
 
-    channel.addEventListener ? channel.addEventListener('message', handler) : (channel.onmessage = handler);
+    if (channel.addEventListener) {
+      channel.addEventListener('message', handler);
+    } else {
+      channel.onmessage = handler;
+    }
     return () => {
-      channel.removeEventListener ? channel.removeEventListener('message', handler) : (channel.onmessage = null);
+      if (channel.removeEventListener) {
+        channel.removeEventListener('message', handler);
+      } else {
+        channel.onmessage = null;
+      }
       channel.close();
     };
   }, [enabled, fetchData]);
@@ -133,18 +138,18 @@ export const useAssignments = ({
   // Helper: parse number id from droppableId/draggableId safely
   const parseNumericId = (str) => {
     if (typeof str === 'number') return Number(str);
-    if (!str || typeof str !== 'string') return NaN;
+    if (!str || typeof str !== 'string') return Number.NaN;
     // strip non-digits and parse
     const digits = str.match(/-?\d+/g);
-    if (!digits) return NaN;
+    if (!digits) return Number.NaN;
     // take last group of digits (handles "order-123" and "run-active-45")
-    return Number(digits[digits.length - 1]);
+    return Number(digits.at(-1));
   };
 
   /**
    * Drag & drop handler — tworzy przypisanie (z optymistycznym UI obsługiwanym przez useApiResource)
    */
-  const handleDragEnd = useCallback(async (result) => {
+  const handleDragEnd = useCallback(async (result) => { // eslint-disable-line
     if (!enabled) {
       console.warn('Assignments resource not enabled — cannot create assignment.');
       return;
@@ -220,7 +225,9 @@ export const useAssignments = ({
           bc.postMessage({ type: 'REFRESH_VIEW', view: 'assignments' });
           bc.postMessage({ type: 'REFRESH_VIEW', view: 'orders' });
           bc.close();
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+          console.warn('Broadcast after delete failed:', e);
+        }
         if (typeof refreshRef.current === 'function') refreshRef.current();
         console.log('✅ Assignment deleted successfully');
       }
@@ -239,14 +246,20 @@ export const useAssignments = ({
     try {
       const resp = await api.post('/api/assignments/bulk', { run_id: runId, order_ids: orderIds });
       // ensure canonical state
-      try { await fetchData(); } catch (e) { console.warn('fetchData after bulk assign failed', e); }
+      try {
+        await fetchData();
+      } catch (e) {
+        console.warn('fetchData after bulk assign failed', e);
+      }
       // broadcast to other tabs
       try {
         const bc = new BroadcastChannel(CHANNEL_NAME);
         bc.postMessage({ type: 'REFRESH_VIEW', view: 'assignments' });
         bc.postMessage({ type: 'REFRESH_VIEW', view: 'orders' });
         bc.close();
-      } catch (e) { /* ignore */ }
+      } catch (e) {
+        console.warn('Broadcast after bulk assign failed:', e);
+      }
       if (typeof refreshRef.current === 'function') refreshRef.current();
       return { success: true, message: resp.data?.message || `${orderIds.length} orders assigned successfully.` };
     } catch (err) {

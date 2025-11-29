@@ -1,184 +1,165 @@
-import React, { useCallback, useEffect, useState } from 'react';
+// src/components/forms/AddRunForm.jsx
+import React, { useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { X } from 'lucide-react';
-import api from '@/services/api.js';
-import { useToast } from '@/contexts/ToastContext.jsx';
 
-const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
+import { useToast } from '@/contexts/ToastContext.jsx';
+import { useForm } from '@/hooks/useForm.js';
+
+import { validateRun } from './validators/runValidator.js';
+import { createRun, updateRun } from './services/runService.js';
+
+import TextField from './fields/TextField.jsx';
+import SelectField from './fields/SelectField.jsx';
+
+const initialFormData = {
+  run_date: new Date().toISOString().split('T')[0],
+  type: 'delivery',
+  driver_id: '',
+  truck_id: '',
+  trailer_id: '',
+};
+
+const normalizeEditData = (itemToEdit) => {
+  if (!itemToEdit) {
+    return null;
+  }
+
+  return {
+    ...itemToEdit,
+    run_date: itemToEdit.run_date
+      ? new Date(itemToEdit.run_date).toISOString().split('T')[0]
+      : initialFormData.run_date,
+    driver_id: itemToEdit.driver_id ?? '',
+    truck_id: itemToEdit.truck_id ?? '',
+    trailer_id: itemToEdit.trailer_id ?? '',
+  };
+};
+
+const AddRunForm = ({
+  onSuccess,
+  onCancel,
+  itemToEdit,
+  drivers,
+  trucks,
+  trailers,
+}) => {
   const isEditMode = Boolean(itemToEdit);
   const { showToast } = useToast();
 
-  // 🧱 Stan formularza
-  const [formData, setFormData] = useState({
-    email: '',
-    first_name: '',
-    last_name: '',
-    password: '',
-    role: 'dispatcher',
-  });
+  const normalizedItem = useMemo(
+    () => normalizeEditData(itemToEdit),
+    [itemToEdit]
+  );
 
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-
-  // ✅ Ustaw dane do edycji tylko raz
-  useEffect(() => {
-    if (isEditMode && itemToEdit) {
-      setFormData({
-        email: itemToEdit.email || '',
-        first_name: itemToEdit.first_name || '',
-        last_name: itemToEdit.last_name || '',
-        password: '',
-        role: itemToEdit.role || 'dispatcher',
-      });
-    }
-  }, [isEditMode, itemToEdit]);
-
-  // ✏️ Obsługa zmian pól
-  const handleChange = useCallback((e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  }, []);
-
-  // 🧩 Walidacja
-  const validate = useCallback(() => {
-    const newErrors = {};
-    if (!formData.email) newErrors.email = 'Email is required.';
-    if (!formData.first_name) newErrors.first_name = 'First name is required.';
-    if (!formData.last_name) newErrors.last_name = 'Last name is required.';
-    if (!isEditMode && (!formData.password || formData.password.length < 6)) {
-      newErrors.password = 'Password must be at least 6 characters long.';
-    }
-    return newErrors;
-  }, [formData, isEditMode]);
-
-  // 📨 Submit
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    const validationErrors = validate();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
-
-    setErrors({});
-    setLoading(true);
-
+  const performSubmit = async (formData) => {
     try {
       if (isEditMode) {
-        await api.put(`/api/users/${itemToEdit.id}`, {
-          role: formData.role,
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-        });
-        showToast('✅ User updated successfully!', 'success');
+        await updateRun(itemToEdit.id, formData);
       } else {
-        await api.post('/api/users', formData);
-        showToast('✅ User created successfully!', 'success');
+        await createRun(formData);
       }
 
-      onSuccess();
-    } catch (err) {
-      console.error('Full API error:', err);
-      const errorMessage =
-        err.response?.data?.error || err.message || 'An error occurred.';
-      showToast(errorMessage, 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [formData, isEditMode, itemToEdit, onSuccess, showToast, validate]);
+      showToast(
+        `Run ${isEditMode ? 'updated' : 'created'} successfully.`,
+        'success'
+      );
 
-  // 🧱 Render
+      onSuccess();
+    } catch (error) {
+      const message =
+        error.response?.data?.error || 'Failed to save run.';
+      showToast(message, 'error');
+      throw new Error(message);
+    }
+  };
+
+  const {
+    formData,
+    errors,
+    loading,
+    handleChange,
+    handleSubmit,
+  } = useForm({
+    initialState: initialFormData,
+    validate: validateRun,
+    onSubmit: performSubmit,
+    itemToEdit: normalizedItem,
+  });
+
+  const getSubmitButtonLabel = () => {
+    if (loading) {
+      return 'Saving...';
+    }
+
+    if (isEditMode) {
+      return 'Save Changes';
+    }
+
+    return 'Add Run';
+  };
+
   return (
-    <div className="card">
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1rem',
-        }}
-      >
-        <h2>{isEditMode ? 'Edit User' : 'Add New User'}</h2>
-        <button onClick={onCancel} className="btn-icon">
+    <div className="card modal-center">
+      <div className="form-header">
+        <h2>{isEditMode ? 'Edit Run' : 'Add New Run'}</h2>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="btn-icon"
+          aria-label="Close form"
+        >
           <X size={20} />
         </button>
       </div>
 
-      {errors.form && <div className="error-message">{errors.form}</div>}
+      <form onSubmit={handleSubmit} className="form" noValidate>
+        <TextField
+          label="Run Date"
+          type="date"
+          name="run_date"
+          value={formData.run_date}
+          onChange={handleChange}
+          error={errors.run_date}
+          required
+        />
 
-      <form onSubmit={handleSubmit} className="form">
-        <div className="form-group">
-          <label>Email *</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            disabled={isEditMode}
-            className={errors.email ? 'input-error' : ''}
-          />
-          {errors.email && <span className="error-text">{errors.email}</span>}
-        </div>
+        <SelectField
+          label="Driver"
+          name="driver_id"
+          value={formData.driver_id}
+          onChange={handleChange}
+          error={errors.driver_id}
+          required
+          options={drivers.map((driver) => ({
+            value: driver.id,
+            label: `${driver.first_name} ${driver.last_name}`,
+          }))}
+        />
 
-        <div className="form-group">
-          <label>First Name *</label>
-          <input
-            type="text"
-            name="first_name"
-            value={formData.first_name}
-            onChange={handleChange}
-            required
-            className={errors.first_name ? 'input-error' : ''}
-          />
-          {errors.first_name && (
-            <span className="error-text">{errors.first_name}</span>
-          )}
-        </div>
+        <SelectField
+          label="Truck"
+          name="truck_id"
+          value={formData.truck_id}
+          onChange={handleChange}
+          error={errors.truck_id}
+          required
+          options={trucks.map((truck) => ({
+            value: truck.id,
+            label: truck.registration_plate,
+          }))}
+        />
 
-        <div className="form-group">
-          <label>Last Name *</label>
-          <input
-            type="text"
-            name="last_name"
-            value={formData.last_name}
-            onChange={handleChange}
-            required
-            className={errors.last_name ? 'input-error' : ''}
-          />
-          {errors.last_name && (
-            <span className="error-text">{errors.last_name}</span>
-          )}
-        </div>
-
-        {!isEditMode && (
-          <div className="form-group">
-            <label>Password *</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className={errors.password ? 'input-error' : ''}
-            />
-            {errors.password && (
-              <span className="error-text">{errors.password}</span>
-            )}
-          </div>
-        )}
-
-        <div className="form-group">
-          <label>Role *</label>
-          <select
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
-            required
-          >
-            <option value="dispatcher">Dispatcher</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
+        <SelectField
+          label="Trailer"
+          name="trailer_id"
+          value={formData.trailer_id}
+          onChange={handleChange}
+          options={trailers.map((trailer) => ({
+            value: trailer.id,
+            label: trailer.registration_plate,
+          }))}
+        />
 
         <div className="form-actions">
           <button
@@ -189,18 +170,13 @@ const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
           >
             Cancel
           </button>
+
           <button
             type="submit"
-            disabled={loading}
             className="btn-primary"
+            disabled={loading}
           >
-            {loading
-              ? isEditMode
-                ? 'Saving...'
-                : 'Adding...'
-              : isEditMode
-              ? 'Save Changes'
-              : 'Add User'}
+            {getSubmitButtonLabel()}
           </button>
         </div>
       </form>
@@ -208,4 +184,20 @@ const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
   );
 };
 
-export default AddUserForm;
+AddRunForm.propTypes = {
+  onSuccess: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  itemToEdit: PropTypes.object,
+  drivers: PropTypes.arrayOf(PropTypes.object),
+  trucks: PropTypes.arrayOf(PropTypes.object),
+  trailers: PropTypes.arrayOf(PropTypes.object),
+};
+
+AddRunForm.defaultProps = {
+  itemToEdit: null,
+  drivers: [],
+  trucks: [],
+  trailers: [],
+};
+
+export default AddRunForm;

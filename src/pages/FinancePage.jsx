@@ -1,9 +1,9 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import DataTable from '@/components/shared/DataTable.jsx';
 import { Package, PoundSterling, Download, FileText } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext.jsx';
 import InvoiceList from '@/components/list/InvoiceList.jsx';
-import api from '@/services/api.js'; // ⚙️ zostawione do przyszłego użycia
 
 const FinancePage = ({
   orders = [],
@@ -32,8 +32,8 @@ const FinancePage = ({
   // ✅ Kliknięcie poza menu zamyka je
   useEffect(() => {
     const closeMenu = () => setContextMenu({ visible: false, x: 0, y: 0, selectedOrder: null });
-    window.addEventListener('click', closeMenu);
-    return () => window.removeEventListener('click', closeMenu);
+    globalThis.addEventListener('click', closeMenu);
+    return () => globalThis.removeEventListener('click', closeMenu);
   }, []);
 
   // ✅ Formatowanie szczegółów ładunku
@@ -104,11 +104,11 @@ const FinancePage = ({
       header: 'Surcharges',
       render: (order) => {
         const codes = order.selected_surcharges || [];
-        const list = codes.map((code, i) => {
+        const list = codes.map((code) => {
           const s = surchargeDefMap.get(code);
           if (!s || +s.amount <= 0) return null;
           return (
-            <div key={i} className="surcharge-row">
+            <div key={code} className="surcharge-row">
               <span>{code.toUpperCase()} ({s.calculation_method === 'per_order' ? 'PerC' : 'PerP'}):</span>
               <strong>£{(+s.amount).toFixed(2)}</strong>
             </div>
@@ -163,7 +163,7 @@ const FinancePage = ({
           const output = col.render(order);
           val = typeof output === 'object' ? '' : output;
         }
-        return `"${String(val ?? '').replace(/"/g, '""')}"`;
+        return `"${String(val ?? '').replaceAll('"', '""')}"`;
       }).join(',')
     );
     const blob = new Blob([headers + '\n' + rows.join('\n')], { type: 'text/csv' });
@@ -212,12 +212,12 @@ const FinancePage = ({
           <header className="planit-section-header mb-4">
             <h3>Finance Overview</h3>
             <div className="form-group">
-              <label>From</label>
-              <input type="date" value={dateRange.start} onChange={e => setDateRange(p => ({ ...p, start: e.target.value }))} />
+              <label htmlFor="finance-from-date">From</label>
+              <input id="finance-from-date" type="date" value={dateRange.start} onChange={e => setDateRange(p => ({ ...p, start: e.target.value }))} />
             </div>
             <div className="form-group">
-              <label>To</label>
-              <input type="date" value={dateRange.end} onChange={e => setDateRange(p => ({ ...p, end: e.target.value }))} />
+              <label htmlFor="finance-to-date">To</label>
+              <input id="finance-to-date" type="date" value={dateRange.end} onChange={e => setDateRange(p => ({ ...p, end: e.target.value }))} />
             </div>
             <button onClick={handleExport} className="btn-secondary ml-auto">
               <Download size={16} /> Export
@@ -227,8 +227,8 @@ const FinancePage = ({
           <header className="planit-section-header mb-4 border-b">
             <h4>Invoicing</h4>
             <div className="form-group">
-              <label>Customer</label>
-              <select value={selectedCustomerId} onChange={(e) => setSelectedCustomerId(e.target.value)}>
+              <label htmlFor="finance-customer-select">Customer</label>
+              <select id="finance-customer-select" value={selectedCustomerId} onChange={(e) => setSelectedCustomerId(e.target.value)}>
                 <option value="">-- Select customer --</option>
                 {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -262,3 +262,15 @@ const FinancePage = ({
 };
 
 export default FinancePage;
+
+FinancePage.propTypes = {
+  orders: PropTypes.array,
+  customers: PropTypes.array,
+  surcharges: PropTypes.array,
+  invoices: PropTypes.array,
+  onEdit: PropTypes.func,
+  onRefresh: PropTypes.func,
+  invoiceActions: PropTypes.shape({
+    create: PropTypes.func,
+  }),
+};

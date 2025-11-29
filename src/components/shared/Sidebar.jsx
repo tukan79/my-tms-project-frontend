@@ -79,7 +79,7 @@ const Sidebar = () => {
             onChange={(e) => setGlobalAutoRefresh(e.target.checked)}
             className="mr-2"
           />
-          Auto Refresh
+          <span>Auto Refresh</span>
         </label>
       </div>
 

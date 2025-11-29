@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import api from '@/services/api.js'; // jeśli chcesz raportować błędy do backendu
 
 class ErrorBoundary extends React.Component {
@@ -27,8 +28,8 @@ class ErrorBoundary extends React.Component {
       message: error?.toString(),
       stack: errorInfo?.componentStack,
       timestamp: new Date().toISOString(),
-      url: window.location.href,
-      userAgent: navigator.userAgent,
+      url: globalThis.location?.href,
+      userAgent: globalThis.navigator?.userAgent,
     };
     localStorage.setItem('lastError', JSON.stringify(errorData));
 
@@ -106,9 +107,9 @@ class ErrorBoundary extends React.Component {
             <summary>Error details</summary>
             {isDev ? (
               <>
-                {error && error.toString()}
+                {error?.toString()}
                 <br />
-                {errorInfo && errorInfo.componentStack}
+                {errorInfo?.componentStack}
               </>
             ) : (
               <p>Technical details hidden in production mode.</p>
@@ -131,3 +132,9 @@ class ErrorBoundary extends React.Component {
 }
 
 export default ErrorBoundary;
+
+ErrorBoundary.propTypes = {
+  children: PropTypes.node.isRequired,
+  autoRetry: PropTypes.number,
+  onReset: PropTypes.func,
+};

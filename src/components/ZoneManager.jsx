@@ -6,6 +6,92 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '@/services/api.js';
 import DataImporter from './DataImporter.jsx';
 
+const splitParts = (value) => value?.match(/(\d+)|(\D+)/g) ?? [];
+
+const compareParts = (partsA, partsB, direction) => {
+  for (let i = 0; i < Math.min(partsA.length, partsB.length); i += 1) {
+    const partA = partsA[i];
+    const partB = partsB[i];
+    const numA = Number.parseInt(partA, 10);
+    const numB = Number.parseInt(partB, 10);
+
+    if (!Number.isNaN(numA) && !Number.isNaN(numB) && numA !== numB) {
+      return direction === 'ascending' ? numA - numB : numB - numA;
+    }
+
+    if (partA !== partB) {
+      return direction === 'ascending'
+        ? partA.localeCompare(partB)
+        : partB.localeCompare(partA);
+    }
+  }
+
+  return direction === 'ascending'
+    ? partsA.length - partsB.length
+    : partsB.length - partsA.length;
+};
+
+const PatternTag = ({ zone, pattern, index, onRemove }) => (
+  <Draggable key={`${zone.id}-${pattern}`} draggableId={`${zone.id}-${pattern}`} index={index}>
+    {(provided) => (
+      <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
+        <span className="tag draggable-tag">
+          {pattern}
+          <button type="button" onClick={() => onRemove(zone, pattern)} className="tag-remove-btn">
+            <X size={12} />
+          </button>
+        </span>
+      </div>
+    )}
+  </Draggable>
+);
+
+PatternTag.propTypes = {
+  zone: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  }).isRequired,
+  pattern: PropTypes.string.isRequired,
+  index: PropTypes.number.isRequired,
+  onRemove: PropTypes.func.isRequired,
+};
+
+const ZoneRow = ({ zone, onRemovePattern, onEdit, onDelete }) => (
+  <Droppable key={zone.id} droppableId={String(zone.id)}>
+    {(provided, snapshot) => (
+      <tbody ref={provided.innerRef} {...provided.droppableProps} style={{ backgroundColor: snapshot.isDraggingOver ? '#e6f7ff' : 'transparent' }}>
+        <tr key={zone.id}>
+          <td style={{ width: '80px' }}>{zone.zone_name}</td>
+          <td>{zone.is_home_zone ? 'Yes' : 'No'}</td>
+          <td className="tag-cell">
+            <div className="tag-container">
+              {(zone.postcode_patterns || []).map((pattern, index) => (
+                <PatternTag key={`${zone.id}-${pattern}`} zone={zone} pattern={pattern} index={index} onRemove={onRemovePattern} />
+              ))}
+              {provided.placeholder}
+            </div>
+          </td>
+          <td className="actions-cell">
+            <button onClick={() => onEdit(zone)} className="btn-icon"><Edit size={16} /></button>
+            <button onClick={() => onDelete(zone.id)} className="btn-icon btn-danger" title="Delete Zone"><Trash2 size={16} /></button>
+          </td>
+        </tr>
+      </tbody>
+    )}
+  </Droppable>
+);
+
+ZoneRow.propTypes = {
+  zone: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    zone_name: PropTypes.string,
+    is_home_zone: PropTypes.bool,
+    postcode_patterns: PropTypes.arrayOf(PropTypes.string),
+  }).isRequired,
+  onRemovePattern: PropTypes.func.isRequired,
+  onEdit: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
+};
+
 const ZoneManager = ({ zones = [], onRefresh }) => {
   const { showToast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -16,34 +102,11 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
   const [sortConfig, setSortConfig] = useState({ key: 'zone_name', direction: 'ascending' });
 
   const sortedZones = useMemo(() => {
-    // Sortowanie stref po nazwie
+    // Sortowanie stref po nazwie (naturalne porównanie)
     return [...zones].sort((a, b) => {
-      const valA = a.zone_name;
-      const valB = b.zone_name;
-
-      // Używamy wyrażenia regularnego, aby wyodrębnić liczby i tekst
-      const re = /(\d+)|(\D+)/g;
-      const partsA = valA.match(re);
-      const partsB = valB.match(re);
-
-      // Porównujemy części, traktując liczby jako liczby, a tekst jako tekst
-      for (let i = 0; i < Math.min(partsA.length, partsB.length); i++) {
-        const partA = partsA[i];
-        const partB = partsB[i];
-        const numA = parseInt(partA, 10);
-        const numB = parseInt(partB, 10);
-
-        if (!Number.isNaN(numA) && !Number.isNaN(numB)) {
-          if (numA !== numB) {
-            return sortConfig.direction === 'ascending' ? numA - numB : numB - numA;
-          }
-        } else if (partA !== partB) {
-          return sortConfig.direction === 'ascending' ? partA.localeCompare(partB) : partB.localeCompare(partA);
-        }
-      }
-
-      // Jeśli początki są takie same, dłuższa nazwa jest "większa"
-      return sortConfig.direction === 'ascending' ? partsA.length - partsB.length : partsB.length - partsA.length;
+      const partsA = splitParts(a.zone_name);
+      const partsB = splitParts(b.zone_name);
+      return compareParts(partsA, partsB, sortConfig.direction);
     });
   }, [zones, sortConfig]);
 
@@ -97,6 +160,7 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
       setEditingZone(null);
       if (onRefresh) onRefresh(); // Odśwież dane po zapisie
     } catch (error) {
+      console.error('Save zone failed', error);
       showToast(error.response?.data?.error || 'Failed to save zone.', 'error');
     }
   };
@@ -120,6 +184,7 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
       showToast(`Pattern '${patternToRemove}' removed from ${zone.zone_name}.`, 'success');
       if (onRefresh) onRefresh(); // Odśwież dane po usunięciu wzorca
     } catch (error) {
+      console.error('Remove pattern failed', error);
       showToast('Failed to remove pattern.', 'error');
     }
   };
@@ -133,8 +198,8 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
     // Upuszczono w tej samej strefie
     if (source.droppableId === destination.droppableId) return;
 
-    const sourceZoneId = parseInt(source.droppableId, 10);
-    const destZoneId = parseInt(destination.droppableId, 10);
+    const sourceZoneId = Number.parseInt(source.droppableId, 10);
+    const destZoneId = Number.parseInt(destination.droppableId, 10);
     const pattern = draggableId.split('-')[1];
 
     const sourceZone = sortedZones.find(z => z.id === sourceZoneId);
@@ -155,6 +220,7 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
       showToast(`Moved '${pattern}' from ${sourceZone.zone_name} to ${destZone.zone_name}.`, 'success');
       if (onRefresh) onRefresh(); // Odśwież dane po przeniesieniu
     } catch (error) {
+      console.error('Move pattern failed', error);
       showToast('Failed to move pattern.', 'error');
       // W przypadku błędu, dane zostaną automatycznie odświeżone przez hook `useApiResource`, przywracając poprzedni stan.
     }
@@ -226,12 +292,12 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
         <form onSubmit={handleFormSubmit} className="form" style={{ marginBottom: '2rem', border: '1px solid #eee', padding: '1rem', borderRadius: '8px' }}>
           <h5>{editingZone ? 'Edit Zone' : 'Add New Zone'}</h5>
           <div className="form-group">
-            <label>Zone Name</label>
-            <input type="text" value={formData.zone_name} onChange={e => setFormData({...formData, zone_name: e.target.value})} required />
+            <label htmlFor="zone-name">Zone Name</label>
+            <input id="zone-name" type="text" value={formData.zone_name} onChange={e => setFormData({...formData, zone_name: e.target.value})} required />
           </div>
           <div className="form-group">
-            <label>Postcode Patterns (comma-separated, e.g., SW1, W1A, WC2)</label>
-            <textarea value={formData.postcode_patterns} onChange={e => setFormData({...formData, postcode_patterns: e.target.value})} rows="3" />
+            <label htmlFor="zone-patterns">Postcode Patterns (comma-separated, e.g., SW1, W1A, WC2)</label>
+            <textarea id="zone-patterns" value={formData.postcode_patterns} onChange={e => setFormData({...formData, postcode_patterns: e.target.value})} rows="3" />
           </div>
           <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}>
             <input type="checkbox" id="is_home_zone" checked={formData.is_home_zone} onChange={e => setFormData({...formData, is_home_zone: e.target.checked})} />
@@ -262,38 +328,14 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
                 <th>Actions</th>
               </tr>
             </thead>
-            {sortedZones.map(zone => (
-              <Droppable key={zone.id} droppableId={String(zone.id)}>
-                {(provided, snapshot) => (
-                  <tbody ref={provided.innerRef} {...provided.droppableProps} style={{ backgroundColor: snapshot.isDraggingOver ? '#e6f7ff' : 'transparent' }}>
-                    <tr key={zone.id}>
-                      <td style={{ width: '80px' }}>{zone.zone_name}</td>
-                      <td>{zone.is_home_zone ? 'Yes' : 'No'}</td>
-                      <td className="tag-cell">
-                        <div className="tag-container">
-                          {(zone.postcode_patterns || []).map((pattern, index) => (
-                            <Draggable key={`${zone.id}-${pattern}`} draggableId={`${zone.id}-${pattern}`} index={index}>
-                              {(provided) => (
-                                <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
-                                  <span className="tag draggable-tag">
-                                    {pattern}
-                                    <button onClick={() => handleRemovePattern(zone, pattern)} className="tag-remove-btn"><X size={12} /></button>
-                                  </span>
-                                </div>
-                              )}
-                            </Draggable>
-                          ))}
-                          {provided.placeholder}
-                        </div>
-                      </td>
-                      <td className="actions-cell">
-                        <button onClick={() => setEditingZone(zone)} className="btn-icon"><Edit size={16} /></button>
-                        <button onClick={() => handleDelete(zone.id)} className="btn-icon btn-danger" title="Delete Zone"><Trash2 size={16} /></button>
-                      </td>
-                    </tr>
-                  </tbody>
-                )}
-              </Droppable>
+            {sortedZones.map((zone) => (
+              <ZoneRow
+                key={zone.id}
+                zone={zone}
+                onRemovePattern={handleRemovePattern}
+                onEdit={setEditingZone}
+                onDelete={handleDelete}
+              />
             ))}
           </table>
         </DragDropContext>

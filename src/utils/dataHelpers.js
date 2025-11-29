@@ -17,11 +17,11 @@ export const safeParseData = (rawData, expectedKeys = []) => {
         result[key] = rawData[key];
       } 
       // Jeśli dane są w formacie { users: [...] }
-      else if (rawData[key] && rawData[key][key] && Array.isArray(rawData[key][key])) {
+      else if (Array.isArray(rawData[key]?.[key])) {
         result[key] = rawData[key][key];
       }
       // Jeśli dane są w formacie { data: [...] }
-      else if (rawData[key] && rawData[key].data && Array.isArray(rawData[key].data)) {
+      else if (Array.isArray(rawData[key]?.data)) {
         result[key] = rawData[key].data;
       }
       // W innym przypadku pusta tablica

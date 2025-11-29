@@ -11,11 +11,18 @@ import RegisterPage from '@/pages/RegisterPage.jsx';
 import AddOrderForm from '@/components/AddOrderForm.jsx';
 import { broadcastRefreshAll } from '@/utils/broadcastUtils.js';
 
+// 🔑 ProtectedRoute: Tylko dla zalogowanych
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
+
+  // ⏳ Loading: Wyświetlamy spinner
   if (isLoading) {
     return <div className="loading">Verifying authorization...</div>;
   }
+
+  // 🚦 Not authenticated: Przekierowanie na stronę logowania
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
   // The DashboardProvider should wrap the Outlet to provide context to all protected routes
   return isAuthenticated ? (
     <DashboardProvider>

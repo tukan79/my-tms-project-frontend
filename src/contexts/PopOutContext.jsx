@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import PropTypes from 'prop-types';
 
 const PopOutContext = createContext(null);
 
 export const usePopOut = () => {
   const context = useContext(PopOutContext);
-  if (context === null) { // Allow null when not in a pop-out
-    throw new Error('usePopOut must be used within a PopOutProvider');
+  // 2. Poprawka: Zwróć null, jeśli kontekst nie istnieje, zamiast rzucać błędem.
+  // Pozwala to na bezpieczne użycie haka w komponentach, które mogą działać w obu trybach.
+  if (context === null) {
+    return null;
   }
   return context;
 };
@@ -81,6 +84,10 @@ export const PopOutProvider = ({ children }) => {
       {children}
     </PopOutContext.Provider>
   );
+};
+
+PopOutProvider.propTypes = {
+  children: PropTypes.node.isRequired,
 };
 
 // ostatnia zmiana (04.11.2025, 20:11:00)

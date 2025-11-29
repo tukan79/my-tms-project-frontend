@@ -1,94 +1,128 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import api from '@/services/api';
 import { Trash2 } from 'lucide-react';
 
-const AssignmentPlanner = ({ orders = [], combinations = [], drivers = [], trucks = [], assignments = [], onAssignmentChange }) => {
+const AssignmentPlanner = ({
+  orders = [],
+  combinations = [],
+  drivers = [],
+  trucks = [],
+  assignments = [],
+  onAssignmentChange,
+}) => {
   const [selectedOrder, setSelectedOrder] = useState('');
   const [selectedCombination, setSelectedCombination] = useState('');
   const [notes, setNotes] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState(30000); // 30 sekund
+  const [refreshInterval] = useState(30000);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Filtrujemy zlecenia, które są nowe i nieprzypisane
-  const availableOrders = useMemo(() => 
-    orders.filter(order => order.status === 'nowe'), 
-  [orders]);
+  /* ================== MEMO ================== */
 
-  // Wzbogacamy zestawy o pełne informacje do wyświetlenia
-  const enrichedCombinations = useMemo(() => 
-    combinations.map(combo => {
-      const truck = trucks.find(t => t.id === combo.truck_id);
-      const driver = drivers.find(d => d.id === combo.driver_id);
+  const availableOrders = useMemo(() => {
+    return Array.isArray(orders)
+      ? orders.filter((order) => order.status === 'nowe')
+      : [];
+  }, [orders]);
+
+  const enrichedCombinations = useMemo(() => {
+    return combinations.map((combo) => {
+      const truck = trucks.find((t) => t.id === combo.truck_id);
+      const driver = drivers.find((d) => d.id === combo.driver_id);
+
+      const driverName = driver
+        ? `${driver.first_name} ${driver.last_name}`
+        : '';
+
+      const truckText = truck
+        ? `${truck.brand} ${truck.model} (${truck.registration_plate})`
+        : '';
+
       return {
         ...combo,
-        displayText: `${driver?.first_name || ''} ${driver?.last_name || ''} - ${truck?.brand || ''} ${truck?.model || ''} (${truck?.registration_plate || ''})`
+        displayText: `${driverName} - ${truckText}`.trim(),
       };
-    }), 
-  [combinations, trucks, drivers]);
+    });
+  }, [combinations, trucks, drivers]);
 
-  // Wzbogacamy listę istniejących przypisań o pełne dane
-  const enrichedAssignments = useMemo(() =>
-    assignments.map(assignment => {
-      const order = orders.find(o => o.id === assignment.order_id);
-      const combination = combinations.find(c => c.id === assignment.combination_id);
-      const driver = combination ? drivers.find(d => d.id === combination.driver_id) : null;
-      const truck = combination ? trucks.find(t => t.id === combination.truck_id) : null;
+  const enrichedAssignments = useMemo(() => {
+    return assignments.map((assignment) => {
+      const order = orders.find((o) => o.id === assignment.order_id);
+      const combination = combinations.find((c) => c.id === assignment.combination_id);
+
+      const driver = combination
+        ? drivers.find((d) => d.id === combination.driver_id)
+        : null;
+
+      const truck = combination
+        ? trucks.find((t) => t.id === combination.truck_id)
+        : null;
+
+      const driverName = driver
+        ? `${driver.first_name} ${driver.last_name}`
+        : 'No driver';
 
       return {
         ...assignment,
         order_number: order?.order_number || `ID: ${assignment.order_id}`,
         route: `${order?.sender_details?.city || '?'} → ${order?.recipient_details?.city || '?'}`,
-        driver_name: driver ? `${driver.first_name} ${driver.last_name}` : 'No driver',
+        driver_name: driverName,
         truck_plate: truck?.registration_plate || 'No vehicle',
       };
-    }),
-  [assignments, orders, combinations, drivers, trucks]);
+    });
+  }, [assignments, orders, combinations, drivers, trucks]);
+
+  /* ================== HANDLERS ================== */
 
   const handleSubmit = async () => {
     if (!selectedOrder || !selectedCombination) {
-      alert('Please select an order and a combination.');
+      setError('Please select an order and a combination.');
       return;
     }
+
     setLoading(true);
     setError(null);
+
     try {
       await api.post('/api/assignments', {
-        order_id: parseInt(selectedOrder, 10),
-        combination_id: parseInt(selectedCombination, 10),
-        notes: notes,
+        order_id: Number(selectedOrder),
+        combination_id: Number(selectedCombination),
+        notes,
       });
-      onAssignmentChange(); // Odśwież wszystkie dane po zmianie
+
+      onAssignmentChange();
       setSelectedOrder('');
       setSelectedCombination('');
       setNotes('');
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'An error occurred while creating the assignment.';
-      setError(errorMessage);
+      setError(err.response?.data?.error || 'Error creating assignment.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteAssignment = async (assignmentId) => {
-    if (!window.confirm('Are you sure you want to delete this assignment? The order status will be reverted to "new".')) {
-      return;
-    }
+    const confirmed = globalThis.confirm(
+      'Are you sure you want to delete this assignment?'
+    );
+
+    if (!confirmed) return;
+
     try {
       await api.delete(`/api/assignments/${assignmentId}`);
-      onAssignmentChange(); // Odśwież wszystkie dane po zmianie
+      onAssignmentChange();
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'An error occurred while deleting the assignment.';
-      setError(errorMessage);
+      setError(err.response?.data?.error || 'Error deleting assignment.');
     }
   };
 
   const refreshData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await onAssignmentChange(); // Ponowne pobranie wszystkich danych
+      await onAssignmentChange();
     } finally {
       setIsRefreshing(false);
     }
@@ -96,33 +130,47 @@ const AssignmentPlanner = ({ orders = [], combinations = [], drivers = [], truck
 
   useEffect(() => {
     if (!autoRefresh) return;
+
     const interval = setInterval(refreshData, refreshInterval);
     return () => clearInterval(interval);
   }, [autoRefresh, refreshInterval, refreshData]);
+
+  /* ================== RENDER ================== */
+
   return (
     <div className="card">
-      <h2>Assignment Planner (Order to Combination)</h2>
+      <h2>Assignment Planner</h2>
+
       {error && <div className="error-message">{error}</div>}
 
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', alignItems: 'end' }}>
         <div className="form-group" style={{ flex: 3 }}>
           <div className="auto-refresh-control">
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={autoRefresh}
-                onChange={() => setAutoRefresh(!autoRefresh)}
-              />
-              <span className="slider" />
-            </label>
+            <label htmlFor="autoRefreshToggle" className="switch">
+  <span className="sr-only">Toggle auto refresh</span>
+  <input
+    id="autoRefreshToggle"
+    type="checkbox"
+    checked={autoRefresh}
+    onChange={() => setAutoRefresh((prev) => !prev)}
+  />
+  <span className="slider" />
+</label>
+
             <span style={{ marginLeft: '0.5rem' }}>
               Auto Refresh: {autoRefresh ? 'ON' : 'OFF'}
             </span>
-            {isRefreshing && <span style={{ marginLeft: '1rem', color: 'gray' }}>⟳ refreshing...</span>}
+
+            {isRefreshing && (
+              <span style={{ marginLeft: '1rem', color: 'gray' }}>
+                ⟳ refreshing...
+              </span>
+            )}
           </div>
 
-          <label>Available Orders (status: new)</label>
-          <div className="table-container-scrollable">
+          <label htmlFor="ordersTable">Available Orders (status: new)</label>
+
+          <div id="ordersTable" className="table-container-scrollable">
             <table className="data-table selectable-table">
               <thead>
                 <tr>
@@ -136,31 +184,45 @@ const AssignmentPlanner = ({ orders = [], combinations = [], drivers = [], truck
                 </tr>
               </thead>
               <tbody>
-                {availableOrders.map(order => (
-                  <tr 
-                    key={order.id} 
-                    onClick={() => setSelectedOrder(String(order.id))}
-                    className={selectedOrder === String(order.id) ? 'selected-row' : ''}
-                  >
-                    <td>{order.order_number || '-'}</td>
-                    <td>{order.sender_details.name}</td>
-                    <td>{order.sender_details.postCode}</td>
-                    <td>{order.recipient_details.name}</td>
-                    <td>{order.recipient_details.postCode}</td>
-                    <td>{order.cargo_details?.kilos || '-'}</td>
-                    <td>{order.cargo_details?.spaces || '-'}</td>
-                  </tr>
-                ))}
+                {availableOrders.map((order) => {
+                  const isSelected = selectedOrder === String(order.id);
+
+                  return (
+                    <tr key={order.id} className={isSelected ? 'selected-row' : ''}>
+                      <td>
+                        <button
+                          type="button"
+                          className="row-select-button"
+                          onClick={() => setSelectedOrder(String(order.id))}
+                          aria-label={`Select order ${order.order_number || order.id}`}
+                        >
+                          {order.order_number || '-'}
+                        </button>
+                      </td>
+                      <td>{order.sender_details?.name || '-'}</td>
+                      <td>{order.sender_details?.postCode || '-'}</td>
+                      <td>{order.recipient_details?.name || '-'}</td>
+                      <td>{order.recipient_details?.postCode || '-'}</td>
+                      <td>{order.cargo_details?.kilos || '-'}</td>
+                      <td>{order.cargo_details?.spaces || '-'}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
 
         <div className="form-group" style={{ flex: 2 }}>
-          <label>Available Combinations</label>
-          <select value={selectedCombination} onChange={(e) => setSelectedCombination(e.target.value)} required>
+          <label htmlFor="comboSelect">Available Combinations</label>
+          <select
+            id="comboSelect"
+            value={selectedCombination}
+            onChange={(e) => setSelectedCombination(e.target.value)}
+            required
+          >
             <option value="">Select a combination...</option>
-            {enrichedCombinations.map(combo => ( // Używamy przefiltrowanych i wzbogaconych zestawów
+            {enrichedCombinations.map((combo) => (
               <option key={combo.id} value={combo.id}>
                 {combo.displayText}
               </option>
@@ -168,22 +230,29 @@ const AssignmentPlanner = ({ orders = [], combinations = [], drivers = [], truck
           </select>
         </div>
 
-        <button onClick={handleSubmit} className="btn-primary" disabled={loading || !selectedOrder || !selectedCombination}>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className="btn-primary"
+          disabled={loading || !selectedOrder || !selectedCombination}
+        >
           {loading ? 'Assigning...' : 'Assign'}
         </button>
       </div>
 
       <div className="form-group">
-        <label>Notes for Driver (optional)</label>
-        <textarea 
-          value={notes} 
-          onChange={(e) => setNotes(e.target.value)} 
+        <label htmlFor="notesField">Notes for Driver (optional)</label>
+        <textarea
+          id="notesField"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
           rows="3"
-          placeholder="E.g., gate code, notification number..."
+          placeholder="E.g. gate code, reference..."
         />
       </div>
 
       <h3 style={{ marginTop: '2rem' }}>Scheduled Assignments</h3>
+
       <div className="list">
         {enrichedAssignments.length > 0 ? (
           <table className="data-table">
@@ -198,7 +267,7 @@ const AssignmentPlanner = ({ orders = [], combinations = [], drivers = [], truck
               </tr>
             </thead>
             <tbody>
-              {enrichedAssignments.map(assignment => (
+              {enrichedAssignments.map((assignment) => (
                 <tr key={assignment.id}>
                   <td>{assignment.order_number}</td>
                   <td>{assignment.route}</td>
@@ -206,7 +275,12 @@ const AssignmentPlanner = ({ orders = [], combinations = [], drivers = [], truck
                   <td>{assignment.truck_plate}</td>
                   <td>{assignment.notes || '-'}</td>
                   <td className="actions-cell">
-                    <button onClick={() => handleDeleteAssignment(assignment.id)} className="btn-icon btn-danger" title="Delete assignment">
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteAssignment(assignment.id)}
+                      className="btn-icon btn-danger"
+                      title="Delete assignment"
+                    >
                       <Trash2 size={16} />
                     </button>
                   </td>
@@ -222,5 +296,13 @@ const AssignmentPlanner = ({ orders = [], combinations = [], drivers = [], truck
   );
 };
 
+AssignmentPlanner.propTypes = {
+  orders: PropTypes.array,
+  combinations: PropTypes.array,
+  drivers: PropTypes.array,
+  trucks: PropTypes.array,
+  assignments: PropTypes.array,
+  onAssignmentChange: PropTypes.func.isRequired,
+};
+
 export default AssignmentPlanner;
-// ostatnia zmiana (30.05.2024, 13:14:12)

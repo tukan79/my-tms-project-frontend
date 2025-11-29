@@ -3,29 +3,24 @@ import axios from 'axios';
 
 // --- Base URL ---
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:10000';
-console.log("🔧 Loaded BASE URL =", baseURL);
 
-// Global config
-axios.defaults.withCredentials = true;
+// Dynamic credentials: false for DEV (to avoid CORS issues), true for PROD
+const useCredentials = import.meta.env.DEV ? false : true;
+
 
 const api = axios.create({
   baseURL,
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,
+  withCredentials: useCredentials,   // 👈 TUTAJ
 });
 
 // === REQUEST INTERCEPTOR ===
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    const fullUrl = (config.baseURL || baseURL) + (config.url || '');
-    console.log('🔐 Request full URL:', fullUrl);
-    console.log('🔐 Sending request with token:', token ? 'YES' : 'NO');
 
     if (token) {
-      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('🔐 Authorization header set');
     }
     return config;
   },
@@ -55,25 +50,27 @@ api.interceptors.response.use(
     const status = error?.response?.status;
     const requestUrl = originalRequest?.url || '';
 
-    // no original request = nothing to fix
+    if (axios.isCancel?.(error) || error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') {
+      console.warn('⚠️ Request canceled:', requestUrl);
+      return Promise.reject(error);
+    }
+
     if (!originalRequest) throw error;
 
     const isAuthMeEndpoint = requestUrl.includes('/api/auth/me');
     const isLoginEndpoint = requestUrl.includes('/api/auth/login');
 
-    // Do NOT retry login errors
     if (isLoginEndpoint) {
       console.log("❌ Login failed, not retrying.");
       throw error;
     }
 
-    // Do NOT retry refresh errors
     if (requestUrl.includes('/api/auth/refresh')) {
       console.log('❌ Refresh endpoint failed:', status);
       throw error;
     }
 
-    // --- 401 → REFRESH TOKEN ---
+    // === 401 → TRY REFRESH TOKEN ===
     if (status === 401 && !originalRequest._retry && !isAuthMeEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -95,13 +92,12 @@ api.interceptors.response.use(
         const refreshResponse = await axios.post(
           `${baseURL}/api/auth/refresh`,
           {},
-          { withCredentials: true }
+          { withCredentials: useCredentials } // 👈 Używamy dynamicznego credentials
         );
 
         const newToken = refreshResponse?.data?.accessToken;
         if (!newToken) throw new Error('No new token from refresh');
 
-        // save token
         localStorage.setItem('token', newToken);
         api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
@@ -112,7 +108,6 @@ api.interceptors.response.use(
 
         processQueue(null, newToken);
         console.log('✅ Token refreshed.');
-
         return api(originalRequest);
       } catch (refreshError) {
         console.error('❌ Refresh failed:', refreshError);
@@ -120,7 +115,6 @@ api.interceptors.response.use(
 
         localStorage.removeItem('token');
         globalThis.dispatchEvent(new Event('auth-error'));
-
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

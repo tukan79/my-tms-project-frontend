@@ -17,7 +17,6 @@ export function useDashboard() {
 
   const [runs, setRuns] = useState([]);
   const [surchargeTypes, setSurchargeTypes] = useState([]);
-  // Add placeholders for other resources to ensure data structure consistency
   const [users, setUsers] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [trucks, setTrucks] = useState([]);
@@ -25,27 +24,78 @@ export function useDashboard() {
   const [customers, setCustomers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [zones, setZones] = useState([]);
+  const [assignments, setAssignments] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ search: "", status: "all" });
 
   const isMounted = useRef(false);
 
+  const safeArray = (data, key) => {
+    if (Array.isArray(data)) return data;
+    if (key && Array.isArray(data?.[key])) return data[key];
+    if (Array.isArray(data?.data)) return data.data;
+    return [];
+  };
+
+  const fetchResource = useCallback(
+    async (path, key, allowMissing = false) => {
+      try {
+        const res = await api.get(path);
+        return safeArray(res.data, key);
+      } catch (err) {
+        const status = err?.response?.status;
+        const message = err?.response?.data?.error || err?.message;
+        const label = allowMissing ? '⚠️ Optional fetch' : '❌ Error loading';
+        console.warn(`${label} ${path}:`, status, message);
+        return [];
+      }
+    },
+    [api]
+  );
+
   // 1. Load initial dashboard data
   const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const [runsRes, surchargeRes] = await Promise.all([
-        api.get("/api/runs"),
-        api.get("/api/surcharge-types"),
+      const [
+        runsData,
+        surchargesData,
+        driversData,
+        trucksData,
+        trailersData,
+        customersData,
+        ordersData,
+        invoicesData,
+        zonesData,
+        usersData,
+        assignmentsData,
+      ] = await Promise.all([
+        fetchResource("/api/runs", "runs"),
+        fetchResource("/api/surcharge-types", "surcharges"),
+        fetchResource("/api/drivers", "drivers"),
+        fetchResource("/api/trucks", "trucks", true),
+        fetchResource("/api/trailers", "trailers"),
+        fetchResource("/api/customers", "customers"),
+        fetchResource("/api/orders", "orders", true),
+        fetchResource("/api/invoices", "invoices", true),
+        fetchResource("/api/zones", "zones"),
+        fetchResource("/api/users", "users", true),
+        fetchResource("/api/assignments", "assignments", true),
       ]);
-
-      // Safely extract array from response data
-      const runsData = Array.isArray(runsRes.data) ? runsRes.data : (runsRes.data?.runs || []);
-      const surchargesData = Array.isArray(surchargeRes.data) ? surchargeRes.data : (surchargeRes.data?.surcharges || surchargeRes.data?.data || []);
 
       setRuns(runsData);
       setSurchargeTypes(surchargesData);
+      setDrivers(driversData);
+      setTrucks(trucksData);
+      setTrailers(trailersData);
+      setCustomers(customersData);
+      setOrders(ordersData);
+      setInvoices(invoicesData);
+      setZones(zonesData);
+      setUsers(usersData);
+      setAssignments(assignmentsData);
     } catch (err) {
       console.error("❌ Error loading dashboard data:", err);
     } finally {
@@ -115,9 +165,26 @@ export function useDashboard() {
     orders,
     invoices,
     surchargeTypes,
+    zones,
+    assignments,
     filters,
     updateFilter,
     refreshRuns,
     deleteRun,
+    // Structured data object for consumers expecting dataFetching.data
+    data: {
+      runs: filteredRuns,
+      users,
+      drivers,
+      trucks,
+      trailers,
+      customers,
+      orders,
+      invoices,
+      surcharges: surchargeTypes,
+      assignments,
+      zones,
+      pallets: [],
+    },
   };
 }

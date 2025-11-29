@@ -16,7 +16,7 @@ export const isPostcodeInZone = (postcode, zone) => {
   const postcodeOutward = postcode.split(' ')[0].toUpperCase();
 
   return zone.postcode_patterns.some(pattern => {
-    const normalizedPattern = pattern.replace(/\s/g, '').toUpperCase();
+    const normalizedPattern = pattern.replaceAll(/\s/g, '').toUpperCase();
 
     // Usuwamy '%' ze wzorca, aby uzyskać czysty prefix do porównania.
     // Remove '%' from the pattern to get a clean prefix for comparison.
