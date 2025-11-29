@@ -1,49 +1,38 @@
-// src/components/forms/AddRunForm.jsx
+// src/components/forms/AddUserForm.jsx
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { X } from 'lucide-react';
 
-import { useToast } from '@/contexts/ToastContext.jsx';
 import { useForm } from '@/hooks/useForm.js';
-
-import { validateRun } from './validators/runValidator.js';
-import { createRun, updateRun } from './services/runService.js';
+import { useToast } from '@/contexts/ToastContext.jsx';
 
 import TextField from './fields/TextField.jsx';
 import SelectField from './fields/SelectField.jsx';
+import { validateUser } from './validators/userValidator.js';
+import { createUser, updateUser } from './services/userService.js';
 
 const initialFormData = {
-  run_date: new Date().toISOString().split('T')[0],
-  type: 'delivery',
-  driver_id: '',
-  truck_id: '',
-  trailer_id: '',
+  first_name: '',
+  last_name: '',
+  email: '',
+  role: 'dispatcher',
+  password: '',
 };
 
 const normalizeEditData = (itemToEdit) => {
-  if (!itemToEdit) {
-    return null;
-  }
-
+  if (!itemToEdit) return null;
   return {
     ...itemToEdit,
-    run_date: itemToEdit.run_date
-      ? new Date(itemToEdit.run_date).toISOString().split('T')[0]
-      : initialFormData.run_date,
-    driver_id: itemToEdit.driver_id ?? '',
-    truck_id: itemToEdit.truck_id ?? '',
-    trailer_id: itemToEdit.trailer_id ?? '',
+    password: '',
   };
 };
 
-const AddRunForm = ({
-  onSuccess,
-  onCancel,
-  itemToEdit,
-  drivers,
-  trucks,
-  trailers,
-}) => {
+const roleOptions = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'dispatcher', label: 'Dispatcher' },
+];
+
+const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
   const isEditMode = Boolean(itemToEdit);
   const { showToast } = useToast();
 
@@ -53,22 +42,25 @@ const AddRunForm = ({
   );
 
   const performSubmit = async (formData) => {
+    const payload = { ...formData };
+    if (isEditMode && !payload.password) {
+      delete payload.password;
+    }
+
     try {
       if (isEditMode) {
-        await updateRun(itemToEdit.id, formData);
+        await updateUser(itemToEdit.id, payload);
       } else {
-        await createRun(formData);
+        await createUser(payload);
       }
 
       showToast(
-        `Run ${isEditMode ? 'updated' : 'created'} successfully.`,
+        `User ${isEditMode ? 'updated' : 'created'} successfully.`,
         'success'
       );
-
       onSuccess();
     } catch (error) {
-      const message =
-        error.response?.data?.error || 'Failed to save run.';
+      const message = error.response?.data?.error || 'Failed to save user.';
       showToast(message, 'error');
       throw new Error(message);
     }
@@ -82,27 +74,81 @@ const AddRunForm = ({
     handleSubmit,
   } = useForm({
     initialState: initialFormData,
-    validate: validateRun,
+    validate: (data) => validateUser(data, isEditMode),
     onSubmit: performSubmit,
     itemToEdit: normalizedItem,
   });
 
-  const getSubmitButtonLabel = () => {
-    if (loading) {
-      return 'Saving...';
-    }
+  const fields = [
+    {
+      component: TextField,
+      props: {
+        label: 'First Name',
+        name: 'first_name',
+        value: formData.first_name,
+        onChange: handleChange,
+        error: errors.first_name,
+        required: true,
+      },
+    },
+    {
+      component: TextField,
+      props: {
+        label: 'Last Name',
+        name: 'last_name',
+        value: formData.last_name,
+        onChange: handleChange,
+        error: errors.last_name,
+        required: true,
+      },
+    },
+    {
+      component: TextField,
+      props: {
+        label: 'Email',
+        name: 'email',
+        type: 'email',
+        value: formData.email,
+        onChange: handleChange,
+        error: errors.email,
+        required: true,
+      },
+    },
+    {
+      component: SelectField,
+      props: {
+        label: 'Role',
+        name: 'role',
+        value: formData.role,
+        onChange: handleChange,
+        error: errors.role,
+        required: true,
+        options: roleOptions,
+      },
+    },
+    {
+      component: TextField,
+      props: {
+        label: isEditMode ? 'New Password (optional)' : 'Password',
+        name: 'password',
+        type: 'password',
+        value: formData.password,
+        onChange: handleChange,
+        error: errors.password,
+        required: !isEditMode,
+      },
+    },
+  ];
 
-    if (isEditMode) {
-      return 'Save Changes';
-    }
-
-    return 'Add Run';
-  };
+  const submitLabel = useMemo(() => {
+    if (loading) return 'Saving...';
+    return isEditMode ? 'Save Changes' : 'Add User';
+  }, [isEditMode, loading]);
 
   return (
     <div className="card modal-center">
       <div className="form-header">
-        <h2>{isEditMode ? 'Edit Run' : 'Add New Run'}</h2>
+        <h2>{isEditMode ? 'Edit User' : 'Add New User'}</h2>
         <button
           type="button"
           onClick={onCancel}
@@ -114,52 +160,9 @@ const AddRunForm = ({
       </div>
 
       <form onSubmit={handleSubmit} className="form" noValidate>
-        <TextField
-          label="Run Date"
-          type="date"
-          name="run_date"
-          value={formData.run_date}
-          onChange={handleChange}
-          error={errors.run_date}
-          required
-        />
-
-        <SelectField
-          label="Driver"
-          name="driver_id"
-          value={formData.driver_id}
-          onChange={handleChange}
-          error={errors.driver_id}
-          required
-          options={drivers.map((driver) => ({
-            value: driver.id,
-            label: `${driver.first_name} ${driver.last_name}`,
-          }))}
-        />
-
-        <SelectField
-          label="Truck"
-          name="truck_id"
-          value={formData.truck_id}
-          onChange={handleChange}
-          error={errors.truck_id}
-          required
-          options={trucks.map((truck) => ({
-            value: truck.id,
-            label: truck.registration_plate,
-          }))}
-        />
-
-        <SelectField
-          label="Trailer"
-          name="trailer_id"
-          value={formData.trailer_id}
-          onChange={handleChange}
-          options={trailers.map((trailer) => ({
-            value: trailer.id,
-            label: trailer.registration_plate,
-          }))}
-        />
+        {fields.map(({ component: Component, props: fieldProps }) => (
+          <Component key={fieldProps.name} {...fieldProps} />
+        ))}
 
         <div className="form-actions">
           <button
@@ -176,7 +179,7 @@ const AddRunForm = ({
             className="btn-primary"
             disabled={loading}
           >
-            {getSubmitButtonLabel()}
+            {submitLabel}
           </button>
         </div>
       </form>
@@ -184,20 +187,14 @@ const AddRunForm = ({
   );
 };
 
-AddRunForm.propTypes = {
+AddUserForm.propTypes = {
   onSuccess: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
   itemToEdit: PropTypes.object,
-  drivers: PropTypes.arrayOf(PropTypes.object),
-  trucks: PropTypes.arrayOf(PropTypes.object),
-  trailers: PropTypes.arrayOf(PropTypes.object),
 };
 
-AddRunForm.defaultProps = {
+AddUserForm.defaultProps = {
   itemToEdit: null,
-  drivers: [],
-  trucks: [],
-  trailers: [],
 };
 
-export default AddRunForm;
+export default AddUserForm;

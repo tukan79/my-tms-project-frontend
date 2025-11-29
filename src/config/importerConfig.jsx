@@ -159,7 +159,8 @@ export const importerConfigs = {
           const date = new Date(dateTimeString);
           // Sprawdzamy, czy data jest prawidłowa
           return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
-        } catch (e) {
+        } catch (error) {
+          console.warn('parseDate failed, returning now()', { dateStr, timeStr, error });
           return new Date().toISOString();
         }
       };

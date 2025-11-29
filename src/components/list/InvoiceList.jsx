@@ -16,7 +16,7 @@ import { useToast } from '@/contexts/ToastContext.jsx';
 
 // Sonar-safe access to URL API
 const getUrlApi = () =>
-  typeof globalThis !== 'undefined' ? globalThis.URL : null;
+  typeof globalThis === 'undefined' ? null : globalThis.URL;
 
 const InvoiceList = ({ invoices, onRefresh }) => {
   const { showToast } = useToast();
@@ -96,41 +96,41 @@ const InvoiceList = ({ invoices, onRefresh }) => {
 
   const handleDownloadPDF = useCallback(
     async (invoiceId) => {
-      if (!invoiceId) {
-        showToast('Invalid invoice ID.', 'error');
+      if (invoiceId) {
+        try {
+          const response = await api.get(
+            `/api/invoices/${invoiceId}/pdf`,
+            { responseType: 'blob' }
+          );
+
+          const urlApi = getUrlApi();
+          if (urlApi) {
+            const blob = new Blob([response.data]);
+            const url = urlApi.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `invoice_${invoiceId}.pdf`);
+
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            urlApi.revokeObjectURL(url);
+
+            showToast('Invoice PDF downloaded successfully.', 'success');
+            return;
+          }
+
+          showToast('Download not supported in this environment.', 'error');
+        } catch (error) {
+          console.error('Invoice PDF download failed:', error);
+          showToast('Failed to download invoice PDF.', 'error');
+        }
         return;
       }
 
-      try {
-        const response = await api.get(
-          `/api/invoices/${invoiceId}/pdf`,
-          { responseType: 'blob' }
-        );
-
-        const urlApi = getUrlApi();
-
-        if (!urlApi) {
-          showToast('Download not supported in this environment.', 'error');
-          return;
-        }
-
-        const blob = new Blob([response.data]);
-        const url = urlApi.createObjectURL(blob);
-
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `invoice_${invoiceId}.pdf`);
-
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-
-        urlApi.revokeObjectURL(url);
-
-        showToast('Invoice PDF downloaded successfully.', 'success');
-      } catch (error) {
-        showToast('Failed to download invoice PDF.', 'error');
-      }
+      showToast('Invalid invoice ID.', 'error');
     },
     [showToast]
   );

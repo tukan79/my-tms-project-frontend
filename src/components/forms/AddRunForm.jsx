@@ -87,6 +87,46 @@ const AddRunForm = ({
     itemToEdit: normalizedItem,
   });
 
+  const selectConfigs = useMemo(
+    () => [
+      {
+        label: 'Driver',
+        name: 'driver_id',
+        value: formData.driver_id,
+        onChange: handleChange,
+        error: errors.driver_id,
+        required: true,
+        options: drivers.map((driver) => ({
+          value: driver.id,
+          label: `${driver.first_name} ${driver.last_name}`,
+        })),
+      },
+      {
+        label: 'Truck',
+        name: 'truck_id',
+        value: formData.truck_id,
+        onChange: handleChange,
+        error: errors.truck_id,
+        required: true,
+        options: trucks.map((truck) => ({
+          value: truck.id,
+          label: truck.registration_plate,
+        })),
+      },
+      {
+        label: 'Trailer',
+        name: 'trailer_id',
+        value: formData.trailer_id,
+        onChange: handleChange,
+        options: trailers.map((trailer) => ({
+          value: trailer.id,
+          label: trailer.registration_plate,
+        })),
+      },
+    ],
+    [drivers, errors.driver_id, errors.truck_id, formData.driver_id, formData.truck_id, formData.trailer_id, handleChange, trailers, trucks]
+  );
+
   const getSubmitLabel = () => {
     if (loading) {
       return 'Saving...';
@@ -124,42 +164,9 @@ const AddRunForm = ({
           required
         />
 
-        <SelectField
-          label="Driver"
-          name="driver_id"
-          value={formData.driver_id}
-          onChange={handleChange}
-          error={errors.driver_id}
-          required
-          options={drivers.map((driver) => ({
-            value: driver.id,
-            label: `${driver.first_name} ${driver.last_name}`,
-          }))}
-        />
-
-        <SelectField
-          label="Truck"
-          name="truck_id"
-          value={formData.truck_id}
-          onChange={handleChange}
-          error={errors.truck_id}
-          required
-          options={trucks.map((truck) => ({
-            value: truck.id,
-            label: truck.registration_plate,
-          }))}
-        />
-
-        <SelectField
-          label="Trailer"
-          name="trailer_id"
-          value={formData.trailer_id}
-          onChange={handleChange}
-          options={trailers.map((trailer) => ({
-            value: trailer.id,
-            label: trailer.registration_plate,
-          }))}
-        />
+        {selectConfigs.map((config) => (
+          <SelectField key={config.name} {...config} />
+        ))}
 
         <div className="form-actions">
           <button
