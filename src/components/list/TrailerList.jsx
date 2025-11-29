@@ -13,26 +13,26 @@ const TrailerList = ({ items, onRefresh, onEdit }) => {
   const { showToast } = useToast();
 
   const columns = [
-    { key: 'registration_plate', header: 'Trailer Code', sortable: true },
+    { key: 'registrationPlate', header: 'Trailer Code', sortable: true },
     { key: 'description', header: 'Description', sortable: true },
     { key: 'category', header: 'Category', sortable: true },
     {
-      key: 'max_payload_kg',
+      key: 'maxPayloadKg',
       header: 'Payload (kg)',
       sortable: true,
-      render: (t) => (t.max_payload_kg ?? '-'),
+      render: (t) => (t.maxPayloadKg ?? '-'),
     },
     {
-      key: 'max_spaces',
+      key: 'maxSpaces',
       header: 'Spaces',
       sortable: true,
-      render: (t) => (t.max_spaces ?? '-'),
+      render: (t) => (t.maxSpaces ?? '-'),
     },
     {
-      key: 'length_m',
+      key: 'lengthM',
       header: 'Length (m)',
       sortable: true,
-      render: (t) => (t.length_m ?? '-'),
+      render: (t) => (t.lengthM ?? '-'),
     },
     {
       key: 'status',
@@ -84,9 +84,9 @@ const TrailerList = ({ items, onRefresh, onEdit }) => {
       onDelete={safeDeleteHandler}
       title="Trailer List"
       filterPlaceholder="Filter trailers..."
-      initialSortKey="registration_plate"
+      initialSortKey="registrationPlate"
       filterKeys={[
-        'registration_plate',
+        'registrationPlate',
         'description',
         'category',
         'status',
