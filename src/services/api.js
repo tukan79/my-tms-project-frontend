@@ -5,7 +5,7 @@ import axios from 'axios';
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:10000';
 
 // Dynamic credentials: false for DEV (to avoid CORS issues), true for PROD
-const useCredentials = import.meta.env.DEV ? false : true;
+const useCredentials = !import.meta.env.DEV;
 
 
 const api = axios.create({
@@ -24,7 +24,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (err) => Promise.reject(err)
+  (err) => { throw err; }
 );
 
 // === TOKEN REFRESH LOGIC ===
@@ -52,7 +52,7 @@ api.interceptors.response.use(
 
     if (axios.isCancel?.(error) || error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') {
       console.warn('⚠️ Request canceled:', requestUrl);
-      return Promise.reject(error);
+      throw error;
     }
 
     if (!originalRequest) throw error;
@@ -115,7 +115,7 @@ api.interceptors.response.use(
 
         localStorage.removeItem('token');
         globalThis.dispatchEvent(new Event('auth-error'));
-        return Promise.reject(refreshError);
+        throw refreshError;
       } finally {
         isRefreshing = false;
       }
