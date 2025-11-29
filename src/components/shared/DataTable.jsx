@@ -57,6 +57,8 @@ const DataTable = ({
     onEdit || onDelete || (Array.isArray(customActions) && customActions.length > 0)
   );
 
+  const refreshFn = typeof onRefresh === 'function' ? onRefresh : null;
+
   // ✅ Debounce filtra
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -67,14 +69,14 @@ const DataTable = ({
 
   // ✅ Auto refresh
   useEffect(() => {
-    if (!autoRefreshEnabled || !onRefresh) return;
+    if (!autoRefreshEnabled || !refreshFn) return;
 
     const interval = setInterval(() => {
-      onRefresh();
+      refreshFn();
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [autoRefreshEnabled, onRefresh]);
+  }, [autoRefreshEnabled, refreshFn]);
 
   const getSortIcon = (key) => {
     if (sortConfig?.key !== key) return null;
@@ -106,10 +108,10 @@ const DataTable = ({
             className="filter-input"
           />
 
-          {onRefresh && (
+          {refreshFn && (
             <button
               type="button"
-              onClick={onRefresh}
+              onClick={refreshFn}
               className="btn-icon"
               title="Refresh now"
               disabled={isLoading}
