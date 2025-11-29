@@ -17,14 +17,14 @@ const ViewRenderer = ({ viewConfig }) => {
 
   // 🔒 Zabezpieczenie przed brakiem danych lub użytkownika
   if (!user || !viewConfig || !currentView) {
-    return <div className="loading">Preparing view...</div>;
+    return <div className="view-shell"><div className="loading">Preparing view...</div></div>;
   }
 
   const currentViewConfig = viewConfig[currentView];
 
   if (!currentViewConfig) {
     console.warn(`⚠️ ViewRenderer: No config found for currentView "${currentView}"`);
-    return <div className="error-container">Unknown view: {currentView}</div>;
+    return <div className="view-shell"><div className="error-container">Unknown view: {currentView}</div></div>;
   }
 
   // 🧱 Bezpieczne dane - Poprawka: Pobieramy dane bezpośrednio z `data`, a nie z `viewConfig`.
@@ -46,18 +46,20 @@ const ViewRenderer = ({ viewConfig }) => {
 
   if (anyError) {
     return (
-      <div className="error-container">
-        <h3>Error loading data</h3>
-        <p className="error-message">{anyError}</p>
-        <button onClick={() => handleRefresh(currentView)} className="btn-primary">
-          Try again
-        </button>
+      <div className="view-shell">
+        <div className="error-container">
+          <h3>Error loading data</h3>
+          <p className="error-message">{anyError}</p>
+          <button onClick={() => handleRefresh(currentView)} className="btn-primary">
+            Try again
+          </button>
+        </div>
       </div>
     );
   }
 
   const renderImporter = () => (
-    <div className="card">
+    <div className="card full-width">
       <ErrorBoundary onReset={() => handleRefresh(currentView)}>
         <DataImporter
           {...activeImporterConfig}
@@ -82,7 +84,7 @@ const ViewRenderer = ({ viewConfig }) => {
       return <div className="error-container">Form component not found.</div>;
     }
     return (
-      <div className="card">
+      <div className="card full-width">
         <ErrorBoundary onReset={() => handleRefresh(currentView)}>
           <currentViewConfig.FormComponent {...formProps} />
         </ErrorBoundary>
@@ -112,7 +114,7 @@ const ViewRenderer = ({ viewConfig }) => {
     }
 
     return (
-      <div className="card">
+      <div className="card full-width">
         <ErrorBoundary onReset={() => handleRefresh(currentView)}>
           <currentViewConfig.ListComponent {...listProps} />
         </ErrorBoundary>
@@ -121,7 +123,7 @@ const ViewRenderer = ({ viewConfig }) => {
   };
 
   const renderComponent = () => (
-    <div className="card">
+    <div className="card full-width">
       <ErrorBoundary>
         <currentViewConfig.Component {...currentViewConfig.props} />
       </ErrorBoundary>
@@ -130,17 +132,17 @@ const ViewRenderer = ({ viewConfig }) => {
 
   // 🔧 Widok z pojedynczym komponentem
   if (currentViewConfig.Component && !currentViewConfig.ListComponent) {
-    return renderComponent();
+    return <div className="view-shell">{renderComponent()}</div>;
   }
 
   // 📋 Widok z listą
   if (currentViewConfig.ListComponent) {
     if (activeImporterConfig) return renderImporter();
     if (showForm) return renderForm();
-    return renderList();
+    return <div className="view-shell">{renderList()}</div>;
   }
 
-  return <div>No component to render for this view.</div>;
+  return <div className="view-shell">No component to render for this view.</div>;
 };
 
 export default ViewRenderer;

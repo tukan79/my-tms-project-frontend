@@ -199,8 +199,9 @@ const FinancePage = ({
     <div className="card">
       <div className="tabs-container mb-4">
         {['overview', 'invoices'].map(tab => (
-          <button key={tab}
-            className={`tab-button ${activeTab === tab ? 'active' : ''}`}
+          <button
+            key={tab}
+            className={`tab-button primary ${activeTab === tab ? 'active' : ''}`}
             onClick={() => setActiveTab(tab)}>
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -219,7 +220,7 @@ const FinancePage = ({
               <label htmlFor="finance-to-date">To</label>
               <input id="finance-to-date" type="date" value={dateRange.end} onChange={e => setDateRange(p => ({ ...p, end: e.target.value }))} />
             </div>
-            <button onClick={handleExport} className="btn-secondary ml-auto">
+            <button onClick={handleExport} className="btn-primary ml-auto">
               <Download size={16} /> Export
             </button>
           </header>

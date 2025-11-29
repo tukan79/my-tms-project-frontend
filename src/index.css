@@ -25,6 +25,11 @@ body {
   overflow: auto;
 }
 
+#root {
+  height: 100%;
+  min-height: 100%;
+}
+
 :root {
   --primary-color: #4a69bd;
   --primary-color-dark: #3b528f;
@@ -42,6 +47,14 @@ body {
 
 body.main-app-body {
   overflow: hidden;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
 }
 
 /* =========================
@@ -145,8 +158,104 @@ h2 {
   border-radius: 8px;
   border: 1px solid var(--border-color);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  flex-grow: 1;
+  flex: 1 1 auto;
   min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  align-self: stretch;
+  max-width: 100%;
+}
+.full-width {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Pricing page: stretch card/content across the available space */
+.pricing-card {
+  align-self: stretch;
+  max-width: none;
+  min-height: 0;
+  height: 100%;
+}
+
+.pricing-card .table-wrapper,
+.pricing-card table {
+  width: 100%;
+}
+
+/* Pricing: przewijanie w pionie i poziomie przy dużej liczbie kolumn/wierszy */
+.pricing-card .data-table-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.data-table-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.table-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  gap: 0.75rem;
+}
+
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.filter-input {
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  min-width: 220px;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(74, 105, 189, 0.2);
+}
+
+.view-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+}
+
+.view-shell > .card {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.pricing-card .table-wrapper {
+  max-height: calc(100vh - 240px);
+  overflow: auto;
 }
 
 /* =========================
@@ -191,6 +300,33 @@ h2 {
 .btn-icon.btn-danger:hover:not(:disabled) { background-color: #f8d7da; color: var(--danger-color-dark); }
 
 /* =========================
+   6a. Tab buttons (global)
+   ========================= */
+.tab-button {
+  padding: 0.6rem 1.25rem;
+  margin-right: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--primary-color);
+  background: var(--primary-color);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.05s ease;
+}
+
+.tab-button.active,
+.tab-button:hover {
+  background: var(--primary-color-dark);
+  border-color: var(--primary-color-dark);
+  color: #fff;
+}
+
+.tab-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* =========================
    7. Forms
    ========================= */
 .form { display: flex; flex-direction: column; gap: 1.5rem; }
@@ -228,6 +364,7 @@ h2 {
   width: 100%;
   flex-grow: 1;
   min-height: 0;
+  max-width: 100%;
   scrollbar-width: thin;
   -ms-overflow-style: scrollbar;
 }
@@ -240,8 +377,13 @@ h2 {
 .data-table {
   border-collapse: collapse;
   margin-top: 1rem;
-  table-layout: fixed;
-  min-width: max-content;
+  table-layout: auto;
+  min-width: 900px;
+  width: max(100%, 1200px);
+}
+
+.pricing-card .data-table {
+  min-width: 1100px;
 }
 
 .data-table th,
@@ -251,10 +393,40 @@ h2 {
   border-bottom: 1px solid var(--border-color);
 }
 
-.data-table th { font-weight: 600; cursor: pointer; }
-.data-table th:hover { background-color: #f8f9fa; }
+.data-table thead tr {
+  background: var(--primary-color);
+  color: #fff;
+}
+
+.data-table th {
+  font-weight: 700;
+  cursor: pointer;
+  color: inherit;
+  border-bottom: 1px solid var(--primary-color-dark);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+.data-table th:last-child { border-right: none; }
+.data-table th:hover { background-color: var(--primary-color-dark); }
 
 .actions-cell { display: flex; gap: 0.5rem; }
+
+/* Sort button w nagłówku – wygląd jak tekst */
+.table-sort-button {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.table-sort-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
 
 /* =========================
    9. Toast Notifications
@@ -296,4 +468,5 @@ h2 {
   height: 100vh;
   width: 100%;
   overflow: hidden;
+  min-height: 0;
 }

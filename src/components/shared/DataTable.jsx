@@ -92,11 +92,11 @@ const DataTable = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="table-shell">
+      <div className="table-toolbar">
         <h2>{title} ({safeSortedData.length})</h2>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="table-actions">
           <input
             type="text"
             aria-label="Search table"

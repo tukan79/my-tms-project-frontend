@@ -45,7 +45,7 @@ const PricingPage = ({ customers = [], zones = [], onRefresh }) => {
   };
 
   return (
-    <div className="card">
+    <div className="card full-width pricing-card">
       <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>Pricing Management</h2>
 
@@ -111,26 +111,6 @@ const PricingPage = ({ customers = [], zones = [], onRefresh }) => {
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
-        }
-
-        .tab-button {
-          padding: 0.5rem 1.2rem;
-          margin-right: 0.5rem;
-          border: 1px solid #ccc;
-          border-radius: 6px;
-          background: #f5f5f5;
-          cursor: pointer;
-          transition: all 0.25s ease;
-        }
-
-        .tab-button.active {
-          background: #007bff;
-          color: white;
-          border-color: #007bff;
-        }
-
-        .tab-button:hover {
-          background: #e0e0e0;
         }
 
         .refresh-info {
