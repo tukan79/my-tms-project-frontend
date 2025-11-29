@@ -1,7 +1,6 @@
 // src/components/forms/AddRunForm.jsx
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { X } from 'lucide-react';
 
 import { useToast } from '@/contexts/ToastContext.jsx';
 import { useForm } from '@/hooks/useForm.js';
@@ -12,6 +11,7 @@ import { createRun, updateRun } from './services/runService.js';
 import TextField from './fields/TextField.jsx';
 import SelectField from './fields/SelectField.jsx';
 import FormActions from './shared/FormActions.jsx';
+import FormHeader from './shared/FormHeader.jsx';
 
 const initialFormData = {
   run_date: new Date().toISOString().split('T')[0],
@@ -128,31 +128,17 @@ const AddRunForm = ({
     [drivers, errors.driver_id, errors.truck_id, formData.driver_id, formData.truck_id, formData.trailer_id, handleChange, trailers, trucks]
   );
 
-  const getSubmitLabel = () => {
-    if (loading) {
-      return 'Saving...';
-    }
-
-    if (isEditMode) {
-      return 'Save Changes';
-    }
-
-    return 'Add Run';
-  };
+  const submitLabel = useMemo(() => {
+    if (loading) return 'Saving...';
+    return isEditMode ? 'Save Changes' : 'Add Run';
+  }, [isEditMode, loading]);
 
   return (
     <div className="card modal-center">
-      <div className="form-header">
-        <h2>{isEditMode ? 'Edit Run' : 'Add New Run'}</h2>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="btn-icon"
-          aria-label="Close form"
-        >
-          <X size={20} />
-        </button>
-      </div>
+      <FormHeader
+        title={isEditMode ? 'Edit Run' : 'Add New Run'}
+        onCancel={onCancel}
+      />
 
       <form onSubmit={handleSubmit} className="form" noValidate>
         <TextField
@@ -172,7 +158,7 @@ const AddRunForm = ({
         <FormActions
           onCancel={onCancel}
           loading={loading}
-          submitLabel={getSubmitLabel()}
+          submitLabel={submitLabel}
         />
       </form>
     </div>
