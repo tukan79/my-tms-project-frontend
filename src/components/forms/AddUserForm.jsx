@@ -8,6 +8,7 @@ import { useToast } from '@/contexts/ToastContext.jsx';
 
 import TextField from './fields/TextField.jsx';
 import SelectField from './fields/SelectField.jsx';
+import FormActions from './shared/FormActions.jsx';
 import { validateUser } from './validators/userValidator.js';
 import { createUser, updateUser } from './services/userService.js';
 
@@ -164,24 +165,11 @@ const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
           <Component key={fieldProps.name} {...fieldProps} />
         ))}
 
-        <div className="form-actions">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="btn-secondary"
-            disabled={loading}
-          >
-            Cancel
-          </button>
-
-          <button
-            type="submit"
-            className="btn-primary"
-            disabled={loading}
-          >
-            {submitLabel}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onCancel}
+          loading={loading}
+          submitLabel={submitLabel}
+        />
       </form>
     </div>
   );

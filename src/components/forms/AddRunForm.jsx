@@ -11,6 +11,7 @@ import { createRun, updateRun } from './services/runService.js';
 
 import TextField from './fields/TextField.jsx';
 import SelectField from './fields/SelectField.jsx';
+import FormActions from './shared/FormActions.jsx';
 
 const initialFormData = {
   run_date: new Date().toISOString().split('T')[0],
@@ -168,24 +169,11 @@ const AddRunForm = ({
           <SelectField key={config.name} {...config} />
         ))}
 
-        <div className="form-actions">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="btn-secondary"
-            disabled={loading}
-          >
-            Cancel
-          </button>
-
-          <button
-            type="submit"
-            className="btn-primary"
-            disabled={loading}
-          >
-            {getSubmitLabel()}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onCancel}
+          loading={loading}
+          submitLabel={getSubmitLabel()}
+        />
       </form>
     </div>
   );
