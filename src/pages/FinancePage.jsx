@@ -196,7 +196,7 @@ const FinancePage = ({
   };
 
   return (
-    <div className="card">
+    <div className="card responsive-card">
       <div className="tabs-container mb-4">
         {['overview', 'invoices'].map(tab => (
           <button

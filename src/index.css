@@ -172,6 +172,15 @@ h2 {
   align-self: stretch;
   max-width: 100%;
 }
+.responsive-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
 .full-width {
   width: 100%;
   max-width: 100%;

@@ -45,7 +45,7 @@ const PricingPage = ({ customers = [], zones = [], onRefresh }) => {
   };
 
   return (
-    <div className="card full-width pricing-card">
+    <div className="card full-width pricing-card responsive-card">
       <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>Pricing Management</h2>
 
