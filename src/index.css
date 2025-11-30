@@ -57,6 +57,13 @@ main {
   width: 100%;
 }
 
+.dashboard-wrapper {
+  display: flex;
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
 /* =========================
    3. Sidebar
    ========================= */
@@ -403,8 +410,8 @@ h2 {
   border-collapse: collapse;
   margin-top: 1rem;
   table-layout: auto;
-  min-width: 900px;
-  width: max(100%, 1200px);
+  width: 100%;
+  min-width: 720px; /* pozwala się zwęzić przy mniejszym viewportcie (np. z DevTools) */
 }
 
 .pricing-card .data-table {
