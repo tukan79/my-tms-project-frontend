@@ -88,11 +88,11 @@ const PlanItContent = ({ isPopOut, handlePopOut }) => {
             drivers={drivers || []}
             trucks={trucks || []}
             trailers={trailers || []}
-          />
-        </>
-      )}
+      />
+    </>
+  )}
       <div className="planit-container-resizable">
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', height: '100%' }}>
+        <div className="planit-grid">
           <PlanItOrders 
             orders={availableOrders} 
             zones={zones || []}
@@ -101,7 +101,7 @@ const PlanItContent = ({ isPopOut, handlePopOut }) => {
             onRefresh={triggerRefresh} // Przekazujemy funkcję odświeżającą
             onPopOut={handlePopOut}
           />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: 0 }}>
+          <div className="planit-column">
             {contextMenu.visible && (
               <div className="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
                 <button type="button" onClick={handleBulkAssign} disabled={!activeRunId} aria-label="Assign selected to active run">
