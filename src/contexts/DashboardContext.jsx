@@ -253,6 +253,7 @@ export const DashboardProvider = ({ children }) => {
     () => ({
       ...state,
       ...dataFetching,
+      handleRefresh: dataFetching.refreshRuns,
       user,
       viewConfig,
       handleLogout,

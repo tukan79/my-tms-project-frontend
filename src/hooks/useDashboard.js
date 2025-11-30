@@ -21,7 +21,7 @@ function debounce(fn, delay) {
 const deriveResourceKeyFromPath = (path = "") => {
   const cleaned = path.split("?")[0];
   const segments = cleaned.split("/").filter(Boolean);
-  return segments[segments.length - 1] || null;
+  return segments.at(-1) || null;
 };
 
 // Normalizuje pola kierowcy tak, by obsłużyć camelCase z API i snake_case w UI.

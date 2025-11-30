@@ -8,46 +8,42 @@ import axios from "axios";
  * Finds the **best matching array** inside ANY response shape.
  */
 const parseResponseData = (rawData, resourceKey) => {
-  if (!rawData) return [];
+  const toArray = (val) => {
+    if (Array.isArray(val)) return val;
+    return val == null ? null : [val];
+  };
 
-  // 1) Direct array
-  if (Array.isArray(rawData)) return rawData;
-
-  // 1b) Wrapped array under known key (zones, trailers, etc.)
-  if (resourceKey && typeof rawData === "object") {
-    const normalized = resourceKey.toLowerCase();
-    for (const candidate of [normalized, `${normalized}s`]) {
-      const val = rawData[candidate];
-      if (Array.isArray(val)) return val;
-      if (val != null) return [val];
+  const tryKnownKey = (obj, key) => {
+    if (!obj || typeof obj !== "object" || !key) return null;
+    const norm = key.toLowerCase();
+    const candidates = [norm, `${norm}s`];
+    for (const candidate of candidates) {
+      const arr = toArray(obj[candidate]);
+      if (arr) return arr;
     }
-  }
+    return null;
+  };
 
-  // Recursive finder
   const findArraysDeep = (obj, path = []) => {
     if (!obj || typeof obj !== "object") return [];
 
     let found = [];
     for (const key of Object.keys(obj)) {
       const val = obj[key];
-
       if (Array.isArray(val)) {
         found.push({ key, path: [...path, key], array: val });
-      } else if (typeof val === "object") {
+        continue;
+      }
+      if (typeof val === "object") {
         found.push(...findArraysDeep(val, [...path, key]));
       }
     }
     return found;
   };
 
-  const arrays = findArraysDeep(rawData);
-
-  if (arrays.length === 0) return [];
-
-  // 2) Try exact match
-  if (resourceKey) {
-    const norm = resourceKey.toLowerCase();
-
+  const selectByResourceKey = (arrays, key) => {
+    if (!key) return null;
+    const norm = key.toLowerCase();
     const exact = arrays.find((a) => a.key.toLowerCase() === norm);
     if (exact) return exact.array;
 
@@ -55,13 +51,25 @@ const parseResponseData = (rawData, resourceKey) => {
     if (plural) return plural.array;
 
     const fuzzy = arrays.find((a) => a.key.toLowerCase().includes(norm));
-    if (fuzzy) return fuzzy.array;
-  }
+    return fuzzy ? fuzzy.array : null;
+  };
 
-  // 3) Only one array → take it
+  if (!rawData) return [];
+
+  const direct = toArray(rawData);
+  if (direct) return direct;
+
+  const byKnownKey = tryKnownKey(rawData, resourceKey);
+  if (byKnownKey) return byKnownKey;
+
+  const arrays = findArraysDeep(rawData);
+  if (arrays.length === 0) return [];
+
+  const byResourceKey = selectByResourceKey(arrays, resourceKey);
+  if (byResourceKey) return byResourceKey;
+
   if (arrays.length === 1) return arrays[0].array;
 
-  // 4) Pick most top-level array
   const shallowest = arrays.reduce((a, b) =>
     a.path.length <= b.path.length ? a : b
   );
