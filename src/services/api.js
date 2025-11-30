@@ -51,8 +51,8 @@ api.interceptors.response.use(
     const requestUrl = originalRequest?.url || '';
 
     if (axios.isCancel?.(error) || error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') {
-      console.warn('⚠️ Request canceled:', requestUrl);
-      throw error;
+      // Ciche wyjście dla anulowanych żądań (np. przy szybkich refreshach)
+      return Promise.reject(error);
     }
 
     if (!originalRequest) throw error;

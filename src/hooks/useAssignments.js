@@ -25,7 +25,7 @@ export const useAssignments = ({
     deleteResource: deleteAssignment,
     setData: setAssignments,
     enabled
-  } = useApiResource('/api/assignments', 'assignment', [], { initialFetch: false });
+  } = useApiResource('/api/assignments', { initialFetch: false }, 'assignments');
 
   // ref do onDataRefresh (bez zmiany referencji)
   const refreshRef = useRef(onDataRefresh);
