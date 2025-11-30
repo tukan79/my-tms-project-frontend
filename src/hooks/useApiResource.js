@@ -217,10 +217,13 @@ export const useApiResource = (
 
       try {
         const resp = await api.put(`${resourceUrl}/${id}`, changes);
-        const updated = resp.data;
+        const parsed = parseResponseData(resp?.data, resourceKey);
+        const updated = parsed?.[0] ?? resp?.data ?? null;
 
         setData((curr) =>
-          curr.map((i) => (i.id === id ? updated : i))
+          curr.map((i) =>
+            i.id === id ? { ...i, ...(updated ?? changes) } : i
+          )
         );
 
         if (autoRefetch) fetchData();
@@ -286,3 +289,4 @@ export const useApiResource = (
     setData: (v) => setData(Array.isArray(v) ? v : []),
   };
 };
+// --- IGNORE ---
