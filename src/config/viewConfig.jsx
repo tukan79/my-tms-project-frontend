@@ -141,7 +141,7 @@ export const generateViewConfig = ({
     dataKey: key,
     ListComponent,
     FormComponent: FormComponent || null,
-    props: { handleRefresh },
+    props: { onRefresh: handleRefresh }, // przekazujemy jako onRefresh do DataTable
     formProps,
     customActions,
     handleRefresh,

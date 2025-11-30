@@ -216,12 +216,12 @@ export function useDashboard() {
   });
 
   // 4. Actions
+  // Uniwersalny refresh – przeładowuje cały dashboard (wszystkie zasoby).
   const refreshRuns = async () => {
     try {
-      const res = await api.get("/api/runs");
-      setRuns(parseResponseData(res.data, "runs"));
+      await loadDashboardData();
     } catch (err) {
-      console.error("❌ Failed to refresh runs:", err);
+      console.error("❌ Failed to refresh dashboard data:", err);
     }
   };
 
