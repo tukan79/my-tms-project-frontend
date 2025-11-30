@@ -24,6 +24,19 @@ const deriveResourceKeyFromPath = (path = "") => {
   return segments[segments.length - 1] || null;
 };
 
+// Normalizuje pola kierowcy tak, by obsłużyć camelCase z API i snake_case w UI.
+const normalizeDriver = (driver = {}) => ({
+  ...driver,
+  first_name: driver.first_name ?? driver.firstName ?? "",
+  last_name: driver.last_name ?? driver.lastName ?? "",
+  phone_number: driver.phone_number ?? driver.phoneNumber ?? "",
+  license_number: driver.license_number ?? driver.licenseNumber ?? "",
+  cpc_number: driver.cpc_number ?? driver.cpcNumber ?? "",
+  login_code: driver.login_code ?? driver.loginCode ?? "",
+  is_active:
+    driver.is_active ?? driver.isActive ?? (driver.isDeleted === undefined ? null : !driver.isDeleted),
+});
+
 /**
  * 100% reliable parser:
  * znajduje NAJLEPIEJ pasującą tablicę w dowolnym kształcie odpowiedzi.
@@ -153,7 +166,11 @@ export function useDashboard() {
 
       setRuns(runsData);
       setSurchargeTypes(surchargesData);
-      setDrivers(driversData);
+      setDrivers(
+        Array.isArray(driversData)
+          ? driversData.map((driver) => normalizeDriver(driver))
+          : []
+      );
       setTrucks(trucksData);
       setTrailers(trailersData);
       setCustomers(customersData);

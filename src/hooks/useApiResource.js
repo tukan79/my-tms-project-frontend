@@ -13,6 +13,16 @@ const parseResponseData = (rawData, resourceKey) => {
   // 1) Direct array
   if (Array.isArray(rawData)) return rawData;
 
+  // 1b) Wrapped array under known key (zones, trailers, etc.)
+  if (resourceKey && typeof rawData === "object") {
+    const normalized = resourceKey.toLowerCase();
+    for (const candidate of [normalized, `${normalized}s`]) {
+      const val = rawData[candidate];
+      if (Array.isArray(val)) return val;
+      if (val != null) return [val];
+    }
+  }
+
   // Recursive finder
   const findArraysDeep = (obj, path = []) => {
     if (!obj || typeof obj !== "object") return [];
@@ -64,7 +74,9 @@ const parseResponseData = (rawData, resourceKey) => {
 const deriveResourceKey = (url = "") => {
   const cleaned = url.split("?")[0];
   const parts = cleaned.split("/").filter(Boolean);
-  return parts[parts.length - 1] || null;
+  if (!parts.length) return null;
+  const lastPart = parts.at(-1);
+  return lastPart || null;
 };
 
 export const useApiResource = (
@@ -246,33 +258,34 @@ export const useApiResource = (
    * DELETE
    */
   const deleteResource = useCallback(
-    async (id) => {
-      if (!resourceUrl) return;
+    async (id, { autoRefetch: refetch = autoRefetch } = {}) => {
+      if (!resourceUrl) return null;
 
-      const prev = [...data];
+      const previousData = Array.isArray(data) ? [...data] : [];
 
-      // optimistic removal
-      setData((curr) => curr.filter((i) => i.id !== id));
-
-      setIsMutating(true);
-      setError(null);
+      // optymistyczne usunięcie z listy
+      setData((curr) => curr.filter((item) => item?.id !== id));
 
       try {
-        await api.delete(`${resourceUrl}/${id}`);
+        setIsMutating(true);
+        setError(null);
 
-        if (autoRefetch) fetchData();
-        return true;
+        const resp = await api.delete(`${resourceUrl}/${id}`);
+        const parsed = parseResponseData(resp?.data, resourceKey);
+        const deletedItem = parsed?.[0] ?? resp?.data ?? null;
+
+        if (refetch) fetchData();
+        return deletedItem;
       } catch (err) {
         console.error(`❌ Delete error for ${resourceKey}:`, err);
-        setError(err.response?.data?.error || "Failed to delete");
-
-        setData(prev); // rollback
-        return false;
+        setError(err?.response?.data?.error || "Failed to delete");
+        setData(previousData); // rollback danych
+        return null;
       } finally {
         setIsMutating(false);
       }
     },
-    [resourceUrl, data, autoRefetch, fetchData, resourceKey]
+    [resourceUrl, autoRefetch, data, fetchData, resourceKey]
   );
 
   return {
