@@ -166,8 +166,8 @@ export const useApiResource = (
       try {
         const resp = await api.post(resourceUrl, payload);
 
-        const created =
-          Array.isArray(resp.data) ? resp.data[0] : resp.data;
+        const parsed = parseResponseData(resp?.data, resourceKey);
+        const created = parsed?.[0] ?? resp?.data ?? null;
 
         if (optimisticBuilder) {
           // replace temp with real item
