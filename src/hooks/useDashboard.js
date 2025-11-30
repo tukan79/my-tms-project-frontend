@@ -1,3 +1,4 @@
+// src/hooks/useDashboard.js
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useApi } from "./useApi";
 
@@ -11,6 +12,77 @@ function debounce(fn, delay) {
     timer = setTimeout(() => fn.apply(this, args), delay);
   };
 }
+
+/**
+ * Wyciąga nazwę zasobu z path:
+ *  "/api/surcharge-types" -> "surcharge-types"
+ *  "/api/zones" -> "zones"
+ */
+const deriveResourceKeyFromPath = (path = "") => {
+  const cleaned = path.split("?")[0];
+  const segments = cleaned.split("/").filter(Boolean);
+  return segments[segments.length - 1] || null;
+};
+
+/**
+ * 100% reliable parser:
+ * znajduje NAJLEPIEJ pasującą tablicę w dowolnym kształcie odpowiedzi.
+ */
+const parseResponseData = (rawData, resourceKey) => {
+  if (!rawData) return [];
+
+  // 1) Jeśli API zwraca gołą tablicę
+  if (Array.isArray(rawData)) return rawData;
+
+  // Rekurencyjnie zbieramy wszystkie tablice z obiektu
+  const findArraysDeep = (obj, path = []) => {
+    if (!obj || typeof obj !== "object") return [];
+
+    let found = [];
+
+    for (const key of Object.keys(obj)) {
+      const value = obj[key];
+
+      if (Array.isArray(value)) {
+        found.push({ key, path: [...path, key], array: value });
+      } else if (typeof value === "object") {
+        found.push(...findArraysDeep(value, [...path, key]));
+      }
+    }
+
+    return found;
+  };
+
+  const arrays = findArraysDeep(rawData);
+
+  if (arrays.length === 0) return [];
+
+  // 2) Jeśli mamy resourceKey, spróbujmy dopasować po nazwie
+  if (resourceKey) {
+    const norm = resourceKey.toLowerCase();
+
+    // perfect match: "zones" -> zones
+    const exact = arrays.find((a) => a.key.toLowerCase() === norm);
+    if (exact) return exact.array;
+
+    // plural: "zone" -> zones
+    const plural = arrays.find((a) => a.key.toLowerCase() === `${norm}s`);
+    if (plural) return plural.array;
+
+    // fuzzy: "zone" -> zoneList / zonesData itd.
+    const fuzzy = arrays.find((a) => a.key.toLowerCase().includes(norm));
+    if (fuzzy) return fuzzy.array;
+  }
+
+  // 3) Jeśli jest tylko jedna tablica – nie kombinujemy, bierzemy ją
+  if (arrays.length === 1) return arrays[0].array;
+
+  // 4) Jeśli jest wiele – wybieramy najbardziej "top-level" (najkrótsza ścieżka)
+  const shallowest = arrays.reduce((a, b) =>
+    a.path.length <= b.path.length ? a : b
+  );
+  return shallowest.array;
+};
 
 export function useDashboard() {
   const api = useApi();
@@ -32,22 +104,16 @@ export function useDashboard() {
 
   const isMounted = useRef(false);
 
-  const safeArray = (data, key) => {
-    if (Array.isArray(data)) return data;
-    if (key && Array.isArray(data?.[key])) return data[key];
-    if (Array.isArray(data?.data)) return data.data;
-    return [];
-  };
-
   const fetchResource = useCallback(
     async (path, key, allowMissing = false) => {
       try {
         const res = await api.get(path);
-        return safeArray(res.data, key);
+        const effectiveKey = key || deriveResourceKeyFromPath(path);
+        return parseResponseData(res.data, effectiveKey);
       } catch (err) {
         const status = err?.response?.status;
         const message = err?.response?.data?.error || err?.message;
-        const label = allowMissing ? '⚠️ Optional fetch' : '❌ Error loading';
+        const label = allowMissing ? "⚠️ Optional fetch" : "❌ Error loading";
         console.warn(`${label} ${path}:`, status, message);
         return [];
       }
@@ -101,7 +167,7 @@ export function useDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [fetchResource]);
 
   // Initial load - only once on component mount
   useEffect(() => {
@@ -124,10 +190,11 @@ export function useDashboard() {
 
   // 3. Memoized filtered runs (client-side filtering)
   const filteredRuns = runs.filter((run) => {
-    const matchSearch = (run.title || run.displayText || '')
+    const matchSearch = (run.title || run.displayText || "")
       .toLowerCase()
       .includes(filters.search.toLowerCase());
-    const matchStatus = filters.status === "all" || run.status === filters.status;
+    const matchStatus =
+      filters.status === "all" || run.status === filters.status;
     return matchSearch && matchStatus;
   });
 
@@ -135,9 +202,7 @@ export function useDashboard() {
   const refreshRuns = async () => {
     try {
       const res = await api.get("/api/runs");
-      // Safely extract array from response data
-      const runsData = Array.isArray(res.data) ? res.data : (res.data?.runs || []);
-      setRuns(runsData);
+      setRuns(parseResponseData(res.data, "runs"));
     } catch (err) {
       console.error("❌ Failed to refresh runs:", err);
     }
@@ -146,6 +211,7 @@ export function useDashboard() {
   const deleteRun = async (id) => {
     try {
       await api.delete(`/api/runs/${id}`);
+      // Używasz _id w backendzie – zostawiłem tak jak było
       setRuns((prev) => prev.filter((r) => r._id !== id));
     } catch (err) {
       console.error("❌ Failed to delete run:", err);

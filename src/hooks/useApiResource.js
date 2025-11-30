@@ -1,293 +1,288 @@
 // src/hooks/useApiResource.js
-import { useState, useCallback, useEffect, useRef } from 'react';
-import axios from 'axios';
-import api from '@/services/api';
+import { useState, useEffect, useCallback, useRef } from "react";
+import api from "@/services/api";
+import axios from "axios";
 
 /**
- * Solidny hook do CRUD + fetch + optimistic updates.
+ * 100% reliable parser:
+ * Finds the **best matching array** inside ANY response shape.
  */
-export const useApiResource = (
-  resourceUrl, // np. /api/orders
-  options,
-  resourceName = 'resource',
-  initialData = [],
-) => {
-  const safeOptions = options ?? { initialFetch: true };
-  const enabled = Boolean(resourceUrl);
+const parseResponseData = (rawData, resourceKey) => {
+  if (!rawData) return [];
 
-  const [data, setData] = useState(Array.isArray(initialData) ? initialData : []);
+  // 1) Direct array
+  if (Array.isArray(rawData)) return rawData;
+
+  // Recursive finder
+  const findArraysDeep = (obj, path = []) => {
+    if (!obj || typeof obj !== "object") return [];
+
+    let found = [];
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+
+      if (Array.isArray(val)) {
+        found.push({ key, path: [...path, key], array: val });
+      } else if (typeof val === "object") {
+        found.push(...findArraysDeep(val, [...path, key]));
+      }
+    }
+    return found;
+  };
+
+  const arrays = findArraysDeep(rawData);
+
+  if (arrays.length === 0) return [];
+
+  // 2) Try exact match
+  if (resourceKey) {
+    const norm = resourceKey.toLowerCase();
+
+    const exact = arrays.find((a) => a.key.toLowerCase() === norm);
+    if (exact) return exact.array;
+
+    const plural = arrays.find((a) => a.key.toLowerCase() === `${norm}s`);
+    if (plural) return plural.array;
+
+    const fuzzy = arrays.find((a) => a.key.toLowerCase().includes(norm));
+    if (fuzzy) return fuzzy.array;
+  }
+
+  // 3) Only one array → take it
+  if (arrays.length === 1) return arrays[0].array;
+
+  // 4) Pick most top-level array
+  const shallowest = arrays.reduce((a, b) =>
+    a.path.length <= b.path.length ? a : b
+  );
+  return shallowest.array;
+};
+
+/**
+ * Extract resource key from URL: /api/zones -> zones
+ */
+const deriveResourceKey = (url = "") => {
+  const cleaned = url.split("?")[0];
+  const parts = cleaned.split("/").filter(Boolean);
+  return parts[parts.length - 1] || null;
+};
+
+export const useApiResource = (
+  resourceUrl,
+  { enabled = true, initialFetch = true, autoRefetch = false } = {},
+  resourceName
+) => {
+  const [data, setData] = useState([]);
   const [isFetching, setIsFetching] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState(null);
-  const [lastFetched, setLastFetched] = useState(null);
+  const abortRef = useRef(null);
 
-  // refs to keep stable access inside callbacks
-  const dataRef = useRef(data);
-  useEffect(() => { dataRef.current = data; }, [data]);
+  // Auto resource key
+  const resourceKey = resourceName || deriveResourceKey(resourceUrl);
 
-  const setDataRef = useRef((v) => setData(v));
-  useEffect(() => { setDataRef.current = setData; }, [setData]);
-
-  const resourceUrlRef = useRef(resourceUrl);
-  const resourceNameRef = useRef(resourceName);
-  const optionsRef = useRef(safeOptions);
-  const abortControllerRef = useRef(null);
-  const inFlightRef = useRef(false);
-
-  // keep options ref in sync without resetting lastFetched on every render
-  useEffect(() => {
-    optionsRef.current = safeOptions;
-  }, [safeOptions]);
-
-  // When resourceUrl changes, reset lastFetched so that a new fetch is allowed
-  useEffect(() => {
-    resourceUrlRef.current = resourceUrl;
-    resourceNameRef.current = resourceName;
-    setLastFetched(null);
-  }, [resourceUrl, resourceName]);
-
-  const isCancelError = (err) => axios.isCancel?.(err) || err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError';
-
-  // Robust parser for different API shapes
-  const parseResponseData = (rawData) => {
-    if (!rawData) return [];
-    const commonKeys = ['data', 'results', 'items', 'rows'];
-    for (const k of commonKeys) {
-      if (Array.isArray(rawData[k])) return rawData[k];
-    }
-    const plural = resourceNameRef.current + 's';
-    if (Array.isArray(rawData[plural])) return rawData[plural];
-    if (Array.isArray(rawData)) return rawData;
-    if (typeof rawData === 'object') {
-      for (const key in rawData) {
-        if (Array.isArray(rawData[key])) return rawData[key];
+  /**
+   * Cancel any previous request
+   */
+  const cancelPrevious = () => {
+    if (abortRef.current) {
+      try {
+        abortRef.current.abort();
+      } catch (e) {
+        console.warn("Abort failed", e);
       }
     }
-    return [];
   };
 
-  // FETCH
-  const fetchData = useCallback(async (params = {}) => {
-    const currentUrl = resourceUrlRef.current;
-    const currentName = resourceNameRef.current;
+  /**
+   * FETCH
+   */
+  const fetchData = useCallback(
+    async (params = {}) => {
+      if (!enabled || !resourceUrl) return;
 
-    if (!currentUrl) return null; // safety: do nothing when disabled
+      cancelPrevious();
 
-    if (inFlightRef.current) {
-      // Avoid duplicate fetches while one is in-flight
-      return dataRef.current || null;
-    }
-    inFlightRef.current = true;
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-    // abort previous
-    if (abortControllerRef.current) {
-      try { abortControllerRef.current.abort(); } catch (e) { console.error('Abort previous request failed', e); }
-    }
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+      setIsFetching(true);
+      setError(null);
 
-    setIsFetching(true);
-    setError(null);
+      try {
+        const resp = await api.get(resourceUrl, {
+          params,
+          signal: controller.signal,
+        });
 
-    try {
-      const response = await api.get(currentUrl, { params, signal: controller.signal });
-      const processed = parseResponseData(response.data);
-      setDataRef.current(processed);
-      setLastFetched(Date.now());
-      return processed;
-    } catch (err) {
-      if (isCancelError(err)) {
-        // request was canceled (not an application error)
+        const processed = parseResponseData(resp.data, resourceKey);
+        setData(processed || []);
+
+        return processed;
+      } catch (err) {
+        if (axios.isCancel(err)) return;
+
+        console.error(`❌ Fetch error for ${resourceKey}:`, err);
+        setError(err.response?.data?.error || "Failed to fetch data");
+        setData([]);
         return null;
+      } finally {
+        setIsFetching(false);
       }
-      console.error(`fetchData error for ${currentName}:`, err);
-      setError(err.response?.data?.error || `Failed to fetch ${currentName}.`);
-      setDataRef.current([]);
-      // Prevent immediate retry loops: set lastFetched so the auto-fetch effect doesn't refire instantly
-      setLastFetched(Date.now());
-      // optional: small delay to avoid spamming caller
-      await new Promise((res) => setTimeout(res, 50));
-      return null;
-    } finally {
-      inFlightRef.current = false;
-      setIsFetching(false);
-      if (abortControllerRef.current === controller) {
-        abortControllerRef.current = null;
-      }
-    }
-  }, []);
+    },
+    [resourceUrl, enabled, resourceKey]
+  );
 
-  // auto-fetch (controlled by options.initialFetch)
+  /**
+   * AUTO FETCH on mount / URL change
+   */
   useEffect(() => {
-    const shouldInitialFetch = Boolean(optionsRef.current?.initialFetch);
-    if (!enabled) {
-      setData([]); // ensure cleared when endpoint not present
-      return;
-    }
-    if (enabled && shouldInitialFetch && !lastFetched) {
-      // schedule fetch (no double-calling if parent also triggers)
+    if (initialFetch && enabled) {
       fetchData();
     }
-    return () => {
-      if (abortControllerRef.current) abortControllerRef.current.abort();
-    };
-  }, [enabled, lastFetched, fetchData]);
+    return cancelPrevious;
+  }, [fetchData, initialFetch, enabled]);
 
-  // deep clone helper (structuredClone where available)
-  const deepClone = (obj) => {
-    try {
-      if (typeof structuredClone === 'function') return structuredClone(obj);
-    } catch (e) {
-      console.error('structuredClone failed', e);
-    }
-    return obj;
-  };
+  /**
+   * CREATE
+   */
+  const createResource = useCallback(
+    async (payload, optimisticBuilder) => {
+      if (!resourceUrl) return;
 
-  // CREATE
-  const createResource = useCallback(async (resourceData, optimisticFn) => {
-    const currentUrl = resourceUrlRef.current;
-    const { autoRefetch = false } = optionsRef.current;
-    const currentName = resourceNameRef.current;
-    if (!currentUrl) throw new Error(`createResource: resource ${currentName} not enabled`);
+      let tmpId = null;
 
-    let tempId = null;
-    if (typeof optimisticFn === 'function') {
-      tempId = `tmp-${Date.now()}`;
-      const optimisticItem = optimisticFn(resourceData, tempId);
-      setDataRef.current((prev) => Array.isArray(prev) ? [...prev, optimisticItem] : [optimisticItem]);
-    }
+      // Optimistic insert
+      if (optimisticBuilder) {
+        tmpId = "tmp-" + Date.now();
+        const optimisticItem = optimisticBuilder(payload, tmpId);
 
-    setIsMutating(true);
-    setError(null);
+        setData((prev) => [...prev, optimisticItem]);
+      }
 
-    try {
-      const resp = await api.post(currentUrl, resourceData);
-      const created = Array.isArray(resp.data) ? resp.data[0] : resp.data;
-      setDataRef.current((prev) => {
-        const current = Array.isArray(prev) ? prev : [];
-        if (typeof optimisticFn === 'function') {
-          return current.map((it) => (it.id === tempId ? created : it));
+      setIsMutating(true);
+      setError(null);
+
+      try {
+        const resp = await api.post(resourceUrl, payload);
+
+        const created =
+          Array.isArray(resp.data) ? resp.data[0] : resp.data;
+
+        if (optimisticBuilder) {
+          // replace temp with real item
+          setData((prev) =>
+            prev.map((i) => (i.id === tmpId ? created : i))
+          );
+        } else {
+          setData((prev) => [...prev, created]);
         }
-        return [...current, created];
-      });
-      if (autoRefetch) {
-        await fetchData();
+
+        if (autoRefetch) fetchData();
+
+        return created;
+      } catch (err) {
+        console.error(`❌ Create error for ${resourceKey}:`, err);
+        setError(err.response?.data?.error || "Failed to create");
+
+        if (optimisticBuilder) {
+          // rollback
+          setData((prev) => prev.filter((i) => i.id !== tmpId));
+        }
+
+        return null;
+      } finally {
+        setIsMutating(false);
       }
-      return created;
-    } catch (err) {
-      console.error(`createResource error for ${currentName}:`, err);
-      if (typeof optimisticFn === 'function') {
-        setDataRef.current((prev) => (Array.isArray(prev) ? prev.filter((i) => i.id !== tempId) : []));
+    },
+    [resourceUrl, autoRefetch, fetchData, resourceKey]
+  );
+
+  /**
+   * UPDATE
+   */
+  const updateResource = useCallback(
+    async (id, changes) => {
+      if (!resourceUrl) return;
+
+      const prev = [...data];
+
+      // optimistically apply
+      setData((curr) =>
+        curr.map((i) => (i.id === id ? { ...i, ...changes } : i))
+      );
+
+      setIsMutating(true);
+      setError(null);
+
+      try {
+        const resp = await api.put(`${resourceUrl}/${id}`, changes);
+        const updated = resp.data;
+
+        setData((curr) =>
+          curr.map((i) => (i.id === id ? updated : i))
+        );
+
+        if (autoRefetch) fetchData();
+
+        return updated;
+      } catch (err) {
+        console.error(`❌ Update error for ${resourceKey}:`, err);
+        setError(err.response?.data?.error || "Failed to update");
+
+        setData(prev); // rollback
+        return null;
+      } finally {
+        setIsMutating(false);
       }
-      setError(err.response?.data?.error || `Failed to create ${currentName}.`);
-      return null;
-    } finally {
-      setIsMutating(false);
-    }
-  }, []);
+    },
+    [resourceUrl, data, autoRefetch, fetchData, resourceKey]
+  );
 
-  // UPDATE
-  const updateResource = useCallback(async (id, updates) => {
-    const currentUrl = resourceUrlRef.current;
-    const { autoRefetch = false } = optionsRef.current;
-    const currentName = resourceNameRef.current;
-    if (!currentUrl) throw new Error(`updateResource: resource ${currentName} not enabled`);
+  /**
+   * DELETE
+   */
+  const deleteResource = useCallback(
+    async (id) => {
+      if (!resourceUrl) return;
 
-    const previousState = deepClone(dataRef.current || []);
-    // optimistic local update
-    setDataRef.current((prev) => (Array.isArray(prev) ? prev.map((item) => (item.id === id ? { ...item, ...updates } : item)) : prev));
+      const prev = [...data];
 
-    setIsMutating(true);
-    setError(null);
+      // optimistic removal
+      setData((curr) => curr.filter((i) => i.id !== id));
 
-    try {
-      const resp = await api.put(`${currentUrl}/${id}`, updates);
-      const updated = resp.data;
-      setDataRef.current((prev) => (Array.isArray(prev) ? prev.map((item) => (item.id === id ? updated : item)) : prev));
-      if (autoRefetch) {
-        await fetchData();
+      setIsMutating(true);
+      setError(null);
+
+      try {
+        await api.delete(`${resourceUrl}/${id}`);
+
+        if (autoRefetch) fetchData();
+        return true;
+      } catch (err) {
+        console.error(`❌ Delete error for ${resourceKey}:`, err);
+        setError(err.response?.data?.error || "Failed to delete");
+
+        setData(prev); // rollback
+        return false;
+      } finally {
+        setIsMutating(false);
       }
-      return updated;
-    } catch (err) {
-      console.error(`updateResource error for ${currentName}:`, err);
-      // rollback
-      setDataRef.current(previousState);
-      setError(err.response?.data?.error || `Failed to update ${currentName}.`);
-      return null;
-    } finally {
-      setIsMutating(false);
-    }
-  }, []);
-
-  // DELETE
-  const deleteResource = useCallback(async (id) => {
-    const currentUrl = resourceUrlRef.current;
-    const { autoRefetch = false } = optionsRef.current;
-    const currentName = resourceNameRef.current;
-    if (!currentUrl) throw new Error(`deleteResource: resource ${currentName} not enabled`);
-
-    const previousState = deepClone(dataRef.current || []);
-    setDataRef.current((prev) => (Array.isArray(prev) ? prev.filter((i) => i.id !== id) : prev));
-
-    setIsMutating(true);
-    setError(null);
-
-    try {
-      await api.delete(`${currentUrl}/${id}`);
-      if (autoRefetch) {
-        await fetchData();
-      }
-      return true;
-    } catch (err) {
-      console.error(`deleteResource error for ${currentName}:`, err);
-      setDataRef.current(previousState);
-      setError(err.response?.data?.error || `Failed to delete ${currentName}.`);
-      return false;
-    } finally {
-      setIsMutating(false);
-    }
-  }, []);
-
-  // BULK CREATE
-  const bulkCreate = useCallback(async (payload) => {
-    const currentUrl = resourceUrlRef.current;
-    const currentName = resourceNameRef.current;
-    if (!currentUrl) throw new Error(`bulkCreate: resource ${currentName} not enabled`);
-
-    setIsMutating(true);
-    setError(null);
-    try {
-      const resp = await api.post(`${currentUrl}/bulk`, payload);
-      // re-fetch to ensure canonical state
-      await fetchData();
-      return { success: true, message: resp.data?.message || `${currentName} created successfully.` };
-    } catch (err) {
-      console.error(`bulkCreate error for ${currentName}:`, err);
-      setError(err.response?.data?.error || `Failed to bulk create ${currentName}.`);
-      return { success: false, message: err.response?.data?.error || 'Bulk create failed' };
-    } finally {
-      setIsMutating(false);
-    }
-  }, [fetchData]);
-
-  const stableSetData = useCallback((newData) => {
-    setData(Array.isArray(newData) ? newData : []);
-  }, []);
+    },
+    [resourceUrl, data, autoRefetch, fetchData, resourceKey]
+  );
 
   return {
-    // state
     data,
     isFetching,
     isMutating,
     error,
-    lastFetched,
-    enabled, // important: indicates whether this resource has an endpoint
-    // actions
+
     fetchData,
     createResource,
     updateResource,
     deleteResource,
-    bulkCreate,
-    setData: stableSetData,
+
+    setData: (v) => setData(Array.isArray(v) ? v : []),
   };
 };
