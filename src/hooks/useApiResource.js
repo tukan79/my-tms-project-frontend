@@ -56,8 +56,7 @@ const parseResponseData = (rawData, resourceKey) => {
 
   if (!rawData) return [];
 
-  const direct = toArray(rawData);
-  if (direct) return direct;
+  if (Array.isArray(rawData)) return rawData;
 
   const byKnownKey = tryKnownKey(rawData, resourceKey);
   if (byKnownKey) return byKnownKey;
