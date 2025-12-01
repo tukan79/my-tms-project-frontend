@@ -3,6 +3,26 @@ import PropTypes from 'prop-types';
 import RunManagerView from '@/components/management/RunManager.jsx';
 import { useApiResource } from '@/hooks/useApiResource.js';
 
+const normalizeTruck = (truck = {}) => ({
+  ...truck,
+  registration_plate:
+    truck.registration_plate ||
+    truck.registrationPlate ||
+    truck.plate ||
+    truck.name ||
+    '',
+});
+
+const normalizeTrailer = (trailer = {}) => ({
+  ...trailer,
+  registration_plate:
+    trailer.registration_plate ||
+    trailer.registrationPlate ||
+    trailer.plate ||
+    trailer.name ||
+    '',
+});
+
 /**
  * Strona Run Manager – używa pełnego komponentu z folderu management.
  * Prop'y pochodzą z viewConfig (runs, trucks, trailers, drivers, runActions, onDeleteRequest).
@@ -32,11 +52,17 @@ const RunManager = (props) => {
   );
 
   const effectiveTrucks = useMemo(
-    () => (needTrucks ? fetchedTrucks : trucks) || [],
+    () =>
+      ((needTrucks ? fetchedTrucks : trucks) || []).map((t) =>
+        normalizeTruck(t)
+      ),
     [needTrucks, fetchedTrucks, trucks]
   );
   const effectiveTrailers = useMemo(
-    () => (needTrailers ? fetchedTrailers : trailers) || [],
+    () =>
+      ((needTrailers ? fetchedTrailers : trailers) || []).map((t) =>
+        normalizeTrailer(t)
+      ),
     [needTrailers, fetchedTrailers, trailers]
   );
 
