@@ -10,6 +10,27 @@ import React, {
 import PropTypes from 'prop-types';
 import { useToast } from '@/contexts/ToastContext.jsx';
 import { useAssignments } from '@/hooks/useAssignments.js';
+import { useApiResource } from '@/hooks/useApiResource.js';
+
+const normalizeTruck = (truck = {}) => ({
+  ...truck,
+  registration_plate:
+    truck.registration_plate ||
+    truck.registrationPlate ||
+    truck.plate ||
+    truck.name ||
+    '',
+});
+
+const normalizeTrailer = (trailer = {}) => ({
+  ...trailer,
+  registration_plate:
+    trailer.registration_plate ||
+    trailer.registrationPlate ||
+    trailer.plate ||
+    trailer.name ||
+    '',
+});
 
 const PlanItContext = createContext(null);
 
@@ -41,6 +62,30 @@ export const PlanItProvider = ({
     assignments: initialAssignments = [],
     zones = [],
   } = initialData;
+
+  // Fallback: jeśli ciężarówki/naczepy nie przyszły z dashboardu, dociągnij je bezpośrednio.
+  const needTrucks = !trucks || trucks.length === 0;
+  const needTrailers = !trailers || trailers.length === 0;
+
+  const { data: fetchedTrucks } = useApiResource(
+    '/api/trucks',
+    { initialFetch: needTrucks, enabled: needTrucks },
+    'trucks'
+  );
+  const { data: fetchedTrailers } = useApiResource(
+    '/api/trailers',
+    { initialFetch: needTrailers, enabled: needTrailers },
+    'trailers'
+  );
+
+  const effectiveTrucks = useMemo(
+    () => ((needTrucks ? fetchedTrucks : trucks) || []).map(normalizeTruck),
+    [needTrucks, fetchedTrucks, trucks]
+  );
+  const effectiveTrailers = useMemo(
+    () => ((needTrailers ? fetchedTrailers : trailers) || []).map(normalizeTrailer),
+    [needTrailers, fetchedTrailers, trailers]
+  );
 
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
@@ -119,12 +164,12 @@ export const PlanItProvider = ({
     [drivers]
   );
   const truckMap = useMemo(
-    () => new Map(trucks.map(t => [t.id, t])),
-    [trucks]
+    () => new Map(effectiveTrucks.map(t => [t.id, t])),
+    [effectiveTrucks]
   );
   const trailerMap = useMemo(
-    () => new Map(trailers.map(t => [t.id, t])),
-    [trailers]
+    () => new Map(effectiveTrailers.map(t => [t.id, t])),
+    [effectiveTrailers]
   );
   const orderMap = useMemo(
     () => new Map(orders.map(o => [o.id, o])),
@@ -295,7 +340,7 @@ export const PlanItProvider = ({
       handleDeleteAssignment: handleDeleteAssignmentWithRefresh,
       handleDragEnd,
 
-      initialData: { drivers, trucks, trailers, zones, pallets },
+      initialData: { drivers, trucks: effectiveTrucks, trailers: effectiveTrailers, zones, pallets },
       triggerRefresh,
     }),
     [
@@ -317,8 +362,8 @@ export const PlanItProvider = ({
       handleDeleteAssignmentWithRefresh,
       handleDragEnd,
       drivers,
-      trucks,
-      trailers,
+      effectiveTrucks,
+      effectiveTrailers,
       zones,
       pallets,
       triggerRefresh,
