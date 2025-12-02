@@ -11,7 +11,12 @@ const TruckList = ({ items, onRefresh, onEdit }) => {
   const { showToast } = useToast();
 
   const columns = [
-    { key: 'registration_plate', header: 'Registration', sortable: true },
+    {
+      key: 'registration_plate',
+      header: 'Registration',
+      sortable: true,
+      render: (t) => t.registration_plate || t.registrationPlate || '-',
+    },
 
     {
       key: 'brand',
@@ -35,23 +40,25 @@ const TruckList = ({ items, onRefresh, onEdit }) => {
       key: 'production_year',
       header: 'Year',
       sortable: true,
-      render: (t) => t.production_year ?? '-',
+      render: (t) => t.production_year || t.productionYear || '-',
     },
     {
       key: 'type_of_truck',
       header: 'Vehicle Type',
       sortable: true,
-      render: (t) => t.type_of_truck ?? '-',
+      render: (t) => t.type_of_truck || t.typeOfTruck || '-',
     },
     {
       key: 'total_weight',
       header: 'Total Weight (kg)',
       sortable: true,
       render: (truck) => {
-        const isRigid = truck.type_of_truck === 'rigid';
-        const hasValue = Boolean(truck.total_weight);
+        const type = truck.type_of_truck || truck.typeOfTruck;
+        const weight = truck.total_weight || truck.totalWeight;
+        const isRigid = type === 'rigid';
+        const hasValue = Boolean(weight);
         return isRigid && hasValue
-          ? `${truck.total_weight} kg`
+          ? `${weight} kg`
           : '-';
       },
     },
@@ -60,10 +67,12 @@ const TruckList = ({ items, onRefresh, onEdit }) => {
       header: 'Pallet Capacity',
       sortable: true,
       render: (truck) => {
-        const isRigid = truck.type_of_truck === 'rigid';
-        const hasValue = Boolean(truck.pallet_capacity);
+        const type = truck.type_of_truck || truck.typeOfTruck;
+        const capacity = truck.pallet_capacity || truck.palletCapacity;
+        const isRigid = type === 'rigid';
+        const hasValue = Boolean(capacity);
         return isRigid && hasValue
-          ? truck.pallet_capacity
+          ? capacity
           : '-';
       },
     },
@@ -72,10 +81,12 @@ const TruckList = ({ items, onRefresh, onEdit }) => {
       header: 'Payload (kg)',
       sortable: true,
       render: (truck) => {
-        const isRigid = truck.type_of_truck === 'rigid';
-        const hasValue = Boolean(truck.max_payload_kg);
+        const type = truck.type_of_truck || truck.typeOfTruck;
+        const payload = truck.max_payload_kg || truck.maxPayloadKg;
+        const isRigid = type === 'rigid';
+        const hasValue = Boolean(payload);
         return isRigid && hasValue
-          ? `${truck.max_payload_kg} kg`
+          ? `${payload} kg`
           : '-';
       },
     },
@@ -83,7 +94,7 @@ const TruckList = ({ items, onRefresh, onEdit }) => {
 
   const handleDelete = async (truck) => {
     const confirmed = globalThis.confirm(
-      `Are you sure you want to delete vehicle ${truck.registration_plate}?`
+      `Are you sure you want to delete vehicle ${truck.registration_plate || truck.registrationPlate}?`
     );
 
     if (!confirmed) {
@@ -119,12 +130,12 @@ const TruckList = ({ items, onRefresh, onEdit }) => {
       filterPlaceholder="Filter vehicles..."
       initialSortKey="registration_plate"
       filterKeys={[
-        'registration_plate',
+        'registration_plate', 'registrationPlate',
         'brand',
         'model',
         'vin',
-        'type_of_truck',
-        'production_year',
+        'type_of_truck', 'typeOfTruck',
+        'production_year', 'productionYear',
       ]}
     />
   );

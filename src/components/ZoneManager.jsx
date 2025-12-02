@@ -84,7 +84,9 @@ ZoneRow.propTypes = {
   zone: PropTypes.shape({
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     zoneName: PropTypes.string,
+    zone_name: PropTypes.string, // fallback for snake_case
     isHomeZone: PropTypes.bool,
+    is_home_zone: PropTypes.bool, // fallback for snake_case
     postcode_patterns: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
   onRemovePattern: PropTypes.func.isRequired,

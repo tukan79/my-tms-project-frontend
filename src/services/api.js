@@ -52,7 +52,7 @@ api.interceptors.response.use(
 
     if (axios.isCancel?.(error) || error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') {
       // Ciche wyjście dla anulowanych żądań (np. przy szybkich refreshach)
-      return Promise.reject(error);
+      throw error;
     }
 
     if (!originalRequest) throw error;

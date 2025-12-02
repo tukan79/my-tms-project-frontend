@@ -59,9 +59,10 @@ main {
 
 .dashboard-wrapper {
   display: flex;
-  min-height: 100vh;
+  width: 100%;
   max-height: 100vh;
   overflow: hidden;
+  min-height: 100vh;
 }
 
 /* =========================
@@ -504,10 +505,3 @@ h2 {
   .form-actions { flex-direction: column; }
 }
 /* Layout wrapper so sidebar is on the left and dashboard on the right */
-.dashboard-wrapper {
-  display: flex;
-  height: 100vh;
-  width: 100%;
-  overflow: hidden;
-  min-height: 0;
-}
