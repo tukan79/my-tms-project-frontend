@@ -61,7 +61,7 @@ const ZoneRow = ({ zone, onRemovePattern, onEdit, onDelete }) => (
       <tbody ref={provided.innerRef} {...provided.droppableProps} style={{ backgroundColor: snapshot.isDraggingOver ? '#e6f7ff' : 'transparent' }} data-testid={`zone-row-${zone.id}`}>
         <tr key={zone.id}>
           <td style={{ width: '80px' }}>{zone.zoneName || zone.zone_name}</td>
-          <td>{(zone.isHomeZone || zone.is_home_zone) ? 'Yes' : 'No'}</td>
+          <td style={{ width: '80px' }}>{(zone.isHomeZone || zone.is_home_zone) ? 'Yes' : 'No'}</td>
           <td className="tag-cell">
             <div className="tag-container">
               {(zone.postcode_patterns || []).map((pattern, index) => (
