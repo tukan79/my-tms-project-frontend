@@ -58,10 +58,10 @@ PatternTag.propTypes = {
 const ZoneRow = ({ zone, onRemovePattern, onEdit, onDelete }) => (
   <Droppable key={zone.id} droppableId={String(zone.id)}>
     {(provided, snapshot) => (
-      <tbody ref={provided.innerRef} {...provided.droppableProps} style={{ backgroundColor: snapshot.isDraggingOver ? '#e6f7ff' : 'transparent' }}>
+      <tbody ref={provided.innerRef} {...provided.droppableProps} style={{ backgroundColor: snapshot.isDraggingOver ? '#e6f7ff' : 'transparent' }} data-testid={`zone-row-${zone.id}`}>
         <tr key={zone.id}>
-          <td style={{ width: '80px' }}>{zone.zone_name}</td>
-          <td>{zone.is_home_zone ? 'Yes' : 'No'}</td>
+          <td style={{ width: '80px' }}>{zone.zoneName || zone.zone_name}</td>
+          <td>{(zone.isHomeZone || zone.is_home_zone) ? 'Yes' : 'No'}</td>
           <td className="tag-cell">
             <div className="tag-container">
               {(zone.postcode_patterns || []).map((pattern, index) => (
@@ -83,8 +83,8 @@ const ZoneRow = ({ zone, onRemovePattern, onEdit, onDelete }) => (
 ZoneRow.propTypes = {
   zone: PropTypes.shape({
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    zone_name: PropTypes.string,
-    is_home_zone: PropTypes.bool,
+    zoneName: PropTypes.string,
+    isHomeZone: PropTypes.bool,
     postcode_patterns: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
   onRemovePattern: PropTypes.func.isRequired,
@@ -104,8 +104,8 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
   const sortedZones = useMemo(() => {
     // Sortowanie stref po nazwie (naturalne porównanie)
     return [...zones].sort((a, b) => {
-      const partsA = splitParts(a.zone_name);
-      const partsB = splitParts(b.zone_name);
+      const partsA = splitParts(a.zoneName || a.zone_name);
+      const partsB = splitParts(b.zoneName || b.zone_name);
       return compareParts(partsA, partsB, sortConfig.direction);
     });
   }, [zones, sortConfig]);
@@ -121,9 +121,9 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
   useEffect(() => {
     if (editingZone) {
       setFormData({
-        zone_name: editingZone.zone_name,
+        zone_name: editingZone.zoneName || editingZone.zone_name,
         postcode_patterns: (editingZone.postcode_patterns || []).join(', '),
-        is_home_zone: editingZone.is_home_zone,
+        is_home_zone: editingZone.isHomeZone || editingZone.is_home_zone,
       });
       setIsFormOpen(true);
     } else {
@@ -217,7 +217,7 @@ const ZoneManager = ({ zones = [], onRefresh }) => {
         api.put(`/api/zones/${sourceZone.id}`, { postcode_patterns: newSourcePatterns }),
         api.put(`/api/zones/${destZone.id}`, { postcode_patterns: [...new Set(newDestPatterns)] })
       ]);
-      showToast(`Moved '${pattern}' from ${sourceZone.zone_name} to ${destZone.zone_name}.`, 'success');
+      showToast(`Moved '${pattern}' from ${sourceZone.zoneName || sourceZone.zone_name} to ${destZone.zoneName || destZone.zone_name}.`, 'success');
       if (onRefresh) onRefresh(); // Odśwież dane po przeniesieniu
     } catch (error) {
       console.error('Move pattern failed', error);

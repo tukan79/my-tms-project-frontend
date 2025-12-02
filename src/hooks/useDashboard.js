@@ -37,6 +37,14 @@ const normalizeDriver = (driver = {}) => ({
     driver.is_active ?? driver.isActive ?? (driver.isDeleted === undefined ? null : !driver.isDeleted),
 });
 
+// Normalizuje strefy na potrzeby ZoneManagera (snake_case w UI).
+const normalizeZone = (zone = {}) => ({
+  ...zone,
+  zone_name: zone.zone_name ?? zone.zoneName ?? zone.name ?? "",
+  is_home_zone: zone.is_home_zone ?? zone.isHomeZone ?? false,
+  postcode_patterns: zone.postcode_patterns ?? zone.postcodePatterns ?? [],
+});
+
 /**
  * 100% reliable parser:
  * znajduje NAJLEPIEJ pasującą tablicę w dowolnym kształcie odpowiedzi.
@@ -176,7 +184,11 @@ export function useDashboard() {
       setCustomers(customersData);
       setOrders(ordersData);
       setInvoices(invoicesData);
-      setZones(zonesData);
+      setZones(
+        Array.isArray(zonesData)
+          ? zonesData.map((zone) => normalizeZone(zone))
+          : []
+      );
       setUsers(usersData);
       setAssignments(assignmentsData);
     } catch (err) {
