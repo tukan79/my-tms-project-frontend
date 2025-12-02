@@ -16,7 +16,7 @@ import { useToast } from "@/contexts/ToastContext.jsx";
 import api from "@/services/api.js";
 import { safeParseData, logDataState } from "@/utils/dataHelpers.js";
 import { generateViewConfig } from "../config/viewConfig.jsx";
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 const DashboardContext = createContext(null);
 
@@ -35,6 +35,8 @@ const useDashboardStateManagement = () => {
   const [itemToEdit, setItemToEdit] = useState(null);
   const [importerConfig, setImporterConfig] = useState(null);
   const [modalState, setModalState] = useState({ isOpen: false });
+
+  // Auto refresh flag
   const [globalAutoRefresh, setGlobalAutoRefresh] = useState(true);
 
   const handleViewChange = useCallback((view) => setCurrentView(view), []);
@@ -57,12 +59,9 @@ const useDashboardStateManagement = () => {
     setImporterConfig(null);
   }, []);
 
-  const handleDeleteRequest = useCallback(
-    (message, onConfirm) => {
-      setModalState({ isOpen: true, message, onConfirm });
-    },
-    []
-  );
+  const handleDeleteRequest = useCallback((message, onConfirm) => {
+    setModalState({ isOpen: true, message, onConfirm });
+  }, []);
 
   const handleCloseModal = useCallback(() => {
     setModalState({ isOpen: false });
@@ -72,22 +71,18 @@ const useDashboardStateManagement = () => {
     () => ({
       currentView,
       handleViewChange,
-
       showForm,
       setShowForm,
       itemToEdit,
       setItemToEdit,
       handleEditClick,
       handleCancelForm,
-
       importerConfig,
       handleShowImporter,
       handleHideImporter,
-
       modalState,
       handleDeleteRequest,
       handleCloseModal,
-
       globalAutoRefresh,
       setGlobalAutoRefresh,
     }),
@@ -118,6 +113,7 @@ export const DashboardProvider = ({ children }) => {
   const state = useDashboardStateManagement();
   const navigate = useNavigate();
 
+  // Ładowanie wszystkich danych
   const dataFetching = useDataFetching(isAuthenticated ? user?.role : null);
 
   const mountedRef = useRef(true);
@@ -135,7 +131,7 @@ export const DashboardProvider = ({ children }) => {
   }, [logout, navigate]);
 
   /* -------------------------------------------------------------
-   * FORM SUCCESS → REFRESH DASHBOARD
+   *  REFRESH PO ZAPISIE FORMULARZA
    * ------------------------------------------------------------- */
   const handleFormSuccess = useCallback(async () => {
     if (isRefreshing.current) return;
@@ -155,7 +151,7 @@ export const DashboardProvider = ({ children }) => {
   }, [dataFetching, showToast, state]);
 
   /* -------------------------------------------------------------
-   * EXPORT GENERIC
+   *  EXPORT GENERIC
    * ------------------------------------------------------------- */
   const handleGenericExport = useCallback(
     async (resource) => {
@@ -181,7 +177,7 @@ export const DashboardProvider = ({ children }) => {
   );
 
   /* -------------------------------------------------------------
-   * VIEW CONFIG (critical logic)
+   *  VIEW CONFIG
    * ------------------------------------------------------------- */
   const viewConfig = useMemo(() => {
     if (!dataFetching.data) return {};
@@ -208,22 +204,33 @@ export const DashboardProvider = ({ children }) => {
       data: dataFetching,
       actions: {
         runs: { delete: dataFetching.deleteRun },
-        assignments: dataFetching.actions?.assignments,
-        invoices: dataFetching.actions?.invoices,
       },
       handleDeleteRequest: state.handleDeleteRequest,
-      handleRefresh: dataFetching.refreshRuns,
-      refreshAll: dataFetching.refreshRuns,
+
+      // 🔥 KLUCZOWE NAPRAWIONE:
+      handleRefresh: dataFetching.handleRefresh,
+      refreshAll: dataFetching.handleRefresh,
     });
   }, [user, dataFetching, state.handleDeleteRequest]);
+
+  /* -------------------------------------------------------------
+   *  AUTO REFRESH — PRACUJE TYLKO DLA AKTUALNEGO WIDOKU
+   * ------------------------------------------------------------- */
+  useEffect(() => {
+    if (!state.globalAutoRefresh) return;
+
+    const interval = setInterval(() => {
+      dataFetching.handleRefresh?.(state.currentView);
+    }, 15000); // co 15 sekund
+
+    return () => clearInterval(interval);
+  }, [state.globalAutoRefresh, state.currentView, dataFetching]);
 
   /* -------------------------------------------------------------
    * INITIAL VIEW SELECTION
    * ------------------------------------------------------------- */
   useEffect(() => {
-    if (!dataFetching.loading && state.currentView && viewConfig[state.currentView]) {
-      return;
-    }
+    if (!dataFetching.loading && state.currentView && viewConfig[state.currentView]) return;
 
     if (!dataFetching.loading && Object.keys(viewConfig).length > 0) {
       const preferredView = "orders";
@@ -234,16 +241,8 @@ export const DashboardProvider = ({ children }) => {
         state.handleViewChange(newView);
       }
     }
-  }, [
-    dataFetching.loading,
-    state.currentView,
-    viewConfig,
-    state.handleViewChange,
-  ]);
+  }, [dataFetching.loading, state.currentView, viewConfig, state.handleViewChange]);
 
-  /* -------------------------------------------------------------
-   * RENDER GUARD
-   * ------------------------------------------------------------- */
   const ready =
     !dataFetching.loading &&
     state.currentView &&
@@ -253,7 +252,7 @@ export const DashboardProvider = ({ children }) => {
     () => ({
       ...state,
       ...dataFetching,
-      handleRefresh: dataFetching.refreshRuns,
+      handleRefresh: dataFetching.handleRefresh, // 🔥 poprawione
       user,
       viewConfig,
       handleLogout,

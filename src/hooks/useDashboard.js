@@ -142,7 +142,7 @@ export function useDashboard() {
     [api]
   );
 
-  // 1. Load initial dashboard data
+  // 1. Load initial dashboard data (all resources at once)
   const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
@@ -206,7 +206,7 @@ export function useDashboard() {
     }
   }, [loadDashboardData]);
 
-  // 2. Filter handling with debounce
+  // 2. Filter handling with debounce (for runs)
   const debouncedFilter = useRef(
     debounce((newFilters) => {
       setFilters((prev) => ({ ...prev, ...newFilters }));
@@ -227,8 +227,119 @@ export function useDashboard() {
     return matchSearch && matchStatus;
   });
 
-  // 4. Actions
-  // Uniwersalny refresh – przeładowuje cały dashboard (wszystkie zasoby).
+  // 4. Per-resource refresh helpers (używane przez handleRefresh)
+  const refreshRunsOnly = useCallback(async () => {
+    const runsData = await fetchResource("/api/runs", "runs");
+    setRuns(runsData);
+  }, [fetchResource]);
+
+  const refreshZones = useCallback(async () => {
+    const zonesData = await fetchResource("/api/zones", "zones");
+    setZones(
+      Array.isArray(zonesData)
+        ? zonesData.map((zone) => normalizeZone(zone))
+        : []
+    );
+  }, [fetchResource]);
+
+  const refreshOrders = useCallback(async () => {
+    const ordersData = await fetchResource("/api/orders", "orders", true);
+    setOrders(ordersData);
+  }, [fetchResource]);
+
+  const refreshCustomers = useCallback(async () => {
+    const customersData = await fetchResource("/api/customers", "customers");
+    setCustomers(customersData);
+  }, [fetchResource]);
+
+  const refreshDrivers = useCallback(async () => {
+    const driversData = await fetchResource("/api/drivers", "drivers");
+    setDrivers(
+      Array.isArray(driversData)
+        ? driversData.map((driver) => normalizeDriver(driver))
+        : []
+    );
+  }, [fetchResource]);
+
+  const refreshTrucks = useCallback(async () => {
+    const trucksData = await fetchResource("/api/trucks", "trucks", true);
+    setTrucks(trucksData);
+  }, [fetchResource]);
+
+  const refreshTrailers = useCallback(async () => {
+    const trailersData = await fetchResource("/api/trailers", "trailers");
+    setTrailers(trailersData);
+  }, [fetchResource]);
+
+  const refreshInvoices = useCallback(async () => {
+    const invoicesData = await fetchResource("/api/invoices", "invoices", true);
+    setInvoices(invoicesData);
+  }, [fetchResource]);
+
+  const refreshSurcharges = useCallback(async () => {
+    const surchargesData = await fetchResource("/api/surcharge-types", "surcharges");
+    setSurchargeTypes(surchargesData);
+  }, [fetchResource]);
+
+  const refreshUsers = useCallback(async () => {
+    const usersData = await fetchResource("/api/users", "users", true);
+    setUsers(usersData);
+  }, [fetchResource]);
+
+  const refreshAssignments = useCallback(async () => {
+    const assignmentsData = await fetchResource("/api/assignments", "assignments", true);
+    setAssignments(assignmentsData);
+  }, [fetchResource]);
+
+  // Uniwersalny refresh – używany przez DashboardContext (auto-refresh, formSuccess itp.)
+  const handleRefresh = useCallback(
+    async (view) => {
+      switch (view) {
+        case "runs":
+          return refreshRunsOnly();
+        case "zones":
+          return refreshZones();
+        case "orders":
+          return refreshOrders();
+        case "customers":
+          return refreshCustomers();
+        case "drivers":
+          return refreshDrivers();
+        case "trucks":
+          return refreshTrucks();
+        case "trailers":
+          return refreshTrailers();
+        case "invoices":
+          return refreshInvoices();
+        case "surcharges":
+          return refreshSurcharges();
+        case "users":
+          return refreshUsers();
+        case "assignments":
+          return refreshAssignments();
+        default:
+          // domyślnie przeładuj wszystko
+          return loadDashboardData();
+      }
+    },
+    [
+      refreshRunsOnly,
+      refreshZones,
+      refreshOrders,
+      refreshCustomers,
+      refreshDrivers,
+      refreshTrucks,
+      refreshTrailers,
+      refreshInvoices,
+      refreshSurcharges,
+      refreshUsers,
+      refreshAssignments,
+      loadDashboardData,
+    ]
+  );
+
+  // Zachowujemy starą nazwę dla kompatybilności:
+  // refreshRuns = pełny reload dashboardu (tak jak wcześniej)
   const refreshRuns = async () => {
     try {
       await loadDashboardData();
@@ -240,7 +351,6 @@ export function useDashboard() {
   const deleteRun = async (id) => {
     try {
       await api.delete(`/api/runs/${id}`);
-      // Używasz _id w backendzie – zostawiłem tak jak było
       setRuns((prev) => prev.filter((r) => r._id !== id));
     } catch (err) {
       console.error("❌ Failed to delete run:", err);
@@ -264,8 +374,21 @@ export function useDashboard() {
     assignments,
     filters,
     updateFilter,
-    refreshRuns,
+    // stare API:
+    refreshRuns,        // pełne przeładowanie
     deleteRun,
+    // nowe API:
+    handleRefresh,      // używane przez DashboardContext (view-based)
+    refreshZones,
+    refreshOrders,
+    refreshCustomers,
+    refreshDrivers,
+    refreshTrucks,
+    refreshTrailers,
+    refreshInvoices,
+    refreshSurcharges,
+    refreshUsers,
+    refreshAssignments,
     // Structured data object for consumers expecting dataFetching.data
     data: {
       runs: filteredRuns,
