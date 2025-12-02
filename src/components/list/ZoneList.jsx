@@ -19,7 +19,7 @@ const ZoneList = ({ items, onRefresh, onEdit }) => {
   }, []);
 
   const renderPostcodePatterns = (zone) => {
-    const patterns = Array.isArray(zone.postcode_patterns)
+    const patterns = Array.isArray(zone.postcodePatterns || zone.postcode_patterns)
       ? zone.postcode_patterns
       : [];
 
@@ -68,6 +68,7 @@ const ZoneList = ({ items, onRefresh, onEdit }) => {
     {
       key: 'postcode_patterns',
       header: 'Postcode Patterns',
+      sortable: false, // Patterns are not easily sortable
       render: (zone) => (
         <div className="tag-container">
           {renderPostcodePatterns(zone)}
@@ -124,6 +125,8 @@ const ZoneList = ({ items, onRefresh, onEdit }) => {
 
 ZoneList.propTypes = {
   items: PropTypes.arrayOf(PropTypes.object),
+  // Dodajemy postcodePatterns dla kompatybilności wstecznej
+  postcodePatterns: PropTypes.arrayOf(PropTypes.string),
   onRefresh: PropTypes.func,
   onEdit: PropTypes.func,
 };
