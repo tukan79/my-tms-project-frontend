@@ -1,34 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import ZoneManager from '@/components/ZoneManager.jsx';
 import RateCardEditor from '@/components/RateCardEditor.jsx';
 import { RefreshCw } from 'lucide-react';
 
-const AUTO_REFRESH_INTERVAL = 30000; // 🔁 30 sekund — możesz zmienić np. na 60000 (1 minuta)
-
 const PricingPage = ({ customers = [], zones = [], onRefresh }) => {
   const [activeTab, setActiveTab] = useState('zones');
   const [lastRefresh, setLastRefresh] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // 🔁 Automatyczne odświeżanie co X sekund
-  useEffect(() => {
-    if (!onRefresh) return;
-
-    const interval = setInterval(async () => {
-      setIsRefreshing(true);
-      try {
-        await onRefresh();
-        setLastRefresh(new Date());
-      } catch (error) {
-        console.error('Auto-refresh failed:', error);
-      } finally {
-        setIsRefreshing(false);
-      }
-    }, AUTO_REFRESH_INTERVAL);
-
-    return () => clearInterval(interval);
-  }, [onRefresh]);
 
   // 🔘 Manualne odświeżenie
   const handleManualRefresh = async () => {

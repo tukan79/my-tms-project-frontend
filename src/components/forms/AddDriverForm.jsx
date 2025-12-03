@@ -119,6 +119,19 @@ const AddDriverForm = ({ onSuccess, onCancel, itemToEdit }) => {
               value={formData.login_code}
               onChange={handleChange}
             />
+
+            <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <input
+                id="is_active"
+                name="is_active"
+                type="checkbox"
+                checked={Boolean(formData.is_active)}
+                onChange={handleChange}
+              />
+              <label htmlFor="is_active" style={{ margin: 0, fontWeight: 600 }}>
+                Active
+              </label>
+            </div>
           </div>
         </div>
 

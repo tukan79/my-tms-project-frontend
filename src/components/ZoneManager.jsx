@@ -37,7 +37,7 @@ const PatternTag = ({ zone, pattern, index, onRemove }) => (
       <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
         <span className="tag draggable-tag">
           {pattern}
-          <button type="button" onClick={() => onRemove(zone, pattern)} className="tag-remove-btn">
+          <button type="button" onClick={() => onRemove(zone, pattern)} className="chip-close">
             <X size={12} />
           </button>
         </span>

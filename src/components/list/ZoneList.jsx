@@ -125,8 +125,6 @@ const ZoneList = ({ items, onRefresh, onEdit }) => {
 
 ZoneList.propTypes = {
   items: PropTypes.arrayOf(PropTypes.object),
-  // Dodajemy postcodePatterns dla kompatybilności wstecznej
-  postcodePatterns: PropTypes.arrayOf(PropTypes.string),
   onRefresh: PropTypes.func,
   onEdit: PropTypes.func,
 };
