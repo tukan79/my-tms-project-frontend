@@ -45,9 +45,7 @@ body {
   --sidebar-active-bg: #34495e;
 }
 
-body.main-app-body {
-  overflow: hidden;
-}
+body.main-app-body { overflow: hidden; }
 
 main {
   display: flex;
@@ -59,10 +57,9 @@ main {
 
 .dashboard-wrapper {
   display: flex;
-  width: 100%;
+  min-height: 100vh;
   max-height: 100vh;
   overflow: hidden;
-  min-height: 100vh;
 }
 
 /* =========================
@@ -106,12 +103,7 @@ main {
 .sidebar-title,
 .sidebar-section-title { display: none; }
 
-.sidebar-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
+.sidebar-content { display: flex; flex-direction: column; gap: 1.5rem; }
 .tabs { display: flex; flex-direction: column; gap: 0.5rem; }
 
 .tab,
@@ -150,10 +142,7 @@ h2 {
   margin-bottom: 1.5rem;
 }
 
-.text-muted {
-  color: var(--text-color-light);
-  font-style: italic;
-}
+.text-muted { color: var(--text-color-light); font-style: italic; }
 
 /* =========================
    5. Cards & Containers
@@ -182,35 +171,7 @@ h2 {
   max-width: 100%;
   overflow: hidden;
 }
-.full-width {
-  width: 100%;
-  max-width: 100%;
-}
-
-/* === PlanIt layout === */
-.planit-container-resizable {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: calc(100vh - 160px); /* dopasowanie do dostępnej wysokości pod headerem */
-  gap: 1rem;
-}
-
-.planit-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1.5rem;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-}
-
-.planit-column {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  min-height: 0;
-}
+.full-width { width: 100%; max-width: 100%; }
 
 /* Pricing page: stretch card/content across the available space */
 .pricing-card {
@@ -221,9 +182,7 @@ h2 {
 }
 
 .pricing-card .table-wrapper,
-.pricing-card table {
-  width: 100%;
-}
+.pricing-card table { width: 100%; }
 
 /* Pricing: przewijanie w pionie i poziomie przy dużej liczbie kolumn/wierszy */
 .pricing-card .data-table-container {
@@ -341,9 +300,7 @@ h2 {
 .btn-icon:hover:not(:disabled) { background-color: #e9ecef; color: var(--text-color); }
 .btn-icon.btn-danger:hover:not(:disabled) { background-color: #f8d7da; color: var(--danger-color-dark); }
 
-/* =========================
-   6a. Tab buttons (global)
-   ========================= */
+/* Tab buttons */
 .tab-button {
   padding: 0.6rem 1.25rem;
   margin-right: 0.5rem;
@@ -355,18 +312,9 @@ h2 {
   font-weight: 600;
   transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.05s ease;
 }
-
 .tab-button.active,
-.tab-button:hover {
-  background: var(--primary-color-dark);
-  border-color: var(--primary-color-dark);
-  color: #fff;
-}
-
-.tab-button:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
+.tab-button:hover { background: var(--primary-color-dark); border-color: var(--primary-color-dark); color: #fff; }
+.tab-button:disabled { opacity: 0.65; cursor: not-allowed; }
 
 /* =========================
    7. Forms
@@ -421,12 +369,10 @@ h2 {
   margin-top: 1rem;
   table-layout: auto;
   width: 100%;
-  min-width: 720px; /* pozwala się zwęzić przy mniejszym viewportcie (np. z DevTools) */
+  min-width: 720px;
 }
 
-.pricing-card .data-table {
-  min-width: 1100px;
-}
+.pricing-card .data-table { min-width: 1100px; }
 
 .data-table th,
 .data-table td {
@@ -435,121 +381,238 @@ h2 {
   border-bottom: 1px solid var(--border-color);
 }
 
-.data-table thead tr {
-  background: var(--primary-color);
-  color: #fff;
-}
+.data-table thead tr { background-color: #f1f3f5; }
 
 .data-table th {
+  position: sticky;
+  top: 0;
+  background: #f1f3f5;
+  z-index: 1;
   font-weight: 700;
-  cursor: pointer;
-  color: inherit;
-  border-bottom: 1px solid var(--primary-color-dark);
-  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.95rem;
+  color: #34495e;
+  border-bottom: 1px solid #dcdfe3;
 }
+
 .data-table th:last-child { border-right: none; }
-.data-table th:hover { background-color: var(--primary-color-dark); }
+.data-table th:hover { background-color: var(--primary-color-dark); color: #fff; }
 
-.actions-cell { display: flex; gap: 0.5rem; }
-/* ============================================
-   CHIP TAGS (for Postcode Patterns in tables)
-   ============================================ */
+.data-table td {
+  font-size: 0.95rem;
+  color: #2c3e50;
+  vertical-align: middle;
+}
 
+.data-table tbody tr:nth-child(every) { background: transparent; }
+.data-table tbody tr:hover { background-color: #f8fbff; }
+
+.data-table .actions-cell {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* =========================
+   9. Status tags
+   ========================= */
+.status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.status.active { background-color: #d4edda; color: #155724; }
+.status.inactive { background-color: #f8d7da; color: #721c24; }
+
+/* =========================
+   10. Modals & overlays
+   ========================= */
+.modal-overlay,
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.modal-center {
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* =========================
+   11. PlanIt specific
+   ========================= */
+.planit-section {
+  gap: 1rem;
+}
+.planit-section-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.planit-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.planit-list-item {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
+.planit-item-text {
+  font-weight: 600;
+  color: #2c3e50;
+}
+.planit-item-actions {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+.active-run { border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(74,105,189,0.12); }
+.capacity-indicator { display: flex; flex-direction: column; gap: 0.25rem; }
+.capacity-text { display: flex; gap: 0.4rem; align-items: center; color: #4b5563; font-weight: 600; }
+.capacity-bar-container { width: 100%; height: 6px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+.capacity-bar { height: 100%; background: var(--primary-color); }
+.capacity-bar.overloaded { background: var(--danger-color); }
+
+/* PlanIt layout */
+.planit-container-resizable {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: calc(100vh - 160px);
+  gap: 1rem;
+}
+.planit-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.planit-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+}
+
+/* =========================
+   12. Tags / Chips (refined)
+   ========================= */
 .tag-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  max-width: 100%;
+  gap: 0.4rem;
 }
 
-/* chip */
 .tag {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  background: #eef1f5;
-  border: 1px solid #d3d9e0;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  background: #eef2f5;
+  color: #34495e;
   border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #333;
+  border: 1px solid #d7dde4;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  max-width: 100%;
   white-space: nowrap;
-  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .tag:hover {
-  background: #e1e5eb;
-  border-color: #bfc6cf;
+  background: #e6ecf2;
+  border-color: #c8d1db;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
-/* small delete icon */
-.tag .delete-icon {
-  cursor: pointer;
-  font-size: 0.75rem;
-  padding: 0 4px;
-  color: #6b7280;
+.tag .chip-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
   border-radius: 4px;
-  transition: color 0.15s ease, background 0.15s ease;
+  border: 1px solid transparent;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  background: transparent;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.tag .delete-icon:hover {
-  color: var(--danger-color);
-  background: #fbeaea;
+.tag .chip-close:hover {
+  background: #dce3eb;
+  color: #111827;
+  border-color: #c8d1db;
 }
 
+/* Empty tag placeholder */
+.tag-empty {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  background: #f8f9fa;
+  border: 1px dashed #d7dde4;
+  border-radius: 6px;
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
 
-/* Sort button w nagłówku – wygląd jak tekst */
-.table-sort-button {
+/* =========================
+   13. Misc
+   ========================= */
+.no-results-message {
+  margin: 1rem 0;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.loading {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.date-time { color: #6c757d; font-size: 0.85rem; }
+
+.table-sort-button {
+  display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   border: none;
   background: transparent;
-  color: inherit;
-  font: inherit;
-  padding: 0;
   cursor: pointer;
+  font-weight: 700;
+  color: inherit;
 }
+.table-sort-button:hover { color: #1f2937; }
 
-.table-sort-button:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.6);
-  outline-offset: 2px;
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  cursor: pointer;
+  padding: 0.1rem 0.2rem;
+  font-weight: 600;
+  font-size: 0.85rem;
 }
-
-/* =========================
-   9. Toast Notifications
-   ========================= */
-.toast {
-  position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  padding: 1rem 1.5rem;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  z-index: 1000;
-  animation: toast-in 0.5s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-@keyframes toast-in {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-.toast-success { background-color: #d1e7dd; color: #0f5132; }
-.toast-error { background-color: #f8d7da; color: #842029; }
-
-/* =========================
-   10. Responsive
-   ========================= */
-@media (max-width: 768px) {
-  .sidebar { width: 7rem; padding: 1rem 0.5rem; }
-  .form-grid { grid-template-columns: 1fr; gap: 1rem; }
-  .form-span-2 { grid-column: span 1; }
-}
-
-@media (max-width: 480px) {
-  .form-actions { flex-direction: column; }
-}
-/* Layout wrapper so sidebar is on the left and dashboard on the right */
+.btn-link:hover { text-decoration: underline; }
