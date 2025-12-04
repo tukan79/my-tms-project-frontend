@@ -33,14 +33,16 @@ const DashboardContent = () => {
 
         <MainHeader viewConfig={viewConfig} />
 
-        <main className="flex-1 overflow-auto p-4 md:p-6 w-full">
-          <PopOutProvider>
-            <ViewRenderer
-              data={dashboardData} // Przekazujemy cały obiekt z kontekstu, aby ViewRenderer miał dostęp do wszystkiego.
-              viewConfig={viewConfig}
-              autoRefreshEnabled={globalAutoRefresh}
-            />
-          </PopOutProvider>
+        <main className="main-container">
+          <div className="content-wrapper">
+            <PopOutProvider>
+              <ViewRenderer
+                data={dashboardData} // Przekazujemy cały obiekt z kontekstu, aby ViewRenderer miał dostęp do wszystkiego.
+                viewConfig={viewConfig}
+                autoRefreshEnabled={globalAutoRefresh}
+              />
+            </PopOutProvider>
+          </div>
         </main>
 
       </div>

@@ -84,10 +84,12 @@ const ViewRenderer = ({ viewConfig }) => {
       return <div className="error-container">Form component not found.</div>;
     }
     return (
-      <div className="card full-width">
-        <ErrorBoundary onReset={() => handleRefresh(currentView)}>
-          <currentViewConfig.FormComponent {...formProps} />
-        </ErrorBoundary>
+      <div className="layout-container-resizable">
+        <div className="card full-width">
+          <ErrorBoundary onReset={() => handleRefresh(currentView)}>
+            <currentViewConfig.FormComponent {...formProps} />
+          </ErrorBoundary>
+        </div>
       </div>
     );
   };
@@ -114,19 +116,23 @@ const ViewRenderer = ({ viewConfig }) => {
     }
 
     return (
-      <div className="card full-width">
-        <ErrorBoundary onReset={() => handleRefresh(currentView)}>
-          <currentViewConfig.ListComponent {...listProps} />
-        </ErrorBoundary>
+      <div className="layout-container-resizable">
+        <div className="card full-width">
+          <ErrorBoundary onReset={() => handleRefresh(currentView)}>
+            <currentViewConfig.ListComponent {...listProps} />
+          </ErrorBoundary>
+        </div>
       </div>
     );
   };
 
   const renderComponent = () => (
-    <div className="card full-width">
-      <ErrorBoundary>
-        <currentViewConfig.Component {...currentViewConfig.props} />
-      </ErrorBoundary>
+    <div className="layout-container-resizable">
+      <div className="card full-width">
+        <ErrorBoundary>
+          <currentViewConfig.Component {...currentViewConfig.props} />
+        </ErrorBoundary>
+      </div>
     </div>
   );
 

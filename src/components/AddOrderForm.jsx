@@ -218,8 +218,10 @@ const
   };
 
   return (
-    <form onSubmit={handleSubmit} className="form-card" style={{ width: '100%' }}>
-      <h2>{orderToEdit ? 'Edit Order' : 'Add New Order'}</h2>
+    <div className="page-container">
+      <div className="order-form-container">
+        <form onSubmit={handleSubmit} className="form-card">
+          <h2>{orderToEdit ? 'Edit Order' : 'Add New Order'}</h2>
 
       {/* Identyfikatory / referencje */}
       <div className="form-grid">
@@ -576,10 +578,12 @@ const
         {errors.final_price && <small className="error">{errors.final_price}</small>}
       </div>
 
-      <button type="submit" className="btn-primary" disabled={isSubmitting}>
-        {isSubmitting ? 'Saving...' : orderToEdit ? 'Update Order' : 'Add Order'}
-      </button>
-    </form>
+          <button type="submit" className="btn-primary" disabled={isSubmitting}>
+            {isSubmitting ? 'Saving...' : orderToEdit ? 'Update Order' : 'Add Order'}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 };
 
