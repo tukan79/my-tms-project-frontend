@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '@/services/api.js';
 import { useToast } from '@/contexts/ToastContext.jsx';
 import { Plus, Trash2, Edit, Save, XCircle, Download, Upload } from 'lucide-react';
-import AddRateEntryForm from './AddRateEntryForm.jsx';
+import AddRateEntryForm from './forms/AddRateEntryForm.jsx';
 import DataImporter from './DataImporter.jsx';
 import PropTypes from 'prop-types';
 

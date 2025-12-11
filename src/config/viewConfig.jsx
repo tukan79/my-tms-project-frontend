@@ -17,7 +17,7 @@ import CustomerList from '@/components/list/CustomerList.jsx';
 import UserList from '@/components/list/UserList.jsx';
 
 // Import Forms
-import AddOrderForm from '@/components/AddOrderForm.jsx';
+import AddOrderForm from '@/components/forms/AddOrderForm.jsx';
 import AddDriverForm from '@/components/forms/AddDriverForm.jsx';
 import AddTruckForm from '@/components/forms/AddTruckForm.jsx';
 import AddTrailerForm from '@/components/forms/AddTrailerForm.jsx';

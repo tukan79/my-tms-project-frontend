@@ -8,7 +8,7 @@ import DashboardContent from '@/components/DashboardContent.jsx';
 import PlanItPage from '@/pages/PlanItPage.jsx';
 import LoginPage from '@/pages/LoginPage.jsx';
 import RegisterPage from '@/pages/RegisterPage.jsx';
-import AddOrderForm from '@/components/AddOrderForm.jsx';
+import AddOrderForm from '@/components/forms/AddOrderForm.jsx';
 import { broadcastRefreshAll } from '@/utils/broadcastUtils.js';
 
 // 🔑 ProtectedRoute: Tylko dla zalogowanych
