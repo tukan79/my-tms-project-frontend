@@ -1,6 +1,7 @@
 // ViewRenderer.jsx — wersja naprawiona (FINAL)
 
 import React from 'react';
+import PropTypes from 'prop-types';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 import DataImporter from '@/components/DataImporter.jsx';
 import { useDashboard } from '@/contexts/DashboardContext.jsx';
@@ -80,9 +81,14 @@ const ViewRenderer = ({ viewConfig }) => {
       }),
     };
 
+    const wrapperClass =
+      currentView === 'pricing' || currentView === 'planit'
+        ? 'content-wrapper full-width'
+        : 'content-wrapper';
+
     return (
       <div className="view-shell">
-        <div className="content-wrapper">
+        <div className={wrapperClass}>
           <ErrorBoundary>
             <currentViewConfig.FormComponent {...formProps} />
           </ErrorBoundary>
@@ -134,3 +140,15 @@ const ViewRenderer = ({ viewConfig }) => {
 };
 
 export default ViewRenderer;
+
+const viewShape = PropTypes.shape({
+  dataKey: PropTypes.string,
+  FormComponent: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
+  ListComponent: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
+  Component: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
+  props: PropTypes.object,
+});
+
+ViewRenderer.propTypes = {
+  viewConfig: PropTypes.objectOf(viewShape),
+};

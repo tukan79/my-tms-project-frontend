@@ -113,7 +113,7 @@ export const DashboardProvider = ({ children }) => {
   const state = useDashboardStateManagement();
   const navigate = useNavigate();
 
-  // Ładowanie wszystkich danych
+  // Fetch entire dataset
   const dataFetching = useDataFetching(isAuthenticated ? user?.role : null);
 
   const mountedRef = useRef(true);
@@ -148,7 +148,7 @@ export const DashboardProvider = ({ children }) => {
         isRefreshing.current = false;
       }, 500);
     }
-  }, [dataFetching, showToast, state]);
+  }, [dataFetching.handleRefresh, showToast, state]);
 
   /* -------------------------------------------------------------
    *  EXPORT GENERIC
@@ -177,7 +177,7 @@ export const DashboardProvider = ({ children }) => {
   );
 
   /* -------------------------------------------------------------
-   *  VIEW CONFIG
+   *  VIEW CONFIG (fixed dependencies)
    * ------------------------------------------------------------- */
   const viewConfig = useMemo(() => {
     if (!dataFetching.data) return {};
@@ -207,57 +207,71 @@ export const DashboardProvider = ({ children }) => {
       },
       handleDeleteRequest: state.handleDeleteRequest,
 
-      // 🔥 KLUCZOWE NAPRAWIONE:
       handleRefresh: dataFetching.handleRefresh,
       refreshAll: dataFetching.handleRefresh,
     });
-  }, [user, dataFetching, state.handleDeleteRequest]);
+  }, [
+    user,
+    dataFetching.data,
+    dataFetching.loading,
+    state.handleDeleteRequest,
+  ]);
 
   /* -------------------------------------------------------------
-   *  AUTO REFRESH — PRACUJE TYLKO DLA AKTUALNEGO WIDOKU
+   * AUTO REFRESH (only current view)
    * ------------------------------------------------------------- */
   useEffect(() => {
     if (!state.globalAutoRefresh) return;
 
     const interval = setInterval(() => {
       dataFetching.handleRefresh?.(state.currentView);
-    }, 15000); // co 15 sekund
+    }, 15000);
 
     return () => clearInterval(interval);
-  }, [state.globalAutoRefresh, state.currentView, dataFetching]);
+  }, [state.globalAutoRefresh, state.currentView, dataFetching.handleRefresh]);
 
   /* -------------------------------------------------------------
-   * INITIAL VIEW SELECTION
+   * INITIAL VIEW
    * ------------------------------------------------------------- */
   useEffect(() => {
-    if (!dataFetching.loading && state.currentView && viewConfig[state.currentView]) return;
-
     if (!dataFetching.loading && Object.keys(viewConfig).length > 0) {
-      const preferredView = "orders";
-      const firstAvailable = Object.keys(viewConfig)[0];
-      const newView = viewConfig[preferredView] ? preferredView : firstAvailable;
+      if (!state.currentView || !viewConfig[state.currentView]) {
+        const preferred = "orders";
+        const fallback = Object.keys(viewConfig)[0];
+        const newView = viewConfig[preferred] ? preferred : fallback;
 
-      if (mountedRef.current) {
-        state.handleViewChange(newView);
+        if (mountedRef.current) {
+          state.handleViewChange(newView);
+        }
       }
     }
-  }, [dataFetching.loading, state.currentView, viewConfig, state.handleViewChange]);
+  }, [
+    dataFetching.loading,
+    state.currentView,
+    viewConfig,
+    state.handleViewChange,
+  ]);
 
+  /* -------------------------------------------------------------
+   * READY CONDITION — FIXED
+   * ------------------------------------------------------------- */
   const ready =
     !dataFetching.loading &&
-    state.currentView &&
-    viewConfig[state.currentView];
+    Object.keys(viewConfig).length > 0;
 
+  /* -------------------------------------------------------------
+   * PROVIDER VALUE — CLEAN & ORDERED
+   * ------------------------------------------------------------- */
   const providerValue = useMemo(
     () => ({
-      ...state,
-      ...dataFetching,
-      handleRefresh: dataFetching.handleRefresh, // 🔥 poprawione
+      ...dataFetching,         // API + refresh
+      ...state,                // UI state
       user,
       viewConfig,
       handleLogout,
       handleFormSuccess,
       handleGenericExport,
+      handleRefresh: dataFetching.handleRefresh,
     }),
     [
       state,
@@ -270,6 +284,9 @@ export const DashboardProvider = ({ children }) => {
     ]
   );
 
+  /* -------------------------------------------------------------
+   * LOADING VIEW
+   * ------------------------------------------------------------- */
   if (!ready) {
     return (
       <div className="flex items-center justify-center min-h-screen">

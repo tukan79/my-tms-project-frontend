@@ -183,9 +183,12 @@ h2 {
 }
 
 h3 {
-  margin: 1.5rem 0 0.75rem;
+  margin: 2rem 0 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
   color: #1e2a4a;
-  font-size: 1.1rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: .5rem;
 }
 
 .text-muted {
@@ -203,14 +206,19 @@ h3 {
   border: 1px solid var(--border-color);
   border-radius: 12px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-
-  /* MOST IMPORTANT FIXES */
-  width: 100%;
-  max-width: none;
   padding: 2rem;
-
-  flex: 1 1 auto;
-  align-self: stretch !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+/* ==========================================
+   PAGE CONTAINER — centrowanie + max-width
+   ========================================== */
+.page-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 2.5rem;
+  box-sizing: border-box;
 }
 
 .page-card {
@@ -220,8 +228,8 @@ h3 {
   padding: 2rem 2.5rem;
   box-shadow: 0 10px 25px rgba(0,0,0,0.06);
   width: 100%;
-  max-width: none;
-  margin: 2rem 0;
+  max-width: 1200px;
+  margin: 2rem auto;
   box-sizing: border-box;
 }
 
@@ -237,6 +245,19 @@ h3 {
 .content-wrapper.full-width > .responsive-card {
   max-width: none !important;
   width: 100% !important;
+}
+/* ==========================================
+   FORM CARD — optymalna dla formularzy
+   ========================================== */
+.form-card {
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 2.5rem 3rem;
+  width: 100%;
+  max-width: 900px;      /* ★ idealna szerokość dla form */
+  margin: 0 auto;        /* wycentrowanie */
+  box-shadow: 0 6px 20px rgba(0,0,0,0.06);
 }
 
 /* =========================
@@ -339,11 +360,13 @@ h3 {
   flex-direction: column;
   gap: 1.5rem;
 }
-
+@media (max-width: 820px) {
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
+  
+}
 }
 
 .form-group {
@@ -375,24 +398,6 @@ h3 {
   outline: none;
 }
 
-.form-card {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-
-  background: var(--card-background);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  align-self: stretch;
-
-  flex: 0 0 auto;
-}
 
 .input-error {
   border-color: var(--danger-color) !important;
@@ -698,3 +703,4 @@ h3 {
   text-decoration: underline;
 }
 /* CENTRAL LAYOUT WRAPPERS (critical) */
+

@@ -6,72 +6,72 @@ import React, {
   useState,
   useCallback,
   useMemo,
-} from 'react';
-import PropTypes from 'prop-types';
-import api from '@/services/api';
-import { useToast } from '@/contexts/ToastContext.jsx';
+} from "react";
+import PropTypes from "prop-types";
+import api from "@/services/api";
+import { useToast } from "@/contexts/ToastContext.jsx";
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
 };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Ładowanie podczas startu aplikacji
+  // loading only during app startup
   const [isLoading, setIsLoading] = useState(true);
 
-  // Ładowanie podczas logowania / rejestracji
+  // loading for login/register buttons
   const [loading, setLoading] = useState(false);
 
-  // Flaga zapobiegająca podwójnej inicjalizacji sesji po zalogowaniu.
+  // prevent duplicate initialization immediately after login
   const [justLoggedIn, setJustLoggedIn] = useState(false);
 
   const { showToast } = useToast();
 
-  // 🔹 Logowanie użytkownika
-  const login = useCallback(
-    async (email, password) => {
-      setLoading(true);
-      try {
-        const { data } = await api.post('/api/auth/login', { email, password });
+  /* -------------------------------------------------------------
+   * LOGIN
+   * ------------------------------------------------------------- */
+  const login = useCallback(async (email, password) => {
+    setLoading(true);
+    try {
+      const { data } = await api.post("/api/auth/login", { email, password });
 
-        if (data?.accessToken) {
-          localStorage.setItem('token', data.accessToken);
-        }
- 
-        setUser(data?.user || null);
-        setIsAuthenticated(true);
- 
-        // Ustawiamy flagę, aby pominąć `initializeAuth` w `useEffect`.
-        setJustLoggedIn(true);
-      } catch (error) {
-        console.error('Login failed:', error);
-        throw error;
-      } finally {
-        setLoading(false);
+      if (data?.accessToken) {
+        localStorage.setItem("token", data.accessToken);
+        api.defaults.headers.common.Authorization = `Bearer ${data.accessToken}`;
       }
-    },
-    [] // showToast z useToast jest stabilny, nie trzeba go dodawać.
-  );
 
-  // 🔹 Rejestracja
+      setUser(data.user || null);
+      setIsAuthenticated(true);
+
+      // skip initial session restore
+      setJustLoggedIn(true);
+    } catch (err) {
+      console.error("Login error:", err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /* -------------------------------------------------------------
+   * REGISTER
+   * ------------------------------------------------------------- */
   const register = useCallback(
     async (userData) => {
       setLoading(true);
       try {
-        await api.post('/api/auth/register', userData);
-        showToast('Registration successful! You can now log in.', 'success');
-      } catch (error) {
-        console.error('Registration failed:', error);
-        throw error;
+        await api.post("/api/auth/register", userData);
+        showToast("Registration successful! You can now log in.", "success");
+      } catch (err) {
+        console.error("Registration failed:", err);
+        throw err;
       } finally {
         setLoading(false);
       }
@@ -79,133 +79,143 @@ export const AuthProvider = ({ children }) => {
     [showToast]
   );
 
-  // 🔹 Wylogowanie
+  /* -------------------------------------------------------------
+   * LOGOUT
+   * ------------------------------------------------------------- */
   const logout = useCallback(async () => {
     try {
-      await api.post('/api/auth/logout');
+      await api.post("/api/auth/logout");
     } catch (e) {
-      console.warn('Logout failed on API, clearing local session anyway.', e);
-    } finally {
-      localStorage.removeItem('token');
-      setUser(null);
-      setIsAuthenticated(false);
-      showToast('You have been logged out.', 'info');
+      console.warn("Logout API failed, clearing session anyway.");
     }
+
+    localStorage.removeItem("token");
+    delete api.defaults.headers.common.Authorization;
+
+    setUser(null);
+    setIsAuthenticated(false);
+
+    showToast("You have been logged out.", "info");
   }, [showToast]);
 
-  // 🔹 Automatyczna aktualizacja tokenów
+  /* -------------------------------------------------------------
+   * TOKENS: refresh event listeners
+   * ------------------------------------------------------------- */
   useEffect(() => {
-    const handleTokenRefreshed = (event) => {
-      const newToken = event.detail?.accessToken;
-      if (newToken) {
-        localStorage.setItem('token', newToken);
-        console.log('✅ Token updated in AuthContext (event).');
-      }
+    const onTokenRefreshed = (event) => {
+      const token = event.detail?.accessToken;
+      if (!token) return;
+
+      localStorage.setItem("token", token);
+      api.defaults.headers.common.Authorization = `Bearer ${token}`;
     };
 
-    const handleAuthError = () => {
-      console.warn('⚠️ Auth error received — logging out user (event).');
+    const onAuthError = () => {
+      console.warn("Token refresh failed — logging out.");
       logout();
     };
 
-    globalThis.addEventListener('token-refreshed', handleTokenRefreshed);
-    globalThis.addEventListener('auth-error', handleAuthError);
+    globalThis.addEventListener("token-refreshed", onTokenRefreshed);
+    globalThis.addEventListener("auth-error", onAuthError);
 
     return () => {
-      globalThis.removeEventListener('token-refreshed', handleTokenRefreshed);
-      globalThis.removeEventListener('auth-error', handleAuthError);
+      globalThis.removeEventListener("token-refreshed", onTokenRefreshed);
+      globalThis.removeEventListener("auth-error", onAuthError);
     };
   }, [logout]);
 
-  const refreshAndRetry = useCallback(
-    async (signal) => {
-      const refreshResp = await api.post('/api/auth/refresh', {}, { signal });
-      const newToken = refreshResp?.data?.accessToken;
-      if (!newToken) throw new Error('Refresh did not return a token.');
+  /* -------------------------------------------------------------
+   * REFRESH TOKEN HANDLER
+   * ------------------------------------------------------------- */
+  const refreshAndRetry = useCallback(async (signal) => {
+    const resp = await api.post("/api/auth/refresh", {}, { signal });
 
-      localStorage.setItem('token', newToken);
-      const retried = await api.get('/api/auth/me', { signal });
-      setUser(retried.data);
-      setIsAuthenticated(true);
-      globalThis.dispatchEvent(
-        new CustomEvent('token-refreshed', { detail: { accessToken: newToken } })
-      );
-    },
-    []
-  );
+    const token = resp?.data?.accessToken;
+    if (!token) throw new Error("Refresh did not return a token");
 
-  const handleInitError = useCallback(
-    async (err, signal) => {
-      if (err.name === 'CanceledError') return;
+    localStorage.setItem("token", token);
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
 
-      const status = err?.response?.status;
-      console.warn('Initial /api/auth/me failed:', status, err?.message || err);
+    const me = await api.get("/api/auth/me", { signal });
+    setUser(me.data);
+    setIsAuthenticated(true);
 
-      if (status !== 401) return;
+    globalThis.dispatchEvent(
+      new CustomEvent("token-refreshed", { detail: { accessToken: token } })
+    );
+  }, []);
 
-      try {
-        await refreshAndRetry(signal);
-      } catch (refreshError) {
-        if (refreshError.name === 'CanceledError') return;
-        console.warn('Refresh attempt failed during initialization:', refreshError?.response?.data || refreshError?.message || refreshError);
-        if (isAuthenticated) {
-          logout();
-        }
-      }
-    },
-    [refreshAndRetry, isAuthenticated, logout]
-  );
-
-  // === Inicjalizacja sesji po starcie aplikacji ===
+  /* -------------------------------------------------------------
+   * INITIAL SESSION RESTORE
+   * ------------------------------------------------------------- */
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
 
-    const initializeAuth = async () => {
-      const token = localStorage.getItem('token');
+    const init = async () => {
+      const token = localStorage.getItem("token");
+
       if (!token) {
         setIsLoading(false);
         return;
       }
 
+      // attach token for first request
+      api.defaults.headers.common.Authorization = `Bearer ${token}`;
+
       try {
-        const resp = await api.get('/api/auth/me', { signal });
-        setUser(resp.data);
+        const me = await api.get("/api/auth/me", { signal });
+        setUser(me.data);
         setIsAuthenticated(true);
       } catch (err) {
-        await handleInitError(err, signal);
+        const status = err?.response?.status;
+
+        if (status === 401) {
+          try {
+            await refreshAndRetry(signal);
+          } catch {
+            logout();
+          }
+        }
       }
 
       setIsLoading(false);
     };
 
-    if (justLoggedIn) {
-      setIsLoading(false);
+    // skip session initialization immediately after manual login
+    if (!justLoggedIn) {
+      init();
     } else {
-      initializeAuth();
+      setIsLoading(false);
     }
 
     return () => controller.abort();
-  }, [justLoggedIn, logout, isAuthenticated, refreshAndRetry, handleInitError]); // Dodajemy isAuthenticated, aby poprawnie obsłużyć wylogowanie wewnątrz catch
+  }, [justLoggedIn, refreshAndRetry, logout]);
 
-  const providerValue = useMemo(() => ({
-    user,
-    isAuthenticated,
-    isLoading,
-    loading,
-    login,
-    logout,
-    register,
-    setUser,
-  }), [user, isAuthenticated, isLoading, loading, login, logout, register]);
+  /* -------------------------------------------------------------
+   * PROVIDER VALUE
+   * ------------------------------------------------------------- */
+  const providerValue = useMemo(
+    () => ({
+      user,
+      isAuthenticated,
+      isLoading,
+      loading,
+      login,
+      logout,
+      register,
+      setUser,
+    }),
+    [user, isAuthenticated, isLoading, loading, login, logout, register]
+  );
 
   return (
-    <AuthContext.Provider
-      value={providerValue}
-    >
-      {/* Renderuj dzieci tylko wtedy, gdy inicjalizacja jest zakończona */}
-      {/* To zapobiega renderowaniu `DashboardProvider` zanim `isAuthenticated` będzie stabilne. */}
-      {isLoading ? <div className="loading">Initializing session...</div> : children}
+    <AuthContext.Provider value={providerValue}>
+      {isLoading ? (
+        <div className="loading">Initializing session...</div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 };
