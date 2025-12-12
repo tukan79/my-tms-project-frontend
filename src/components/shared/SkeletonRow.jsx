@@ -1,23 +1,34 @@
-import React from 'react';
-import PropTypes from 'prop-types';
+import React from "react";
+import PropTypes from "prop-types";
 
+/**
+ * Modern SaaS Skeleton Row
+ * - Elegant shimmer effect
+ * - Fully accessible
+ * - Works in light/dark mode
+ * - Automatically adapts to number of columns
+ */
 const SkeletonRow = ({ columns = [], hasActions, rows = 1 }) => {
-  // Zabezpieczenie: Gwarantujemy, że `columns` jest zawsze tablicą,
-  // nawet jeśli props jest `null` lub `undefined`.
   const safeColumns = Array.isArray(columns) ? columns : [];
 
   return (
     <>
       {Array.from({ length: rows }).map((_, rowIndex) => (
-        <tr key={`skeleton-row-${rows}-${rowIndex}`} aria-busy="true" aria-label="Loading data">
+        <tr
+          key={`skeleton-row-${rowIndex}`}
+          aria-busy="true"
+          aria-label="Loading row"
+          className="skeleton-row"
+        >
           {safeColumns.map((col) => (
             <td key={`${col.key}-${rowIndex}`}>
-              <div className="skeleton-cell shimmer" />
+              <div className="skeleton-block shimmer" />
             </td>
           ))}
+
           {hasActions && (
             <td className="actions-cell">
-              <div className="skeleton-cell shimmer" />
+              <div className="skeleton-block shimmer action-skeleton" />
             </td>
           )}
         </tr>
@@ -25,8 +36,6 @@ const SkeletonRow = ({ columns = [], hasActions, rows = 1 }) => {
     </>
   );
 };
-
-export default SkeletonRow;
 
 SkeletonRow.propTypes = {
   columns: PropTypes.arrayOf(
@@ -37,4 +46,11 @@ SkeletonRow.propTypes = {
   hasActions: PropTypes.bool,
   rows: PropTypes.number,
 };
-// ostatnia zmiana (30.05.2024, 13:14:12)
+
+SkeletonRow.defaultProps = {
+  columns: [],
+  hasActions: false,
+  rows: 1,
+};
+
+export default SkeletonRow;

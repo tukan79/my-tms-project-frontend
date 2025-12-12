@@ -1,12 +1,29 @@
+// src/components/DataImporter.jsx
 import React, { useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import Papa from 'papaparse';
-import { X, UploadCloud, FileText, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
+
+import {
+  X,
+  UploadCloud,
+  FileText,
+  AlertTriangle,
+  CheckCircle,
+  RefreshCw
+} from 'lucide-react';
+
 import api from '@/services/api';
 import { useToast } from '@/contexts/ToastContext.jsx';
 
-const getNestedValue = (obj, path) => path?.split('.')?.reduce((acc, part) => acc?.[part], obj);
+/* -------------------------------------------------------
+   UTILS
+------------------------------------------------------- */
+const getNestedValue = (obj, path) =>
+  path?.split('.')?.reduce((acc, key) => acc?.[key], obj);
 
+/* -------------------------------------------------------
+   COMPONENT
+------------------------------------------------------- */
 const DataImporter = ({
   title,
   apiEndpoint,
@@ -15,221 +32,265 @@ const DataImporter = ({
   previewColumns,
   onSuccess,
   onCancel,
-  refreshFn,              // 👈 callback np. fetchRates() albo fetchTrucks()
-  initialAutoRefresh = true, // 👈 startowy stan auto-refresh
+  refreshFn,
+  initialAutoRefresh = true,
 }) => {
-  const [file, setFile] = useState(null);
-  const [parsedData, setParsedData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [parsingErrors, setParsingErrors] = useState([]);
-  const [error, setError] = useState(null);
-  const [autoRefresh, setAutoRefresh] = useState(initialAutoRefresh);
   const fileInputRef = useRef(null);
   const { showToast } = useToast();
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setError(null);
-      setParsingErrors([]);
+  const [file, setFile] = useState(null);
+  const [parsedData, setParsedData] = useState([]);
+  const [parsingErrors, setParsingErrors] = useState([]);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(initialAutoRefresh);
 
-      Papa.parse(selectedFile, {
-        header: true,
-        skipEmptyLines: true,
-        bom: true,
-        complete: (results) => {
-          if (results.errors.length) {
-            setError('Error parsing CSV file. Please check its structure.');
-            setParsingErrors(results.errors);
-            console.error("CSV Parsing Errors:", results.errors);
-            setParsedData([]);
-          } else {
-            const mappedData = results.data.map(dataMappingFn).filter(Boolean);
-            setParsedData(mappedData);
-            setParsingErrors([]);
-          }
-        },
-        error: () => {
-          setError('Cannot read the file. Please ensure it is a valid CSV file.');
+  /* -------------------------------------------------------
+     FILE PARSING
+  ------------------------------------------------------- */
+  const handleFileChange = (e) => {
+    const selected = e.target.files[0];
+    if (!selected) return;
+
+    setFile(selected);
+    setParsingErrors([]);
+    setError(null);
+
+    Papa.parse(selected, {
+      header: true,
+      skipEmptyLines: true,
+      bom: true,
+      complete: ({ data, errors }) => {
+        if (errors?.length) {
+          setParsingErrors(errors);
+          setError('Error parsing CSV file. Please check the file structure.');
           setParsedData([]);
-        },
-      });
-    }
+          return;
+        }
+
+        const mapped = data.map(dataMappingFn).filter(Boolean);
+        setParsedData(mapped);
+      },
+      error: () => {
+        setError('Unable to read CSV file.');
+        setParsedData([]);
+      },
+    });
   };
 
+  /* -------------------------------------------------------
+     IMPORT HANDLER
+  ------------------------------------------------------- */
   const handleImport = async () => {
     if (parsedData.length === 0) {
-      showToast('No valid data to import.', 'warning');
+      showToast('No valid rows to import.', 'warning');
       return;
     }
+
     setIsLoading(true);
     setError(null);
 
-    const payload = postDataKey ? { [postDataKey]: parsedData } : parsedData;
-    try {      const response = await api.post(apiEndpoint, payload);
-      const result = response.data;
-      showToast(result.message || 'Import finished successfully!', 'success');
-      if (result.errors && result.errors.length > 0) {
-        const errorMessages = result.errors.map(e => `Line ${e.line}: ${e.message}`).join('\n');
-        setError(`Import completed with some issues:\n${errorMessages}`);
-      }
-      if (onSuccess) onSuccess();
+    const payload = postDataKey
+      ? { [postDataKey]: parsedData }
+      : parsedData;
 
-      // 👇 Auto-refresh jeśli aktywny
+    try {
+      const response = await api.post(apiEndpoint, payload);
+      const result = response.data;
+
+      showToast(result.message || 'Import completed successfully.', 'success');
+
+      // If backend reports partial errors
+      if (result.errors?.length) {
+        const msg = result.errors
+          .map(e => `Line ${e.line}: ${e.message}`)
+          .join('\n');
+        setError(`Import completed with issues:\n${msg}`);
+      }
+
+      onSuccess?.();
+
+      // Trigger auto-refresh in parent
       if (autoRefresh && typeof refreshFn === 'function') {
         refreshFn();
-        showToast('Auto-refresh triggered after import.', 'info');
+        showToast('Data refreshed after import.', 'info');
       }
 
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Server error during import.';
-      showToast(errorMessage, 'error');
-      setError(errorMessage);
+      const msg = err.response?.data?.error || 'Server error during import.';
+      showToast(msg, 'error');
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
+  /* -------------------------------------------------------
+     DRAG & DROP
+  ------------------------------------------------------- */
   const handleDragOver = (e) => e.preventDefault();
+
   const handleDrop = (e) => {
     e.preventDefault();
     handleFileChange({ target: { files: e.dataTransfer.files } });
   };
 
+  /* -------------------------------------------------------
+     AUTO REFRESH TOGGLE
+  ------------------------------------------------------- */
   const toggleAutoRefresh = () => {
-    setAutoRefresh((prev) => {
+    setAutoRefresh(prev => {
       const next = !prev;
       showToast(`Auto-refresh ${next ? 'enabled' : 'disabled'}`, 'info');
       return next;
     });
   };
 
+  /* -------------------------------------------------------
+     RENDER
+  ------------------------------------------------------- */
   return (
     <div className="card">
-      {/* 🔹 Nagłówek z przełącznikiem */}
+
+      {/* HEADER */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="flex items-center gap-2">
           <UploadCloud size={22} /> {title}
         </h2>
+
         <div className="flex items-center gap-3">
+
+          {/* Auto-refresh toggle */}
           <button
+            type="button"
             onClick={toggleAutoRefresh}
             className={`btn-small ${autoRefresh ? 'btn-active' : 'btn-secondary'}`}
-            title="Toggle auto refresh"
           >
-            <RefreshCw size={16} className={autoRefresh ? 'animate-spin-slow' : ''} />
-            <span className="ml-1">{autoRefresh ? 'Auto ON' : 'Auto OFF'}</span>
+            <RefreshCw
+              size={16}
+              className={autoRefresh ? 'animate-spin-slow' : ''}
+            />
+            <span className="ml-1">
+              {autoRefresh ? 'Auto ON' : 'Auto OFF'}
+            </span>
           </button>
+
+          {/* Close */}
           <button onClick={onCancel} className="btn-icon">
             <X size={20} />
           </button>
         </div>
       </div>
 
+      {/* ERROR BOX */}
       {error && (
-        <div className="error-message" style={{ whiteSpace: 'pre-wrap' }}>
+        <div className="error-message mb-3" style={{ whiteSpace: 'pre-wrap' }}>
           <AlertTriangle size={16} /> {error}
         </div>
       )}
 
-      {/* 🔹 Główna część UI */}
+      {/* CONTENT AREA */}
       {file ? (
-        <div>
-          {/* Plik */}
-          <div className="file-info" style={{ marginTop: '1.5rem' }}>
+        <>
+          {/* File info */}
+          <div className="file-info flex items-center gap-2 mb-3">
             <FileText size={24} />
             <span>{file.name}</span>
             <button
-              onClick={() => { setFile(null); setParsedData([]); setError(null); setParsingErrors([]); }}
               className="btn-icon"
+              onClick={() => {
+                setFile(null);
+                setParsedData([]);
+                setParsingErrors([]);
+                setError(null);
+              }}
             >
               <X size={16} />
             </button>
           </div>
 
-          {/* Błędy CSV */}
+          {/* CSV parsing errors */}
           {parsingErrors.length > 0 && (
-            <div
-              className="error-message"
-              style={{
-                marginTop: '1rem',
-                maxHeight: '150px',
-                overflowY: 'auto',
-                padding: '1rem',
-                background: '#fff3f3',
-                borderRadius: '6px',
-              }}
-            >
-              <strong>Parsing Errors Found:</strong>
-              <ul>
-                {parsingErrors.slice(0, 5).map((err) => (
-                  <li key={`parse-error-${err.row ?? err.message}`}>Row {err.row}: {err.message}</li>
+            <div className="error-message p-3 rounded mb-3 max-h-40 overflow-auto">
+              <strong>CSV Parsing Errors:</strong>
+              <ul className="mt-1">
+                {parsingErrors.slice(0, 5).map(err => (
+                  <li key={`err-${err.row}-${err.message}`}>
+                    Row {err.row}: {err.message}
+                  </li>
                 ))}
               </ul>
-              {parsingErrors.length > 5 && <p>...and {parsingErrors.length - 5} more errors.</p>}
+              {parsingErrors.length > 5 && (
+                <p>...and {parsingErrors.length - 5} more.</p>
+              )}
             </div>
           )}
 
-          {/* Podgląd */}
+          {/* Preview table */}
           {parsedData.length > 0 && (
             <>
-              <p style={{ marginTop: '1rem' }}>
-                <CheckCircle size={16} color="green" /> Found <strong>{parsedData.length}</strong> records to import.
+              <p className="text-sm">
+                <CheckCircle size={16} color="green" /> Parsed{' '}
+                <strong>{parsedData.length}</strong> rows.
               </p>
-              <div className="table-container-scrollable" style={{ maxHeight: '300px', marginTop: '1rem' }}>
+
+              <div className="table-container-scrollable mt-2 max-h-72">
                 <table className="data-table">
                   <thead>
                     <tr>
-                      {previewColumns.map(col => <th key={col.key}>{col.header}</th>)}
+                      {previewColumns.map(col => (
+                        <th key={col.key}>{col.header}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {parsedData.slice(0, 5).map((row) => {
-                      const fallbackKey = JSON.stringify(row);
-                      const rowKey = row?.id
-                        ?? row?.order_number
-                        ?? row?.customer_reference
-                        ?? row?.email
-                        ?? row?.code
-                        ?? fallbackKey;
-
-                      return (
-                        <tr key={`preview-row-${rowKey}`}>
+                    {parsedData.slice(0, 5).map((row, i) => (
+                      <tr key={`preview-${i}`}>
                         {previewColumns.map(col => (
                           <td key={col.key}>
-                            {col.render ? col.render(row) : getNestedValue(row, col.key)}
+                            {col.render
+                              ? col.render(row)
+                              : getNestedValue(row, col.key)}
                           </td>
                         ))}
-                        </tr>
-                      );
-                    })}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
+
               {parsedData.length > 5 && (
-                <p style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                <p className="text-center mt-1">
                   ...and {parsedData.length - 5} more rows.
                 </p>
               )}
             </>
           )}
 
-          {/* Akcje */}
-          <div className="form-actions">
-            <button type="button" onClick={onCancel} className="btn-secondary" disabled={isLoading}>
+          {/* ACTIONS */}
+          <div className="form-actions mt-4">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onCancel}
+              disabled={isLoading}
+            >
               Cancel
             </button>
             <button
-              onClick={handleImport}
+              type="button"
               className="btn-primary"
+              onClick={handleImport}
               disabled={isLoading || parsedData.length === 0}
             >
-              {isLoading ? 'Importing...' : `Import ${parsedData.length} Records`}
+              {isLoading
+                ? 'Importing...'
+                : `Import ${parsedData.length} Records`}
             </button>
           </div>
-        </div>
+        </>
       ) : (
+        /* DROPZONE */
         <button
           type="button"
           className="dropzone"
@@ -238,13 +299,14 @@ const DataImporter = ({
           onClick={() => fileInputRef.current?.click()}
         >
           <UploadCloud size={48} />
-          <p>Drag & drop a CSV file here, or click to select a file.</p>
+          <p className="mt-2">Drag & drop CSV file here, or click to browse.</p>
+
           <input
             ref={fileInputRef}
             type="file"
             accept=".csv"
             onChange={handleFileChange}
-            style={{ display: 'none' }}
+            hidden
           />
         </button>
       )}
@@ -252,6 +314,11 @@ const DataImporter = ({
   );
 };
 
+export default DataImporter;
+
+/* -------------------------------------------------------
+   PROP TYPES
+------------------------------------------------------- */
 DataImporter.propTypes = {
   title: PropTypes.string.isRequired,
   apiEndpoint: PropTypes.string.isRequired,
@@ -269,10 +336,3 @@ DataImporter.propTypes = {
   refreshFn: PropTypes.func,
   initialAutoRefresh: PropTypes.bool,
 };
-
-export default DataImporter;
-
-// ✅ Ostatnia aktualizacja: 04.11.2025
-// - dodano Auto-Refresh toggle (ON/OFF)
-// - auto-refresh po imporcie
-// - kompatybilny z panelem nadrzędnym (refreshFn)

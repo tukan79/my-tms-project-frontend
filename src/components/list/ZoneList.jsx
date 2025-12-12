@@ -1,125 +1,166 @@
 // src/components/list/ZoneList.jsx
-import React, { useState, useCallback } from 'react';
-import PropTypes from 'prop-types';
+import React, { useState, useCallback, useMemo } from "react";
+import PropTypes from "prop-types";
 
-import DataTable from '@/components/shared/DataTable.jsx';
-import api from '@/services/api.js';
-import { useToast } from '@/contexts/ToastContext.jsx';
+import DataTable from "@/components/shared/DataTable.jsx";
+import api from "@/services/api.js";
+import { useToast } from "@/contexts/ToastContext.jsx";
+
+import { MapPin, Hash } from "lucide-react";
+
+/* Safe confirm without window.* */
+const confirmAction = (message) => {
+  if (
+    typeof globalThis !== "undefined" &&
+    typeof globalThis.confirm === "function"
+  ) {
+    return globalThis.confirm(message);
+  }
+  return false;
+};
 
 const ZoneList = ({ items, onRefresh, onEdit }) => {
-  const safeZones = Array.isArray(items) ? items : [];
-  const [expandedZones, setExpandedZones] = useState({});
   const { showToast } = useToast();
 
-  const toggleZoneExpansion = useCallback((zoneId) => {
-    setExpandedZones((prev) => ({
-      ...prev,
-      [zoneId]: !prev[zoneId],
-    }));
+  const safeZones = useMemo(
+    () => (Array.isArray(items) ? items : []),
+    [items]
+  );
+
+  const [expanded, setExpanded] = useState({});
+
+  const toggleExpand = useCallback((zoneId) => {
+    setExpanded((prev) => ({ ...prev, [zoneId]: !prev[zoneId] }));
   }, []);
 
+  /* ---------------------------------------------------------
+      RENDER POSTCODE PATTERNS
+  --------------------------------------------------------- */
   const renderPostcodePatterns = (zone) => {
-    const patterns = Array.isArray(zone.postcodePatterns || zone.postcode_patterns)
+    const patterns = Array.isArray(zone.postcode_patterns)
       ? zone.postcode_patterns
       : [];
 
-    const isExpanded = Boolean(expandedZones[zone.id]);
-    const patternsToShow = isExpanded
-      ? patterns
-      : patterns.slice(0, 5);
-
     if (patterns.length === 0) {
-      return (
-        <span className="tag-empty">
-          No postcodes defined
-        </span>
-      );
+      return <span className="text-muted">No postcodes</span>;
     }
 
+    const isOpen = expanded[zone.id];
+    const toShow = isOpen ? patterns : patterns.slice(0, 6);
+
     return (
-      <>
-        {patternsToShow.map((pattern) => (
-          <span key={pattern} className="tag">
-            {pattern}
+      <div className="tag-container">
+        {toShow.map((p) => (
+          <span key={p} className="tag">
+            <Hash size={12} /> {p}
           </span>
         ))}
 
-        {patterns.length > 5 && (
+        {patterns.length > 6 && (
           <button
             type="button"
-            onClick={() => toggleZoneExpansion(zone.id)}
             className="btn-link"
+            style={{ fontSize: "0.8rem", paddingLeft: "0.2rem" }}
+            onClick={() => toggleExpand(zone.id)}
           >
-            {isExpanded
-              ? '▲ Show less'
-              : `▼ +${patterns.length - 5} more`}
+            {isOpen
+              ? "Show less ▲"
+              : `+${patterns.length - 6} more ▼`}
           </button>
         )}
-      </>
+      </div>
     );
   };
 
+  /* ---------------------------------------------------------
+      TABLE COLUMNS (MODERN)
+  --------------------------------------------------------- */
   const columns = [
     {
-      key: 'zone_name',
-      header: 'Zone Name',
-      sortable: true,
-    },
-    {
-      key: 'postcode_patterns',
-      header: 'Postcode Patterns',
-      sortable: false, // Patterns are not easily sortable
-      render: (zone) => (
-        <div className="tag-container">
-          {renderPostcodePatterns(zone)}
+      key: "zone_name",
+      header: (
+        <div className="table-col-header">
+          <MapPin size={14} /> Zone
         </div>
       ),
+      sortable: true,
     },
     {
-      key: 'is_home_zone',
-      header: 'Home Zone',
-      render: (zone) => (zone.is_home_zone ? 'Yes' : 'No'),
+      key: "postcode_patterns",
+      header: (
+        <div className="table-col-header">
+          <Hash size={14} /> Postcode Patterns
+        </div>
+      ),
+      sortable: false,
+      render: (zone) => renderPostcodePatterns(zone),
+    },
+    {
+      key: "is_home_zone",
+      header: "Home Zone",
       sortable: true,
+      render: (zone) =>
+        zone.is_home_zone ? (
+          <span className="status status-active">Yes</span>
+        ) : (
+          <span className="status status-inactive">No</span>
+        ),
     },
   ];
 
+  /* ---------------------------------------------------------
+      DELETE HANDLER
+  --------------------------------------------------------- */
   const handleDelete = async (zone) => {
     if (zone.is_home_zone) {
-      showToast('You cannot delete the home zone.', 'error');
+      showToast("You cannot delete the home zone.", "error");
       return;
     }
 
-    const confirmed = globalThis.confirm(
-      `Are you sure you want to delete zone "${zone.zone_name}"?`
+    const ok = confirmAction(
+      `Delete zone "${zone.zone_name}"?`
     );
-
-    if (!confirmed) {
-      return;
-    }
+    if (!ok) return;
 
     try {
       await api.delete(`/api/zones/${zone.id}`);
-      showToast('Zone deleted successfully.', 'success');
-      onRefresh();
+      showToast("Zone deleted.", "success");
+      onRefresh?.();
     } catch (error) {
-      const message =
-        error.response?.data?.error ||
-        'Failed to delete zone.';
-      showToast(message, 'error');
+      showToast(
+        error?.response?.data?.error ||
+          "Failed to delete zone.",
+        "error"
+      );
     }
   };
 
+  /* ---------------------------------------------------------
+      RENDER
+  --------------------------------------------------------- */
   return (
-    <DataTable
-      items={safeZones}
-      columns={columns}
-      onRefresh={onRefresh}
-      onEdit={onEdit}
-      onDelete={handleDelete}
-      title="Postcode Zones"
-      filterPlaceholder="Search zones..."
-      filterKeys={['zone_name']}
-    />
+    <div className="card">
+      <div className="card-header-modern">
+        <div>
+          <h2 className="card-title">Postcode Zones</h2>
+          <p className="text-muted small">
+            {safeZones.length} zones configured
+          </p>
+        </div>
+      </div>
+
+      <DataTable
+        items={safeZones}
+        columns={columns}
+        onEdit={onEdit}
+        onDelete={handleDelete}
+        onRefresh={onRefresh}
+        title="Zones"
+        filterPlaceholder="Search zones..."
+        initialSortKey="zone_name"
+        filterKeys={["zone_name", "postcode_patterns"]}
+      />
+    </div>
   );
 };
 

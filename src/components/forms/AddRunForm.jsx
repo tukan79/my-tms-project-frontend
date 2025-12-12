@@ -21,19 +21,18 @@ const initialFormData = {
   trailer_id: '',
 };
 
-const normalizeEditData = (itemToEdit) => {
-  if (!itemToEdit) {
-    return null;
-  }
+/** Normalize data for editing */
+const normalizeEditData = (item) => {
+  if (!item) return null;
 
   return {
-    ...itemToEdit,
-    run_date: itemToEdit.run_date
-      ? new Date(itemToEdit.run_date).toISOString().split('T')[0]
+    ...item,
+    run_date: item.run_date
+      ? new Date(item.run_date).toISOString().split('T')[0]
       : initialFormData.run_date,
-    driver_id: itemToEdit.driver_id ?? '',
-    truck_id: itemToEdit.truck_id ?? '',
-    trailer_id: itemToEdit.trailer_id ?? '',
+    driver_id: item.driver_id ?? '',
+    truck_id: item.truck_id ?? '',
+    trailer_id: item.trailer_id ?? '',
   };
 };
 
@@ -53,6 +52,7 @@ const AddRunForm = ({
     [itemToEdit]
   );
 
+  /** Submit handler */
   const performSubmit = async (formData) => {
     try {
       if (isEditMode) {
@@ -61,20 +61,19 @@ const AddRunForm = ({
         await createRun(formData);
       }
 
-      const successMessage = isEditMode
-        ? 'Run updated successfully.'
-        : 'Run created successfully.';
-
-      showToast(successMessage, 'success');
+      showToast(
+        isEditMode ? 'Run updated successfully.' : 'Run created successfully.',
+        'success'
+      );
       onSuccess();
     } catch (error) {
-      const message =
-        error.response?.data?.error || 'Failed to save run.';
+      const message = error?.response?.data?.error || 'Failed to save run.';
       showToast(message, 'error');
       throw new Error(message);
     }
   };
 
+  /** Form hook */
   const {
     formData,
     errors,
@@ -88,59 +87,86 @@ const AddRunForm = ({
     itemToEdit: normalizedItem,
   });
 
-  const selectConfigs = useMemo(
+  /** Build dropdown configs */
+  const selectFields = useMemo(
     () => [
+      {
+        label: 'Run Type',
+        name: 'type',
+        required: true,
+        value: formData.type,
+        onChange: handleChange,
+        options: [
+          { value: 'delivery', label: 'Delivery' },
+          { value: 'collection', label: 'Collection' },
+          { value: 'transfer', label: 'Transfer' },
+        ],
+      },
       {
         label: 'Driver',
         name: 'driver_id',
-        value: formData.driver_id,
-        onChange: handleChange,
-        error: errors.driver_id,
         required: true,
-        options: drivers.map((driver) => ({
-          value: driver.id,
-          label: `${driver.first_name} ${driver.last_name}`,
+        value: formData.driver_id,
+        error: errors.driver_id,
+        onChange: handleChange,
+        options: drivers.map((d) => ({
+          value: d.id,
+          label: `${d.first_name} ${d.last_name}`,
         })),
       },
       {
         label: 'Truck',
         name: 'truck_id',
-        value: formData.truck_id,
-        onChange: handleChange,
-        error: errors.truck_id,
         required: true,
-        options: trucks.map((truck) => ({
-          value: truck.id,
-          label: truck.registration_plate,
+        value: formData.truck_id,
+        error: errors.truck_id,
+        onChange: handleChange,
+        options: trucks.map((t) => ({
+          value: t.id,
+          label: t.registration_plate,
         })),
       },
       {
         label: 'Trailer',
         name: 'trailer_id',
+        required: false,
         value: formData.trailer_id,
         onChange: handleChange,
-        options: trailers.map((trailer) => ({
-          value: trailer.id,
-          label: trailer.registration_plate,
+        options: trailers.map((t) => ({
+          value: t.id,
+          label: t.registration_plate,
         })),
       },
     ],
-    [drivers, errors.driver_id, errors.truck_id, formData.driver_id, formData.truck_id, formData.trailer_id, handleChange, trailers, trucks]
+    [
+      drivers,
+      trucks,
+      trailers,
+      formData.type,
+      formData.driver_id,
+      formData.truck_id,
+      formData.trailer_id,
+      handleChange,
+      errors.driver_id,
+      errors.truck_id,
+    ]
   );
 
-  const submitLabel = useMemo(() => {
-    if (loading) return 'Saving...';
-    return isEditMode ? 'Save Changes' : 'Add Run';
-  }, [isEditMode, loading]);
+  const submitLabel = loading
+    ? 'Saving…'
+    : isEditMode
+    ? 'Save Changes'
+    : 'Add Run';
 
   return (
-    <div className="card modal-center">
+    <div className="card modal-center form-card">
       <FormHeader
         title={isEditMode ? 'Edit Run' : 'Add New Run'}
         onCancel={onCancel}
       />
 
       <form onSubmit={handleSubmit} className="form" noValidate>
+        
         <TextField
           label="Run Date"
           type="date"
@@ -151,9 +177,12 @@ const AddRunForm = ({
           required
         />
 
-        {selectConfigs.map((config) => (
-          <SelectField key={config.name} {...config} />
-        ))}
+        {/* Two-column layout */}
+        <div className="form-grid-2col">
+          {selectFields.map((item) => (
+            <SelectField key={item.name} {...item} />
+          ))}
+        </div>
 
         <FormActions
           onCancel={onCancel}

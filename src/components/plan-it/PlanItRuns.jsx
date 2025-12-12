@@ -1,245 +1,116 @@
-// src/components/plan-it/PlanItRuns.jsx
+import React from "react";
+import PropTypes from "prop-types";
+import { Truck, User, Package, Weight, CheckCircle, AlertTriangle } from "lucide-react";
 
-import React, { memo, useCallback } from 'react';
-import PropTypes from 'prop-types';
-import {
-  Edit,
-  Trash2,
-  Weight,
-  LayoutGrid as PalletIcon,
-  Plus,
-} from 'lucide-react';
-import { Droppable } from '@hello-pangea/dnd';
-
-/* -------------------- CapacityIndicator -------------------- */
-
-const CapacityIndicator = ({ current, max, label, icon }) => {
-  if (max === null || max === undefined) return null;
-
-  const percentage = max > 0 ? (current / max) * 100 : 0;
-  const isOverloaded = percentage > 100;
-
+export default function PlanItRuns({ runs, activeRunId, setActiveRunId }) {
   return (
-    <div className="capacity-indicator">
-      <div className="capacity-text">
-        {icon}
-        <span>
-          {label}: {current} / {max}
-        </span>
-      </div>
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold text-gray-800">Runs for Selected Date</h2>
 
-      <div className="capacity-bar-container">
-        <div
-          className={`capacity-bar ${isOverloaded ? 'overloaded' : ''}`}
-          style={{ width: `${Math.min(percentage, 100)}%` }}
-        />
-      </div>
-    </div>
-  );
-};
-
-CapacityIndicator.propTypes = {
-  current: PropTypes.number.isRequired,
-  max: PropTypes.number,
-  label: PropTypes.string.isRequired,
-  icon: PropTypes.node,
-};
-
-CapacityIndicator.defaultProps = {
-  max: null,
-  icon: null,
-};
-
-/* -------------------- PlanItRuns -------------------- */
-
-const PlanItRuns = ({
-  runs = [],
-  onPopOut,
-  onDelete,
-  onEdit,
-  handleAddNewRun,
-  selectedDate,
-  onDateChange,
-  activeRunId,
-  onRunSelect,
-  isLoading,
-}) => {
-  const handleDelete = useCallback(
-    (event, run) => {
-      event.stopPropagation();
-      onDelete(run);
-    },
-    [onDelete]
-  );
-
-  const handleEdit = useCallback(
-    (event, run) => {
-      event.stopPropagation();
-      onEdit(run);
-    },
-    [onEdit]
-  );
-
-  const handleRunClick = useCallback(
-    (id) => {
-      onRunSelect(id);
-    },
-    [onRunSelect]
-  );
-
-  let runsContent;
-
-  if (isLoading) {
-    runsContent = (
-      <div className="loading" style={{ padding: '2rem' }}>
-        Loading runs...
-      </div>
-    );
-  } else if (runs.length === 0) {
-    runsContent = (
-      <p className="no-results-message" style={{ padding: '2rem' }}>
-        No runs found for the selected date.
-      </p>
-    );
-  } else {
-    runsContent = runs.map((run) => (
-      <Droppable key={run.id} droppableId={String(run.id)}>
-        {(provided) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={`planit-list-item droppable-combination with-actions ${
-              run.id === activeRunId ? 'active-run' : ''
-            }`}
-          >
-            <button
-              type="button"
-              className="planit-item-text"
-              aria-pressed={run.id === activeRunId}
-              onClick={() => handleRunClick(run.id)}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                textAlign: 'left',
-                padding: 0,
-                flex: 1,
-                cursor: 'pointer',
-              }}
-            >
-              <span>{run.displayText}</span>
-
-              {run.hasCapacity && (
-                <div className="run-capacity-details">
-                  <CapacityIndicator
-                    current={run.totalKilos}
-                    max={run.maxPayload}
-                    label="kg"
-                    icon={<Weight size={14} />}
-                  />
-
-                  <CapacityIndicator
-                    current={run.totalSpaces}
-                    max={run.maxPallets}
-                    label="spaces"
-                    icon={<PalletIcon size={14} />}
-                  />
-                </div>
-              )}
-
-              {!run.hasCapacity && (
-                <div
-                  className="run-stats"
-                  style={{ marginTop: '0.5rem' }}
-                >
-                  <span>
-                    <Weight size={14} /> {run.totalKilos || 0} kg
-                  </span>
-                  <span>
-                    <PalletIcon size={14} /> {run.totalSpaces || 0}{' '}
-                    spaces
-                  </span>
-                </div>
-              )}
-            </button>
-
-            <div className="planit-item-actions">
-              <button
-                type="button"
-                className="btn-icon"
-                title="Edit Run"
-                onClick={(e) => handleEdit(e, run)}
-              >
-                <Edit size={16} />
-              </button>
-
-              <button
-                type="button"
-                className="btn-icon btn-danger"
-                title="Delete Run"
-                onClick={(e) => handleDelete(e, run)}
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
-    ));
-  }
-
-  return (
-    <div className="card planit-section">
-      <div className="planit-section-header">
-        <h3>Available Runs</h3>
-
-        <div
-          className="form-group"
-          style={{ margin: 0, minWidth: '160px' }}
-        >
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => onDateChange(e.target.value)}
-          />
+      {/* No runs */}
+      {runs.length === 0 && (
+        <div className="p-4 rounded-lg bg-gray-50 text-gray-500 text-sm text-center">
+          No runs found for this date.
         </div>
+      )}
 
-        <button
-          type="button"
-          onClick={handleAddNewRun}
-          className="btn-primary"
-          style={{ marginLeft: 'auto' }}
-        >
-          <Plus size={16} /> Add Run
-        </button>
+      <div className="flex flex-col gap-4">
+        {runs.map((run) => {
+          const isActive = run.id === activeRunId;
+
+          const overload =
+            (run.maxPayload && run.totalKilos > run.maxPayload) ||
+            (run.maxPallets && run.totalSpaces > run.maxPallets);
+
+          return (
+            <button
+              key={run.id}
+              onClick={() => setActiveRunId(run.id)}
+              className={[
+                "w-full text-left rounded-xl border p-4 transition-all shadow-sm",
+                isActive
+                  ? "border-blue-600 bg-blue-50 shadow-md"
+                  : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50",
+              ].join(" ")}
+            >
+              {/* Run title */}
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-medium text-gray-800 text-base">{run.displayText}</h3>
+
+                {isActive && (
+                  <span className="text-xs rounded-full bg-blue-600 text-white px-2 py-0.5">
+                    Active
+                  </span>
+                )}
+              </div>
+
+              {/* META GRID */}
+              <div className="grid grid-cols-1 gap-2 text-sm mt-2">
+                {/* Driver */}
+                <div className="flex items-center gap-2 text-gray-700">
+                  <User size={16} className="text-gray-500" />
+                  <span>{run.displayDriver}</span>
+                </div>
+
+                {/* Vehicle */}
+                <div className="flex items-center gap-2 text-gray-700">
+                  <Truck size={16} className="text-gray-500" />
+                  <span>
+                    {run.displayTruck}
+                    {run.displayTrailer && <span className="text-gray-500"> {run.displayTrailer}</span>}
+                  </span>
+                </div>
+
+                {/* Capacity */}
+                {run.hasCapacity && (
+                  <div className="flex items-center gap-4 mt-2">
+                    {/* Payload */}
+                    {run.maxPayload && (
+                      <div className="flex items-center gap-1 text-gray-700">
+                        <Weight size={16} className="text-gray-500" />
+                        <span>
+                          {run.totalKilos} / {run.maxPayload} kg
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Pallets */}
+                    {run.maxPallets && (
+                      <div className="flex items-center gap-1 text-gray-700">
+                        <Package size={16} className="text-gray-500" />
+                        <span>
+                          {run.totalSpaces} / {run.maxPallets} spaces
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Overload Warning */}
+                {overload ? (
+                  <div className="flex items-center gap-2 mt-2 text-red-600 font-medium">
+                    <AlertTriangle size={16} />
+                    Over capacity — review assignments
+                  </div>
+                ) : (
+                  run.hasCapacity && (
+                    <div className="flex items-center gap-2 mt-2 text-green-600 text-sm">
+                      <CheckCircle size={16} />
+                      Capacity OK
+                    </div>
+                  )
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
-
-      <div className="planit-list">{runsContent}</div>
     </div>
   );
-};
-
-/* -------------------- PropTypes -------------------- */
+}
 
 PlanItRuns.propTypes = {
-  runs: PropTypes.arrayOf(PropTypes.object),
-  onPopOut: PropTypes.func,
-  onDelete: PropTypes.func.isRequired,
-  onEdit: PropTypes.func.isRequired,
-  handleAddNewRun: PropTypes.func.isRequired,
-  selectedDate: PropTypes.string.isRequired,
-  onDateChange: PropTypes.func.isRequired,
+  runs: PropTypes.array.isRequired,
   activeRunId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  onRunSelect: PropTypes.func.isRequired,
-  isLoading: PropTypes.bool,
+  setActiveRunId: PropTypes.func.isRequired,
 };
-
-PlanItRuns.defaultProps = {
-  runs: [],
-  onPopOut: null,
-  activeRunId: null,
-  isLoading: false,
-};
-
-export default memo(PlanItRuns);

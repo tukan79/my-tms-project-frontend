@@ -1,6 +1,7 @@
+// src/components/ErrorBoundary.jsx
 import React from 'react';
 import PropTypes from 'prop-types';
-import api from '@/services/api.js'; // jeśli chcesz raportować błędy do backendu
+import api from '@/services/api.js';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -15,39 +16,65 @@ class ErrorBoundary extends React.Component {
     this.retryTimer = null;
   }
 
+  /* --------------------------------------------
+     STATIC: Catch render-time errors
+  -------------------------------------------- */
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
   }
 
+  /* --------------------------------------------
+     FULL CATCH: lifecycle-hook for side effects
+  -------------------------------------------- */
   componentDidCatch(error, errorInfo) {
-    console.error('❌ Component Error Caught:', error, errorInfo);
+    console.error('❌ React ErrorBoundary caught:', error, errorInfo);
+
     this.setState({ errorInfo });
 
-    // 1️⃣ Zapisz błąd lokalnie (np. dla diagnostyki)
-    const errorData = {
-      message: error?.toString(),
-      stack: errorInfo?.componentStack,
-      timestamp: new Date().toISOString(),
-      url: globalThis.location?.href,
-      userAgent: globalThis.navigator?.userAgent,
-    };
-    localStorage.setItem('lastError', JSON.stringify(errorData));
+    /* --------------------------------------------
+       1) LOCAL STORAGE FALLBACK TRACE
+    -------------------------------------------- */
+    try {
+      const errorData = {
+        message: error?.toString(),
+        stack: errorInfo?.componentStack,
+        timestamp: new Date().toISOString(),
+        url: globalThis?.location?.href,
+        userAgent: globalThis?.navigator?.userAgent,
+      };
 
-    // 2️⃣ (Opcjonalnie) Wyślij do backendu
-    api.post('/api/feedback/report-bug', {
-      description: error?.message || 'React component crash',
-      context: errorData,
-    }).catch(() => {
-      // Pomijamy błędy raportowania
-    });
+      localStorage.setItem('lastError', JSON.stringify(errorData));
+    } catch {
+      // ignore storage issues
+    }
 
-    // 3️⃣ Automatyczne odświeżenie po X sekundach
-    const autoRetry = this.props.autoRetry ?? 0; // domyślnie wyłączone
+    /* --------------------------------------------
+       2) REPORT TO BACKEND (optional)
+    -------------------------------------------- */
+    try {
+      api.post('/api/feedback/report-bug', {
+        description: error?.message || 'React component crash',
+        context: {
+          stack: errorInfo?.componentStack,
+          url: globalThis?.location?.href,
+        },
+      }).catch(() => {});
+    } catch {
+      // swallow any reporting issues
+    }
+
+    /* --------------------------------------------
+       3) AUTO RETRY (IF ENABLED)
+    -------------------------------------------- */
+    const autoRetry = this.props.autoRetry ?? 0;
     if (autoRetry > 0) {
       let countdown = autoRetry;
+
       this.setState({ autoRetryCountdown: countdown });
+
       this.retryTimer = setInterval(() => {
         countdown -= 1;
+
         if (countdown <= 0) {
           clearInterval(this.retryTimer);
           this.handleReset();
@@ -58,24 +85,36 @@ class ErrorBoundary extends React.Component {
     }
   }
 
+  /* --------------------------------------------
+     CLEANUP
+  -------------------------------------------- */
   componentWillUnmount() {
     if (this.retryTimer) clearInterval(this.retryTimer);
   }
 
+  /* --------------------------------------------
+     RESET HANDLER
+  -------------------------------------------- */
   handleReset = () => {
     if (this.retryTimer) clearInterval(this.retryTimer);
+
     if (this.props.onReset) {
       this.props.onReset();
-    } else {
-      this.setState({
-        hasError: false,
-        error: null,
-        errorInfo: null,
-        autoRetryCountdown: null,
-      });
+      return;
     }
+
+    // standard fallback reset
+    this.setState({
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      autoRetryCountdown: null,
+    });
   };
 
+  /* --------------------------------------------
+     RENDER
+  -------------------------------------------- */
   render() {
     const { hasError, error, errorInfo, autoRetryCountdown } = this.state;
 
@@ -84,15 +123,17 @@ class ErrorBoundary extends React.Component {
 
       return (
         <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
-          <h2>⚠️ Something went wrong!</h2>
-          <p>We’re sorry — an unexpected error occurred.</p>
+          <h2>⚠️ Something went wrong</h2>
+          <p>An unexpected UI error occurred.</p>
 
+          {/* Auto retry countdown */}
           {autoRetryCountdown !== null && (
-            <p style={{ color: 'gray', marginTop: '0.5rem' }}>
-              Retrying automatically in {autoRetryCountdown}s...
+            <p className="text-muted">
+              Retrying automatically in <strong>{autoRetryCountdown}s</strong>...
             </p>
           )}
 
+          {/* Error details (dev only) */}
           <details
             style={{
               whiteSpace: 'pre-wrap',
@@ -105,9 +146,10 @@ class ErrorBoundary extends React.Component {
             }}
           >
             <summary>Error details</summary>
+
             {isDev ? (
               <>
-                {error?.toString()}
+                <strong>{error?.toString()}</strong>
                 <br />
                 {errorInfo?.componentStack}
               </>
@@ -117,11 +159,12 @@ class ErrorBoundary extends React.Component {
           </details>
 
           <button
+            type="button"
             onClick={this.handleReset}
             className="btn-primary"
-            style={{ marginTop: '1rem' }}
+            style={{ marginTop: '1.5rem' }}
           >
-            Try Again Now
+            Try Again
           </button>
         </div>
       );
@@ -133,6 +176,9 @@ class ErrorBoundary extends React.Component {
 
 export default ErrorBoundary;
 
+/* --------------------------------------------
+   PROP TYPES
+-------------------------------------------- */
 ErrorBoundary.propTypes = {
   children: PropTypes.node.isRequired,
   autoRetry: PropTypes.number,

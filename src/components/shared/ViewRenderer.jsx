@@ -1,22 +1,36 @@
-// ViewRenderer.jsx — wersja naprawiona (FINAL)
-
+// ViewRenderer.jsx — FINAL CLEAN MODERN VERSION
 import React from 'react';
 import PropTypes from 'prop-types';
+
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 import DataImporter from '@/components/DataImporter.jsx';
 import { useDashboard } from '@/contexts/DashboardContext.jsx';
 
 const ViewRenderer = ({ viewConfig }) => {
   const {
-    currentView, isLoading, anyError, handleRefresh,
+    currentView,
+    isLoading,
+    anyError,
+    handleRefresh,
+
     importerConfig: activeImporterConfig,
-    handleFormSuccess, handleHideImporter,
-    showForm, handleCancelForm, itemToEdit, handleEditClick,
-    handleDeleteRequest, user, data, globalAutoRefresh
+    handleFormSuccess,
+    handleHideImporter,
+
+    showForm,
+    handleCancelForm,
+    itemToEdit,
+    handleEditClick,
+    handleDeleteRequest,
+
+    user,
+    data,
+    globalAutoRefresh,
   } = useDashboard();
 
-  const { drivers = [], trucks = [], trailers = [], customers = [], zones = [], surcharges = [] } = data || {};
-
+  // ------------------------------
+  //  SAFETY GUARDS
+  // ------------------------------
   if (!user || !viewConfig || !currentView) {
     return (
       <div className="view-shell">
@@ -34,16 +48,32 @@ const ViewRenderer = ({ viewConfig }) => {
     );
   }
 
-  const dataKey = currentViewConfig.dataKey;
-  const dataForView = dataKey ? data?.[dataKey] : [];
-  const safeDataForView = Array.isArray(dataForView) ? dataForView : [];
+  // ------------------------------
+  //  DATA FOR THE CURRENT VIEW
+  // ------------------------------
+  const safeData = Array.isArray(data?.[currentViewConfig.dataKey])
+    ? data[currentViewConfig.dataKey]
+    : [];
 
+  const sharedProps = {
+    drivers: data?.drivers ?? [],
+    trucks: data?.trucks ?? [],
+    trailers: data?.trailers ?? [],
+    customers: data?.customers ?? [],
+    zones: data?.zones ?? [],
+    surcharges: data?.surcharges ?? [],
+  };
+
+  // ------------------------------
+  //  GLOBAL ERROR HANDLING
+  // ------------------------------
   if (anyError) {
     return (
       <div className="view-shell content-wrapper">
         <div className="card">
           <h3>Error loading data</h3>
           <p>{anyError}</p>
+
           <button className="btn-primary" onClick={() => handleRefresh(currentView)}>
             Retry
           </button>
@@ -52,7 +82,9 @@ const ViewRenderer = ({ viewConfig }) => {
     );
   }
 
-  // IMPORTER
+  // ------------------------------
+  //  IMPORTER VIEW
+  // ------------------------------
   if (activeImporterConfig) {
     return (
       <div className="view-shell content-wrapper">
@@ -70,21 +102,22 @@ const ViewRenderer = ({ viewConfig }) => {
     );
   }
 
-  // FORMULARZ
+  // ------------------------------
+  //  FORM VIEW
+  // ------------------------------
   if (showForm && currentViewConfig.FormComponent) {
+    const isWide =
+      currentView === 'pricing' ||
+      currentView === 'planit';
+
+    const wrapperClass = isWide ? 'content-wrapper full-width' : 'content-wrapper';
+
     const formProps = {
       onSuccess: handleFormSuccess,
       onCancel: handleCancelForm,
       itemToEdit,
-      ...(currentView === 'orders' && {
-        drivers, trucks, trailers, clients: customers, surcharges
-      }),
+      ...(currentView === 'orders' ? sharedProps : {}),
     };
-
-    const wrapperClass =
-      currentView === 'pricing' || currentView === 'planit'
-        ? 'content-wrapper full-width'
-        : 'content-wrapper';
 
     return (
       <div className="view-shell">
@@ -97,19 +130,20 @@ const ViewRenderer = ({ viewConfig }) => {
     );
   }
 
-  // LISTA
+  // ------------------------------
+  //  LIST VIEW
+  // ------------------------------
   if (currentViewConfig.ListComponent) {
     const listProps = {
-      items: safeDataForView,
+      items: safeData,
       onRefresh: () => handleRefresh(currentView),
       onEdit: handleEditClick,
-      isLoading: !!isLoading,
       onDelete: handleDeleteRequest,
+      isLoading: !!isLoading,
       currentUser: user,
       autoRefreshEnabled: globalAutoRefresh,
-      ...(currentView === 'orders' && {
-        drivers, trucks, trailers, zones,
-      }),
+
+      ...(currentView === 'orders' ? sharedProps : {}),
     };
 
     return (
@@ -121,7 +155,9 @@ const ViewRenderer = ({ viewConfig }) => {
     );
   }
 
-  // POJEDYNCZY KOMPONENT
+  // ------------------------------
+  //  SINGLE CUSTOM COMPONENT
+  // ------------------------------
   if (currentViewConfig.Component) {
     return (
       <div className="view-shell content-wrapper">
@@ -141,6 +177,9 @@ const ViewRenderer = ({ viewConfig }) => {
 
 export default ViewRenderer;
 
+// ------------------------------
+// PROP TYPES
+// ------------------------------
 const viewShape = PropTypes.shape({
   dataKey: PropTypes.string,
   FormComponent: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),

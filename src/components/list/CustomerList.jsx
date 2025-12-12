@@ -1,91 +1,118 @@
-// src/components/list/CustomerList.jsx
-import React, { useCallback, useMemo } from 'react';
-import PropTypes from 'prop-types';
+import React, { useCallback, useMemo } from "react";
+import PropTypes from "prop-types";
 
-import DataTable from '@/components/shared/DataTable.jsx';
-import api from '@/services/api.js';
-import { useToast } from '@/contexts/ToastContext.jsx';
+import DataTable from "@/components/shared/DataTable.jsx";
+import api from "@/services/api.js";
+import { useToast } from "@/contexts/ToastContext.jsx";
+import { Plus } from "lucide-react";
 
-// Mały helper, żeby nie używać window.* (Sonar: S7764)
+/* Safe confirm helper */
 const confirmAction = (message) => {
-  if (typeof globalThis !== 'undefined' && typeof globalThis.confirm === 'function') {
+  if (typeof globalThis !== "undefined" && typeof globalThis.confirm === "function") {
     return globalThis.confirm(message);
   }
-  // fallback – np. środowisko testowe/SSR, traktujemy jak "anuluj"
   return false;
 };
 
-const CustomerList = ({ items, onRefresh, onEdit }) => {
+const CustomerList = ({ items, onRefresh, onEdit, onAdd }) => {
   const { showToast } = useToast();
 
-  const safeItems = useMemo(
-    () => (Array.isArray(items) ? items : []),
-    [items]
-  );
+  const customers = useMemo(() => (Array.isArray(items) ? items : []), [items]);
 
+  /* -------------------------------
+        TABLE COLUMNS — MODERNIZED
+  -------------------------------- */
   const columns = useMemo(
     () => [
-      { key: 'customer_code', header: 'Code' },
-      { key: 'name', header: 'Name' },
-      { key: 'address_line1', header: 'Address' },
-      { key: 'postcode', header: 'Postcode' },
-      { key: 'phone_number', header: 'Phone' },
-      { key: 'vat_number', header: 'VAT Number' },
+      { key: "customer_code", header: "Code", sortable: true },
+      { key: "name", header: "Name", sortable: true },
+      { key: "postcode", header: "Postcode" },
+      { key: "phone_number", header: "Phone" },
+
       {
-        key: 'created_at',
-        header: 'Creation Date',
+        key: "status",
+        header: "Status",
+        render: (item) => {
+          const statusClass = {
+            active: "status-active",
+            inactive: "status-inactive",
+          }[item.status] || "status-unknown";
+
+          return (
+            <span className={`status ${statusClass}`}>
+              {item.status || "Unknown"}
+            </span>
+          );
+        },
+      },
+
+      {
+        key: "created_at",
+        header: "Created",
+        sortable: true,
         render: (item) =>
-          item?.created_at
-            ? new Date(item.created_at).toLocaleDateString()
-            : '—',
+          item.created_at ? new Date(item.created_at).toLocaleDateString() : "—",
       },
     ],
     []
   );
 
+  /* -------------------------------
+        DELETE HANDLER
+  -------------------------------- */
   const handleDelete = useCallback(
     async (customer) => {
       if (!customer?.id) {
-        showToast('Invalid customer record.', 'error');
+        showToast("Invalid customer record.", "error");
         return;
       }
 
       const confirmed = confirmAction(
-        `Are you sure you want to delete customer "${customer.name}"?`
+        `Delete customer "${customer.name}"?\nThis action cannot be undone.`
       );
-
-      if (!confirmed) {
-        return;
-      }
+      if (!confirmed) return;
 
       try {
         await api.delete(`/api/customers/${customer.id}`);
-        showToast('Customer deleted successfully.', 'success');
-        if (onRefresh) {
-          onRefresh();
-        }
-      } catch (error) {
-        showToast(
-          error?.response?.data?.error || 'Failed to delete customer.',
-          'error'
-        );
+        showToast("Customer deleted.", "success");
+        onRefresh?.();
+      } catch (err) {
+        showToast(err?.response?.data?.error || "Failed to delete customer.", "error");
       }
     },
     [onRefresh, showToast]
   );
 
+  /* -------------------------------
+        RENDER
+  -------------------------------- */
   return (
-    <DataTable
-      items={safeItems}
-      columns={columns}
-      onEdit={onEdit}
-      onDelete={handleDelete}
-      onRefresh={onRefresh}
-      title="Customers"
-      filterPlaceholder="Filter customers..."
-      initialSortKey="name"
-      filterKeys={['name', 'customer_code', 'postcode']}
-    />
+    <div className="card">
+      {/* MODERN HEADER */}
+      <div className="card-header-modern">
+        <div>
+          <h2 className="card-title">Customers</h2>
+          <p className="text-muted small">{customers.length} total customers</p>
+        </div>
+
+        {onAdd && (
+          <button type="button" className="btn-primary" onClick={onAdd}>
+            <Plus size={16} /> Add Customer
+          </button>
+        )}
+      </div>
+
+      {/* TABLE */}
+      <DataTable
+        items={customers}
+        columns={columns}
+        onEdit={onEdit}
+        onDelete={handleDelete}
+        filterPlaceholder="Search customers…"
+        initialSortKey="name"
+        filterKeys={["name", "customer_code", "postcode", "phone_number"]}
+      />
+    </div>
   );
 };
 
@@ -93,12 +120,14 @@ CustomerList.propTypes = {
   items: PropTypes.arrayOf(PropTypes.object),
   onRefresh: PropTypes.func,
   onEdit: PropTypes.func,
+  onAdd: PropTypes.func,
 };
 
 CustomerList.defaultProps = {
   items: [],
   onRefresh: undefined,
   onEdit: undefined,
+  onAdd: undefined,
 };
 
 export default CustomerList;

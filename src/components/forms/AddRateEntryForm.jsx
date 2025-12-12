@@ -1,13 +1,28 @@
+// src/components/forms/AddRateEntryForm.jsx
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
-const AddRateEntryForm = ({ onSubmit, onCancel, rateToEdit, customers = [], zones = [] }) => {
-  const [formData, setFormData] = useState({
-    customer_id: '',
-    zone_id: '',
-    rate: '',
-    description: '',
-  });
+import TextField from './fields/TextField.jsx';
+import SelectField from './fields/SelectField.jsx';
+import FormHeader from './shared/FormHeader.jsx';
+import FormActions from './shared/FormActions.jsx';
+
+const initialData = {
+  customer_id: '',
+  zone_id: '',
+  rate: '',
+  description: '',
+};
+
+const AddRateEntryForm = ({
+  onSubmit,
+  onCancel,
+  rateToEdit,
+  customers = [],
+  zones = [],
+}) => {
+
+  const [formData, setFormData] = useState(initialData);
 
   useEffect(() => {
     if (rateToEdit) {
@@ -22,7 +37,11 @@ const AddRateEntryForm = ({ onSubmit, onCancel, rateToEdit, customers = [], zone
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = (e) => {
@@ -31,90 +50,79 @@ const AddRateEntryForm = ({ onSubmit, onCancel, rateToEdit, customers = [], zone
   };
 
   return (
-    <form onSubmit={handleSubmit} className="page-card form">
-      <h2>{rateToEdit ? 'Edit Rate Entry' : 'Add Rate Entry'}</h2>
+    <div className="card modal-center form-card">
+      <FormHeader
+        title={rateToEdit ? 'Edit Rate Entry' : 'Add New Rate Entry'}
+        onCancel={onCancel}
+      />
 
-      <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-        <div className="form-group">
-          <label htmlFor="customer_id">Customer</label>
-          <select
-            id="customer_id"
+      <form onSubmit={handleSubmit} noValidate>
+
+        {/* ---- GRID ---- */}
+        <div className="form-grid-2col">
+
+          <SelectField
+            label="Customer"
             name="customer_id"
             value={formData.customer_id}
             onChange={handleChange}
-          >
-            <option value="">Select customer</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+            required
+            options={customers.map((c) => ({
+              value: c.id,
+              label: c.name,
+            }))}
+          />
 
-        <div className="form-group">
-          <label htmlFor="zone_id">Zone</label>
-          <select
-            id="zone_id"
+          <SelectField
+            label="Zone"
             name="zone_id"
             value={formData.zone_id}
             onChange={handleChange}
-          >
-            <option value="">Select zone</option>
-            {zones.map((z) => (
-              <option key={z.id} value={z.id}>
-                {z.zoneName || z.zone_name}
-              </option>
-            ))}
-          </select>
-        </div>
+            required
+            options={zones.map((z) => ({
+              value: z.id,
+              label: z.zoneName || z.zone_name,
+            }))}
+          />
 
-        <div className="form-group">
-          <label htmlFor="rate">Rate</label>
-          <input
-            id="rate"
+          <TextField
+            label="Rate (£)"
             name="rate"
             type="number"
-            step="0.01"
+            required
             value={formData.rate}
             onChange={handleChange}
           />
-        </div>
 
-        <div className="form-group">
-          <label htmlFor="description">Description</label>
-          <input
-            id="description"
+          <TextField
+            label="Description"
             name="description"
             value={formData.description}
             onChange={handleChange}
           />
-        </div>
-      </div>
 
-      <div style={{ display: 'flex', gap: '1rem' }}>
-        <button type="button" className="btn-secondary" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit" className="btn-primary">
-          {rateToEdit ? 'Update Rate' : 'Add Rate'}
-        </button>
-      </div>
-    </form>
+        </div>
+
+        {/* ---- ACTIONS ---- */}
+        <FormActions
+          onCancel={onCancel}
+          submitLabel={rateToEdit ? 'Save Changes' : 'Add Rate'}
+        />
+      </form>
+    </div>
   );
 };
 
 AddRateEntryForm.propTypes = {
   onSubmit: PropTypes.func,
-  onCancel: PropTypes.func,
+  onCancel: PropTypes.func.isRequired,
   rateToEdit: PropTypes.object,
-  customers: PropTypes.array,
-  zones: PropTypes.array,
+  customers: PropTypes.arrayOf(PropTypes.object),
+  zones: PropTypes.arrayOf(PropTypes.object),
 };
 
 AddRateEntryForm.defaultProps = {
   onSubmit: undefined,
-  onCancel: undefined,
   rateToEdit: null,
   customers: [],
   zones: [],

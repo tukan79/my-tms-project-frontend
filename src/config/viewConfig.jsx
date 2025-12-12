@@ -1,14 +1,14 @@
 // frontend/src/config/viewConfig.js
 import { Printer } from 'lucide-react';
 
-// Import Pages
+// Pages
 import PlanItPage from '@/pages/PlanItPage.jsx';
 import FinancePage from '@/pages/FinancePage.jsx';
 import PricingPage from '@/pages/PricingPage.jsx';
 import RunManager from '@/pages/RunManager.jsx';
 import SurchargeTypesManager from '@/components/SurchargeTypesManager.jsx';
 
-// Import Lists
+// Lists
 import OrderList from '@/components/list/OrderList.jsx';
 import DriverList from '@/components/list/DriverList.jsx';
 import TruckList from '@/components/list/TruckList.jsx';
@@ -16,7 +16,7 @@ import TrailerList from '@/components/list/TrailerList.jsx';
 import CustomerList from '@/components/list/CustomerList.jsx';
 import UserList from '@/components/list/UserList.jsx';
 
-// Import Forms
+// Forms
 import AddOrderForm from '@/components/forms/AddOrderForm.jsx';
 import AddDriverForm from '@/components/forms/AddDriverForm.jsx';
 import AddTruckForm from '@/components/forms/AddTruckForm.jsx';
@@ -39,8 +39,8 @@ export const generateViewConfig = ({
   const isAdmin = user?.role === 'admin';
   const isDispatcher = user?.role === 'dispatcher';
 
-  // 🛡 Safe arrays
-  const safe = (arr) => (Array.isArray(arr) ? arr : []);
+  // Safety helper
+  const safe = (value) => (Array.isArray(value) ? value : []);
 
   const safeData = {
     orders: safe(data.orders),
@@ -58,27 +58,27 @@ export const generateViewConfig = ({
   };
 
   // ===========================================
-  // 🌐 BASE VIEWS — SINGLE COMPONENT VIEWS
+  // 📌 BASE VIEWS – always available
   // ===========================================
   const baseConfig = {
     runs: {
-      dataKey: 'runs',
       Component: RunManager,
+      dataKey: 'runs',
       props: {
         runs: safeData.runs,
         trucks: safeData.trucks,
         trailers: safeData.trailers,
         drivers: safeData.drivers,
-        onDataRefresh: refreshAll,
-        onDeleteRequest: handleDeleteRequest,
         runActions: actions?.runs,
+        onDeleteRequest: handleDeleteRequest,
+        onDataRefresh: refreshAll,
       },
       handleRefresh,
     },
 
     planit: {
-      dataKey: null, // explicit — not using lists
       Component: PlanItPage,
+      dataKey: null,
       props: {
         orders: safeData.orders,
         runs: safeData.runs,
@@ -99,8 +99,8 @@ export const generateViewConfig = ({
     },
 
     finance: {
-      dataKey: 'invoices',
       Component: FinancePage,
+      dataKey: 'invoices',
       props: {
         orders: safeData.orders,
         customers: safeData.customers,
@@ -114,8 +114,8 @@ export const generateViewConfig = ({
     },
 
     pricing: {
-      dataKey: null,
       Component: PricingPage,
+      dataKey: null,
       props: {
         customers: safeData.customers,
         zones: safeData.zones,
@@ -125,8 +125,8 @@ export const generateViewConfig = ({
     },
 
     surcharges: {
-      dataKey: 'surcharges',
       Component: SurchargeTypesManager,
+      dataKey: 'surcharges',
       props: {
         surcharges: safeData.surcharges,
       },
@@ -135,20 +135,26 @@ export const generateViewConfig = ({
   };
 
   // ===========================================
-  // 📋 REUSABLE LIST CREATOR
+  // 🔄 Reusable factory for LIST views
   // ===========================================
-  const createListConfig = (ListComponent, FormComponent, key, formProps = {}, customActions = []) => ({
-    dataKey: key,
+  const createListConfig = (
+    ListComponent,
+    FormComponent,
+    key,
+    formProps = {},
+    customActions = []
+  ) => ({
     ListComponent,
     FormComponent: FormComponent || null,
-    props: { onRefresh: handleRefresh }, // przekazujemy jako onRefresh do DataTable
+    dataKey: key,
+    props: { onRefresh: handleRefresh },
     formProps,
     customActions,
     handleRefresh,
   });
 
   // ===========================================
-  // 👑 ADMIN LIST VIEWS
+  // 👑 ADMIN VIEWS (all lists + forms)
   // ===========================================
   const adminLists = {
     drivers: createListConfig(DriverList, AddDriverForm, 'drivers'),
@@ -162,7 +168,7 @@ export const generateViewConfig = ({
       AddOrderForm,
       'orders',
       {
-        clients: safeData.customers,
+        customers: safeData.customers,
         surcharges: safeData.surcharges,
       },
       [
@@ -176,7 +182,7 @@ export const generateViewConfig = ({
   };
 
   // ===========================================
-  // 📦 FINAL CONFIG BASED ON ROLE
+  // 🎯 FINAL CONFIG — based on role
   // ===========================================
   let finalConfig = { ...baseConfig };
 
@@ -185,7 +191,7 @@ export const generateViewConfig = ({
   }
 
   if (isDispatcher) {
-    // dispatcher sees orders list only (readonly mode)
+    // dispatcher = only orders list
     finalConfig.orders = createListConfig(OrderList, null, 'orders');
   }
 

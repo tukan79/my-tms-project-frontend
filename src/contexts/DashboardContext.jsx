@@ -36,10 +36,14 @@ const useDashboardStateManagement = () => {
   const [importerConfig, setImporterConfig] = useState(null);
   const [modalState, setModalState] = useState({ isOpen: false });
 
-  // Auto refresh flag
   const [globalAutoRefresh, setGlobalAutoRefresh] = useState(true);
 
-  const handleViewChange = useCallback((view) => setCurrentView(view), []);
+  const handleViewChange = useCallback((view) => {
+    setCurrentView(view);
+    setShowForm(false);
+    setItemToEdit(null);
+    setImporterConfig(null);
+  }, []);
 
   const handleEditClick = useCallback((item) => {
     setItemToEdit(item ? structuredClone(item) : null);
@@ -105,7 +109,7 @@ const useDashboardStateManagement = () => {
 };
 
 /* -------------------------------------------------------------
- *  PROVIDER
+ *  DASHBOARD PROVIDER
  * ------------------------------------------------------------- */
 export const DashboardProvider = ({ children }) => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -113,7 +117,6 @@ export const DashboardProvider = ({ children }) => {
   const state = useDashboardStateManagement();
   const navigate = useNavigate();
 
-  // Fetch entire dataset
   const dataFetching = useDataFetching(isAuthenticated ? user?.role : null);
 
   const mountedRef = useRef(true);
@@ -123,35 +126,36 @@ export const DashboardProvider = ({ children }) => {
     };
   }, []);
 
-  const isRefreshing = useRef(false);
-
-  const handleLogout = useCallback(() => {
+  const logoutAndRedirect = useCallback(() => {
     logout();
     navigate("/login", { replace: true });
   }, [logout, navigate]);
 
   /* -------------------------------------------------------------
-   *  REFRESH PO ZAPISIE FORMULARZA
+   * FORM SUCCESS HANDLER — refresh only once per submit
    * ------------------------------------------------------------- */
+  const refreshingRef = useRef(false);
+
   const handleFormSuccess = useCallback(async () => {
-    if (isRefreshing.current) return;
-    isRefreshing.current = true;
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
 
     try {
       await dataFetching.handleRefresh?.(state.currentView);
     } catch (err) {
       console.error("Refresh error:", err);
-      showToast("Failed to refresh dashboard data.", "error");
+      showToast("Failed to refresh updated data.", "error");
     } finally {
       state.handleCancelForm();
+
       setTimeout(() => {
-        isRefreshing.current = false;
-      }, 500);
+        refreshingRef.current = false;
+      }, 300);
     }
-  }, [dataFetching.handleRefresh, showToast, state]);
+  }, [dataFetching.handleRefresh, state, showToast]);
 
   /* -------------------------------------------------------------
-   *  EXPORT GENERIC
+   * GENERIC EXPORT
    * ------------------------------------------------------------- */
   const handleGenericExport = useCallback(
     async (resource) => {
@@ -177,12 +181,12 @@ export const DashboardProvider = ({ children }) => {
   );
 
   /* -------------------------------------------------------------
-   *  VIEW CONFIG (fixed dependencies)
+   * VIEW CONFIG GENERATION
    * ------------------------------------------------------------- */
   const viewConfig = useMemo(() => {
     if (!dataFetching.data) return {};
 
-    const expectedKeys = [
+    const requiredKeys = [
       "orders",
       "drivers",
       "trucks",
@@ -196,7 +200,7 @@ export const DashboardProvider = ({ children }) => {
       "runs",
     ];
 
-    const safeData = safeParseData(dataFetching.data, expectedKeys);
+    const safeData = safeParseData(dataFetching.data, requiredKeys);
     logDataState(safeData, "DashboardContext");
 
     return generateViewConfig({
@@ -206,19 +210,13 @@ export const DashboardProvider = ({ children }) => {
         runs: { delete: dataFetching.deleteRun },
       },
       handleDeleteRequest: state.handleDeleteRequest,
-
       handleRefresh: dataFetching.handleRefresh,
       refreshAll: dataFetching.handleRefresh,
     });
-  }, [
-    user,
-    dataFetching.data,
-    dataFetching.loading,
-    state.handleDeleteRequest,
-  ]);
+  }, [user, dataFetching.data, state.handleDeleteRequest]);
 
   /* -------------------------------------------------------------
-   * AUTO REFRESH (only current view)
+   * AUTO REFRESH — only current view
    * ------------------------------------------------------------- */
   useEffect(() => {
     if (!state.globalAutoRefresh) return;
@@ -231,70 +229,60 @@ export const DashboardProvider = ({ children }) => {
   }, [state.globalAutoRefresh, state.currentView, dataFetching.handleRefresh]);
 
   /* -------------------------------------------------------------
-   * INITIAL VIEW
+   * INITIAL VIEW SELECTION
    * ------------------------------------------------------------- */
   useEffect(() => {
-    if (!dataFetching.loading && Object.keys(viewConfig).length > 0) {
-      if (!state.currentView || !viewConfig[state.currentView]) {
-        const preferred = "orders";
-        const fallback = Object.keys(viewConfig)[0];
-        const newView = viewConfig[preferred] ? preferred : fallback;
+    if (dataFetching.loading) return;
+    const keys = Object.keys(viewConfig);
+    if (!keys.length) return;
 
-        if (mountedRef.current) {
-          state.handleViewChange(newView);
-        }
-      }
+    if (!viewConfig[state.currentView]) {
+      const defaultView = viewConfig["orders"]
+        ? "orders"
+        : keys[0];
+
+      state.handleViewChange(defaultView);
     }
-  }, [
-    dataFetching.loading,
-    state.currentView,
-    viewConfig,
-    state.handleViewChange,
-  ]);
+  }, [dataFetching.loading, viewConfig]);
 
   /* -------------------------------------------------------------
-   * READY CONDITION — FIXED
+   * READY CONDITION
    * ------------------------------------------------------------- */
-  const ready =
-    !dataFetching.loading &&
-    Object.keys(viewConfig).length > 0;
+  const ready = !dataFetching.loading && Object.keys(viewConfig).length > 0;
 
   /* -------------------------------------------------------------
-   * PROVIDER VALUE — CLEAN & ORDERED
+   * FINAL PROVIDER VALUE
    * ------------------------------------------------------------- */
   const providerValue = useMemo(
     () => ({
-      ...dataFetching,         // API + refresh
-      ...state,                // UI state
+      ...dataFetching,
+      ...state,
       user,
       viewConfig,
-      handleLogout,
+      handleLogout: logoutAndRedirect,
       handleFormSuccess,
       handleGenericExport,
-      handleRefresh: dataFetching.handleRefresh,
     }),
     [
-      state,
       dataFetching,
+      state,
       user,
       viewConfig,
-      handleLogout,
+      logoutAndRedirect,
       handleFormSuccess,
       handleGenericExport,
     ]
   );
 
   /* -------------------------------------------------------------
-   * LOADING VIEW
+   * MODERN LOADING SCREEN (Skeleton-ready)
    * ------------------------------------------------------------- */
   if (!ready) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">
-            {dataFetching.loading ? "Loading dashboard..." : "Preparing view..."}
-          </p>
+        <div className="flex flex-col items-center gap-4 text-gray-600">
+          <div className="animate-spin h-12 w-12 rounded-full border-4 border-blue-500 border-b-transparent"></div>
+          <p className="text-sm tracking-wide">Loading your dashboard…</p>
         </div>
       </div>
     );

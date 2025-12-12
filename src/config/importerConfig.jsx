@@ -1,25 +1,65 @@
 import { Se } from '@/utils/importerUtils.js';
 
+/**
+ * Helpers – PRO
+ * --------------------------------------
+ * - cleanText: usuwa cudzysłowy, trimuje, zwraca '' zamiast null
+ * - toIntOrNull / toFloatOrZero: bezpieczne parsowanie liczb
+ * - toBoolean: spójna logika true/false dla CSV
+ */
+
+const cleanText = (value) =>
+  typeof value === 'string'
+    ? value.replaceAll('"', '').trim()
+    : (value ?? '').toString().trim();
+
+const toIntOrNull = (value) => {
+  const n = Number.parseInt(value, 10);
+  return Number.isNaN(n) ? null : n;
+};
+
+const toFloatOrZero = (value) => {
+  const n = Number.parseFloat(value);
+  return Number.isNaN(n) ? 0 : n;
+};
+
+const toBoolean = (value, falsyValues = ['false', '0', 'no', 'inactive', 'in-active']) => {
+  const normalized = String(value ?? '').toLowerCase().trim();
+  if (!normalized) return true; // domyślnie true jeśli puste
+  return !falsyValues.includes(normalized);
+};
+
+/**
+ * importerConfigs – PRO
+ * Każdy importer:
+ *  - waliduje wymagane pola
+ *  - loguje pominięte wiersze
+ *  - bezpiecznie czyści i mapuje dane
+ */
+
 export const importerConfigs = {
+  /* ---------------------- DRIVERS ---------------------- */
   drivers: {
     title: 'Import Drivers',
     apiEndpoint: '/api/drivers/import',
     postDataKey: 'drivers',
     dataMappingFn: (row) => {
-      // Pomiń wiersz, jeśli brakuje kluczowych danych
       if (!row.first_name && !row.login_code) {
-        console.warn('Skipping driver row due to missing first_name and login_code:', row);
+        console.warn(
+          '[IMPORT:DRIVERS] Skipping row – missing first_name and login_code:',
+          row
+        );
         return null;
       }
+
       return {
-        // Bezpieczne czyszczenie danych z niechcianych znaków
-        first_name: row.first_name?.replaceAll('"', '').trim() || null,
-        last_name: row.last_name?.replaceAll('"', '').trim() || null,
+        first_name: cleanText(row.first_name) || null,
+        last_name: cleanText(row.last_name) || null,
         phone_number: row.phone_number || null,
         license_number: row.license_number || null,
         cpc_number: row.cpc_number || null,
         login_code: row.login_code || null,
-        is_active: !['false', '0', 'no'].includes(String(row.is_active).toLowerCase()),
+        is_active: toBoolean(row.is_active),
       };
     },
     previewColumns: [
@@ -28,28 +68,32 @@ export const importerConfigs = {
       Se('phone_number', 'Phone'),
     ],
   },
+
+  /* ---------------------- TRUCKS (VEHICLES) ---------------------- */
   trucks: {
     title: 'Import Vehicles',
     apiEndpoint: '/api/trucks/import',
     postDataKey: 'trucks',
     dataMappingFn: (row) => {
-      // Pomiń wiersz, jeśli brakuje numeru rejestracyjnego
       if (!row.registration_plate) {
-        console.warn('Skipping truck row due to missing registration_plate:', row);
+        console.warn(
+          '[IMPORT:TRUCKS] Skipping row – missing registration_plate:',
+          row
+        );
         return null;
       }
+
       return {
-        registration_plate: row.registration_plate?.trim() || '',
-        // Bezpieczne czyszczenie danych z niechcianych znaków
-        brand: row.brand?.replaceAll('"', '').trim() || '',
-        model: row.model?.replaceAll('"', '').trim() || '',
+        registration_plate: cleanText(row.registration_plate),
+        brand: cleanText(row.brand),
+        model: cleanText(row.model),
         vin: row.vin || '',
-        production_year: row.production_year ? Number.parseInt(row.production_year, 10) : null,
+        production_year: toIntOrNull(row.production_year),
         type_of_truck: row.type_of_truck || 'tractor',
-        total_weight: row.total_weight ? Number.parseInt(row.total_weight, 10) : null,
-        pallet_capacity: row.pallet_capacity ? Number.parseInt(row.pallet_capacity, 10) : null,
-        max_payload_kg: row.max_payload_kg ? Number.parseInt(row.max_payload_kg, 10) : null,
-        is_active: !['false', '0', 'no'].includes(String(row.is_active).toLowerCase()),
+        total_weight: toIntOrNull(row.total_weight),
+        pallet_capacity: toIntOrNull(row.pallet_capacity),
+        max_payload_kg: toIntOrNull(row.max_payload_kg),
+        is_active: toBoolean(row.is_active),
       };
     },
     previewColumns: [
@@ -58,24 +102,32 @@ export const importerConfigs = {
       Se('type_of_truck', 'Type'),
     ],
   },
+
+  /* ---------------------- TRAILERS ---------------------- */
   trailers: {
     title: 'Import Trailers',
     apiEndpoint: '/api/trailers/import',
     postDataKey: 'trailers',
     dataMappingFn: (row) => {
       if (!row.registration_plate) {
-        console.warn('Skipping trailer row due to missing registration_plate:', row);
+        console.warn(
+          '[IMPORT:TRAILERS] Skipping row – missing registration_plate:',
+          row
+        );
         return null;
       }
+
+      const status = (row.status || '').toLowerCase();
+
       return {
-        registration_plate: row.registration_plate || '',
-        description: row.description?.replaceAll('"', '').trim() || '',
+        registration_plate: cleanText(row.registration_plate),
+        description: cleanText(row.description),
         category: row.category || 'Own',
-        brand: row.brand?.replaceAll('"', '').trim() || 'Unknown',
-        max_payload_kg: row.max_payload_kg ? Number.parseInt(row.max_payload_kg, 10) : null,
-        max_spaces: row.max_spaces ? Number.parseInt(row.max_spaces, 10) : null,
-        status: row.status ? row.status.toLowerCase() : 'inactive',
-        is_active: !['false', '0', 'no', 'in-active'].includes(String(row.is_active || row.status).toLowerCase()),
+        brand: cleanText(row.brand) || 'Unknown',
+        max_payload_kg: toIntOrNull(row.max_payload_kg),
+        max_spaces: toIntOrNull(row.max_spaces),
+        status: status || 'inactive',
+        is_active: toBoolean(row.is_active ?? row.status),
       };
     },
     previewColumns: [
@@ -85,39 +137,50 @@ export const importerConfigs = {
       Se('status', 'Status'),
     ],
   },
+
+  /* ---------------------- USERS ---------------------- */
   users: {
     title: 'Import Users',
     apiEndpoint: '/api/users/import',
     postDataKey: 'users',
-    dataMappingFn: (row) => ({
-      email: row.email,
-      first_name: row.first_name,
-      last_name: row.last_name,
-      role: row.role || 'dispatcher',
-      password: row.password, // Backend should handle hashing
-    }),
+    dataMappingFn: (row) => {
+      if (!row.email) {
+        console.warn('[IMPORT:USERS] Skipping row – missing email:', row);
+        return null;
+      }
+
+      return {
+        email: cleanText(row.email).toLowerCase(),
+        first_name: cleanText(row.first_name) || null,
+        last_name: cleanText(row.last_name) || null,
+        role: row.role || 'dispatcher',
+        password: row.password, // backend hashuje
+      };
+    },
     previewColumns: [
       Se('email', 'Email'),
       Se('first_name', 'First Name'),
       Se('role', 'Role'),
     ],
   },
+
+  /* ---------------------- CUSTOMERS ---------------------- */
   customers: {
     title: 'Import Customers',
     apiEndpoint: '/api/customers/import',
     postDataKey: 'customers',
-    // 🎯 FIX: Explicitly map CSV columns to backend fields for safety.
-    // This prevents errors if CSV headers don't match the database schema.
     dataMappingFn: (row) => {
-      // Pomiń wiersz, jeśli brakuje kluczowych danych (kod lub nazwa klienta).
       if (!row.customer_code || !row.name) {
-        console.warn('Skipping customer row due to missing code or name:', row);
+        console.warn(
+          '[IMPORT:CUSTOMERS] Skipping row – missing customer_code or name:',
+          row
+        );
         return null;
       }
+
       return {
-        customer_code: row.customer_code.trim(),
-        name: row.name.trim(),
-        // Używamy || '' aby zapewnić, że puste lub brakujące pola będą pustymi stringami.
+        customer_code: cleanText(row.customer_code),
+        name: cleanText(row.name),
         address_line1: row.address_line1 || '',
         address_line2: row.address_line2 || '',
         postcode: row.postcode || '',
@@ -131,36 +194,46 @@ export const importerConfigs = {
       Se('postcode', 'Postcode'),
     ],
   },
+
+  /* ---------------------- ORDERS ---------------------- */
   orders: {
     title: 'Import Orders',
     apiEndpoint: '/api/orders/import',
     postDataKey: 'orders',
     dataMappingFn: (row) => {
-      // Walidacja: Pomiń wiersz, jeśli brakuje kluczowych pól
       if (!row.ConsignmentNumber || !row.AccountCode) {
-        console.warn('Skipping row due to missing ConsignmentNumber or AccountCode:', row);
+        console.warn(
+          '[IMPORT:ORDERS] Skipping row – missing ConsignmentNumber or AccountCode:',
+          row
+        );
         return null;
       }
 
-      // Mapowanie ilości palet z różnych kolumn
       const pallets = [];
-      if (Number.parseInt(row.FullQ, 10) > 0) pallets.push({ type: 'Full', quantity: Number.parseInt(row.FullQ, 10) || 0 });
-      if (Number.parseInt(row.HalfQ, 10) > 0) pallets.push({ type: 'Half', quantity: Number.parseInt(row.HalfQ, 10) || 0 });
-      if (Number.parseInt(row.HalfPlusQ, 10) > 0) pallets.push({ type: 'HalfPlus', quantity: Number.parseInt(row.HalfPlusQ, 10) || 0 });
-      if (Number.parseInt(row.QuarterQ, 10) > 0) pallets.push({ type: 'Quarter', quantity: Number.parseInt(row.QuarterQ, 10) || 0 });
-      if (Number.parseInt(row.MicroQ, 10) > 0) pallets.push({ type: 'Micro', quantity: Number.parseInt(row.MicroQ, 10) || 0 });
+      const pushIf = (val, type) => {
+        const n = Number.parseInt(val, 10);
+        if (n > 0) pallets.push({ type, quantity: n });
+      };
 
-      // Funkcja do bezpiecznego parsowania daty
+      pushIf(row.FullQ, 'Full');
+      pushIf(row.HalfQ, 'Half');
+      pushIf(row.HalfPlusQ, 'HalfPlus');
+      pushIf(row.QuarterQ, 'Quarter');
+      pushIf(row.MicroQ, 'Micro');
+
       const parseDate = (dateStr, timeStr = '00:00') => {
         if (!dateStr) return new Date().toISOString();
         try {
-          // Łączymy datę i czas, jeśli czas jest dostępny
-          const dateTimeString = `${dateStr}T${timeStr || '00:00'}`;
-          const date = new Date(dateTimeString);
-          // Sprawdzamy, czy data jest prawidłowa
-          return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
-        } catch (error) {
-          console.warn('parseDate failed, returning now()', { dateStr, timeStr, error });
+          const dt = new Date(`${dateStr}T${timeStr || '00:00'}`);
+          return Number.isNaN(dt.getTime())
+            ? new Date().toISOString()
+            : dt.toISOString();
+        } catch (err) {
+          console.warn('[IMPORT:ORDERS] parseDate failed, fallback to now()', {
+            dateStr,
+            timeStr,
+            err,
+          });
           return new Date().toISOString();
         }
       };
@@ -169,7 +242,7 @@ export const importerConfigs = {
         order_number: row.ConsignmentNumber,
         customer_reference: row.CustomerReference || null,
         customer_code: row.AccountCode,
-        status: 'nowe', // Domyślny status
+        status: 'nowe',
         sender_details: {
           name: row.CollectionName || 'N/A',
           address1: row.CollectionAddress1 || 'N/A',
@@ -188,8 +261,8 @@ export const importerConfigs = {
         unloading_date_time: parseDate(row.DeliveryDate, row.DeliveryTime),
         cargo_details: {
           description: row.DeliveryNoteLine1 || 'No description',
-          pallets: pallets,
-          total_weight_kg: Number.parseFloat(row.TotalKilos || 0),
+          pallets,
+          total_weight_kg: toFloatOrZero(row.TotalKilos),
         },
       };
     },
@@ -200,44 +273,49 @@ export const importerConfigs = {
       Se('recipient_details.name', 'Recipient'),
     ],
   },
+
+  /* ---------------------- RATE CARDS ---------------------- */
   rateCards: {
     title: 'Import Rate Cards',
     apiEndpoint: '/api/rate-cards/import',
     postDataKey: 'rateCards',
     dataMappingFn: (row) => {
-      // Walidacja - pomiń wiersz, jeśli brakuje kluczowych danych
       if (!row['Rate Type'] || !row['Zone Name']) {
-        console.warn('Skipping rate card row due to missing Rate Type or Zone Name:', row);
+        console.warn(
+          '[IMPORT:RATECARDS] Skipping row – missing Rate Type or Zone Name:',
+          row
+        );
         return null;
       }
 
-      // Mapowanie cen z kolumn CSV do obiektu 'prices'
       const prices = {
-        micro: Number.parseFloat(row['Price Micro'] || 0),
-        quarter: Number.parseFloat(row['Price Quarter'] || 0),
-        half: Number.parseFloat(row['Price Half'] || 0),
-        half_plus: Number.parseFloat(row['Price Half Plus'] || 0),
-        full_1: Number.parseFloat(row['Price Full 1'] || 0),
-        full_2: Number.parseFloat(row['Price Full 2'] || 0),
-        full_3: Number.parseFloat(row['Price Full 3'] || 0),
-        full_4: Number.parseFloat(row['Price Full 4'] || 0),
-        full_5: Number.parseFloat(row['Price Full 5'] || 0),
-        full_6: Number.parseFloat(row['Price Full 6'] || 0),
-        full_7: Number.parseFloat(row['Price Full 7'] || 0),
-        full_8: Number.parseFloat(row['Price Full 8'] || 0),
-        full_9: Number.parseFloat(row['Price Full 9'] || 0),
-        full_10: Number.parseFloat(row['Price Full 10'] || 0),
+        micro: toFloatOrZero(row['Price Micro']),
+        quarter: toFloatOrZero(row['Price Quarter']),
+        half: toFloatOrZero(row['Price Half']),
+        half_plus: toFloatOrZero(row['Price Half Plus']),
+        full_1: toFloatOrZero(row['Price Full 1']),
+        full_2: toFloatOrZero(row['Price Full 2']),
+        full_3: toFloatOrZero(row['Price Full 3']),
+        full_4: toFloatOrZero(row['Price Full 4']),
+        full_5: toFloatOrZero(row['Price Full 5']),
+        full_6: toFloatOrZero(row['Price Full 6']),
+        full_7: toFloatOrZero(row['Price Full 7']),
+        full_8: toFloatOrZero(row['Price Full 8']),
+        full_9: toFloatOrZero(row['Price Full 9']),
+        full_10: toFloatOrZero(row['Price Full 10']),
       };
 
       return {
         rate_type: row['Rate Type'],
         zone_name: row['Zone Name'],
         service_level: row['Service Level'],
-        prices: prices,
+        prices,
       };
     },
     previewColumns: [
-      Se('rate_type', 'Type'), Se('zone_name', 'Zone'), Se('service_level', 'Service')
+      Se('rate_type', 'Type'),
+      Se('zone_name', 'Zone'),
+      Se('service_level', 'Service'),
     ],
   },
 };

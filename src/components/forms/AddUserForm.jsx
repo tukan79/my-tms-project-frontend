@@ -1,7 +1,6 @@
 // src/components/forms/AddUserForm.jsx
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { X } from 'lucide-react';
 
 import { useForm } from '@/hooks/useForm.js';
 import { useToast } from '@/contexts/ToastContext.jsx';
@@ -9,6 +8,8 @@ import { useToast } from '@/contexts/ToastContext.jsx';
 import TextField from './fields/TextField.jsx';
 import SelectField from './fields/SelectField.jsx';
 import FormActions from './shared/FormActions.jsx';
+import FormHeader from './shared/FormHeader.jsx';
+
 import { validateUser } from './validators/userValidator.js';
 import { createUser, updateUser } from './services/userService.js';
 
@@ -22,9 +23,10 @@ const initialFormData = {
 
 const normalizeEditData = (itemToEdit) => {
   if (!itemToEdit) return null;
+
   return {
     ...itemToEdit,
-    password: '',
+    password: '', // password cannot be shown — must be reset manually
   };
 };
 
@@ -44,6 +46,8 @@ const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
 
   const performSubmit = async (formData) => {
     const payload = { ...formData };
+
+    // Editing → password optional
     if (isEditMode && !payload.password) {
       delete payload.password;
     }
@@ -59,11 +63,12 @@ const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
         `User ${isEditMode ? 'updated' : 'created'} successfully.`,
         'success'
       );
+
       onSuccess();
-    } catch (error) {
-      const message = error.response?.data?.error || 'Failed to save user.';
-      showToast(message, 'error');
-      throw new Error(message);
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Failed to save user.';
+      showToast(msg, 'error');
+      throw new Error(msg);
     }
   };
 
@@ -80,91 +85,75 @@ const AddUserForm = ({ onSuccess, onCancel, itemToEdit }) => {
     itemToEdit: normalizedItem,
   });
 
-  const fields = [
-    {
-      component: TextField,
-      props: {
-        label: 'First Name',
-        name: 'first_name',
-        value: formData.first_name,
-        onChange: handleChange,
-        error: errors.first_name,
-        required: true,
-      },
-    },
-    {
-      component: TextField,
-      props: {
-        label: 'Last Name',
-        name: 'last_name',
-        value: formData.last_name,
-        onChange: handleChange,
-        error: errors.last_name,
-        required: true,
-      },
-    },
-    {
-      component: TextField,
-      props: {
-        label: 'Email',
-        name: 'email',
-        type: 'email',
-        value: formData.email,
-        onChange: handleChange,
-        error: errors.email,
-        required: true,
-      },
-    },
-    {
-      component: SelectField,
-      props: {
-        label: 'Role',
-        name: 'role',
-        value: formData.role,
-        onChange: handleChange,
-        error: errors.role,
-        required: true,
-        options: roleOptions,
-      },
-    },
-    {
-      component: TextField,
-      props: {
-        label: isEditMode ? 'New Password (optional)' : 'Password',
-        name: 'password',
-        type: 'password',
-        value: formData.password,
-        onChange: handleChange,
-        error: errors.password,
-        required: !isEditMode,
-      },
-    },
-  ];
-
-  const submitLabel = useMemo(() => {
-    if (loading) return 'Saving...';
-    return isEditMode ? 'Save Changes' : 'Add User';
-  }, [isEditMode, loading]);
+  const submitLabel = loading
+    ? 'Saving...'
+    : isEditMode
+    ? 'Save Changes'
+    : 'Add User';
 
   return (
-    <div className="card modal-center">
-      <div className="form-header">
-        <h2>{isEditMode ? 'Edit User' : 'Add New User'}</h2>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="btn-icon"
-          aria-label="Close form"
-        >
-          <X size={20} />
-        </button>
-      </div>
+    <div className="card modal-center form-card">
+
+      <FormHeader
+        title={isEditMode ? 'Edit User' : 'Add New User'}
+        onCancel={onCancel}
+      />
 
       <form onSubmit={handleSubmit} className="form" noValidate>
-        {fields.map(({ component: Component, props: fieldProps }) => (
-          <Component key={fieldProps.name} {...fieldProps} />
-        ))}
 
+        {/* MAIN FORM GRID */}
+        <div className="form-grid-2col">
+
+          <TextField
+            label="First Name"
+            name="first_name"
+            required
+            value={formData.first_name}
+            onChange={handleChange}
+            error={errors.first_name}
+          />
+
+          <TextField
+            label="Last Name"
+            name="last_name"
+            required
+            value={formData.last_name}
+            onChange={handleChange}
+            error={errors.last_name}
+          />
+
+          <TextField
+            label="Email"
+            name="email"
+            type="email"
+            required
+            value={formData.email}
+            onChange={handleChange}
+            error={errors.email}
+          />
+
+          <SelectField
+            label="Role"
+            name="role"
+            required
+            value={formData.role}
+            onChange={handleChange}
+            error={errors.role}
+            options={roleOptions}
+          />
+
+          <TextField
+            label={isEditMode ? 'New Password (optional)' : 'Password'}
+            name="password"
+            type="password"
+            required={!isEditMode}
+            value={formData.password}
+            onChange={handleChange}
+            error={errors.password}
+          />
+        </div>
+
+        {/* ACTIONS */}
         <FormActions
           onCancel={onCancel}
           loading={loading}

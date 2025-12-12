@@ -6,12 +6,16 @@ import React, {
   useCallback,
   useMemo,
   useEffect,
-} from 'react';
-import PropTypes from 'prop-types';
-import { useToast } from '@/contexts/ToastContext.jsx';
-import { useAssignments } from '@/hooks/useAssignments.js';
-import { useApiResource } from '@/hooks/useApiResource.js';
+} from "react";
+import PropTypes from "prop-types";
 
+import { useToast } from "@/contexts/ToastContext.jsx";
+import { useAssignments } from "@/hooks/useAssignments.js";
+import { useApiResource } from "@/hooks/useApiResource.js";
+
+/* ----------------------------------------------------------
+   Normalizers (truck / trailer)
+---------------------------------------------------------- */
 const normalizeTruck = (truck = {}) => ({
   ...truck,
   registration_plate:
@@ -19,7 +23,7 @@ const normalizeTruck = (truck = {}) => ({
     truck.registrationPlate ||
     truck.plate ||
     truck.name ||
-    '',
+    "",
 });
 
 const normalizeTrailer = (trailer = {}) => ({
@@ -29,19 +33,23 @@ const normalizeTrailer = (trailer = {}) => ({
     trailer.registrationPlate ||
     trailer.plate ||
     trailer.name ||
-    '',
+    "",
 });
 
+/* ----------------------------------------------------------
+   CONTEXT SETUP
+---------------------------------------------------------- */
 const PlanItContext = createContext(null);
 
 export const usePlanIt = () => {
-  const context = useContext(PlanItContext);
-  if (!context) {
-    throw new Error('usePlanIt must be used within a PlanItProvider');
-  }
-  return context;
+  const ctx = useContext(PlanItContext);
+  if (!ctx) throw new Error("usePlanIt must be used within PlanItProvider");
+  return ctx;
 };
 
+/* ----------------------------------------------------------
+   PROVIDER
+---------------------------------------------------------- */
 export const PlanItProvider = ({
   children,
   initialData = {},
@@ -52,6 +60,9 @@ export const PlanItProvider = ({
 }) => {
   const { showToast } = useToast();
 
+  /* ------------------------------------------------------
+     INITIAL DATA
+  ------------------------------------------------------ */
   const {
     orders = [],
     runs = [],
@@ -63,32 +74,39 @@ export const PlanItProvider = ({
     zones = [],
   } = initialData;
 
-  // Fallback: jeśli ciężarówki/naczepy nie przyszły z dashboardu, dociągnij je bezpośrednio.
+  /* ------------------------------------------------------
+     FETCH TRUCKS / TRAILERS (fallback if missing)
+  ------------------------------------------------------ */
   const needTrucks = !trucks || trucks.length === 0;
   const needTrailers = !trailers || trailers.length === 0;
 
   const { data: fetchedTrucks } = useApiResource(
-    '/api/trucks',
+    "/api/trucks",
     { initialFetch: needTrucks, enabled: needTrucks },
-    'trucks'
+    "trucks"
   );
+
   const { data: fetchedTrailers } = useApiResource(
-    '/api/trailers',
+    "/api/trailers",
     { initialFetch: needTrailers, enabled: needTrailers },
-    'trailers'
+    "trailers"
   );
 
   const effectiveTrucks = useMemo(
     () => ((needTrucks ? fetchedTrucks : trucks) || []).map(normalizeTruck),
     [needTrucks, fetchedTrucks, trucks]
   );
+
   const effectiveTrailers = useMemo(
     () => ((needTrailers ? fetchedTrailers : trailers) || []).map(normalizeTrailer),
     [needTrailers, fetchedTrailers, trailers]
   );
 
+  /* ------------------------------------------------------
+     UI STATE
+  ------------------------------------------------------ */
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split('T')[0]
+    new Date().toISOString().split("T")[0]
   );
   const [activeRunId, setActiveRunId] = useState(null);
   const [editingRun, setEditingRun] = useState(null);
@@ -100,28 +118,28 @@ export const PlanItProvider = ({
     y: 0,
   });
 
+  /* ------------------------------------------------------
+     AUTO REFRESH
+  ------------------------------------------------------ */
   const getStoredAutoRefresh = () => {
     try {
-      if (!globalThis?.localStorage) {
-        return null;
-      }
-      return JSON.parse(
-        globalThis.localStorage.getItem('autoRefreshEnabled')
-      );
+      if (!globalThis?.localStorage) return null;
+      return JSON.parse(globalThis.localStorage.getItem("autoRefreshEnabled"));
     } catch {
       return null;
     }
   };
 
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(() => {
-    const value = getStoredAutoRefresh();
-    return typeof value === 'boolean' ? value : true;
+    const stored = getStoredAutoRefresh();
+    return typeof stored === "boolean" ? stored : true;
   });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const triggerRefresh = useCallback(async () => {
     setIsRefreshing(true);
+
     if (onAssignmentCreated) {
       await onAssignmentCreated();
     }
@@ -133,83 +151,88 @@ export const PlanItProvider = ({
     }
   }, [onAssignmentCreated]);
 
+  // Persist user preference
   useEffect(() => {
     if (!globalThis?.localStorage) return;
     globalThis.localStorage.setItem(
-      'autoRefreshEnabled',
+      "autoRefreshEnabled",
       JSON.stringify(autoRefreshEnabled)
     );
   }, [autoRefreshEnabled]);
 
+  // Auto-refresh interval
   useEffect(() => {
-    if (!autoRefreshEnabled || !globalThis?.setInterval) {
-      return undefined;
-    }
+    if (!autoRefreshEnabled || !globalThis?.setInterval) return;
 
-    const REFRESH_INTERVAL = 30000;
-    const interval = globalThis.setInterval(
-      triggerRefresh,
-      REFRESH_INTERVAL
-    );
+    const interval = globalThis.setInterval(triggerRefresh, 30000);
 
     return () => {
-      if (globalThis?.clearInterval) {
-        globalThis.clearInterval(interval);
-      }
+      globalThis?.clearInterval?.(interval);
     };
   }, [autoRefreshEnabled, triggerRefresh]);
 
+  /* ------------------------------------------------------
+     LOOKUP MAPS
+  ------------------------------------------------------ */
   const driverMap = useMemo(
-    () => new Map(drivers.map(d => [d.id, d])),
+    () => new Map(drivers.map((d) => [d.id, d])),
     [drivers]
   );
+
   const truckMap = useMemo(
-    () => new Map(effectiveTrucks.map(t => [t.id, t])),
+    () => new Map(effectiveTrucks.map((t) => [t.id, t])),
     [effectiveTrucks]
   );
+
   const trailerMap = useMemo(
-    () => new Map(effectiveTrailers.map(t => [t.id, t])),
+    () => new Map(effectiveTrailers.map((t) => [t.id, t])),
     [effectiveTrailers]
   );
+
   const orderMap = useMemo(
-    () => new Map(orders.map(o => [o.id, o])),
+    () => new Map(orders.map((o) => [o.id, o])),
     [orders]
   );
 
+  /* ------------------------------------------------------
+     GROUP ASSIGNMENTS BY RUN
+  ------------------------------------------------------ */
   const assignmentsByRun = useMemo(() => {
     const map = new Map();
-
-    initialAssignments.forEach(a => {
+    initialAssignments.forEach((a) => {
       const list = map.get(a.run_id) ?? [];
       list.push(a);
       map.set(a.run_id, list);
     });
-
     return map;
   }, [initialAssignments]);
 
+  /* ------------------------------------------------------
+     ENRICHED RUN DATA (with capacity, totals, labels)
+  ------------------------------------------------------ */
   const enrichedRuns = useMemo(() => {
     return runs
-      .filter(run => run.run_date?.startsWith(selectedDate))
-      .map(run => {
+      .filter((run) => run.run_date?.startsWith(selectedDate))
+      .map((run) => {
         const driver = driverMap.get(run.driver_id);
         const truck = truckMap.get(run.truck_id);
         const trailer = trailerMap.get(run.trailer_id);
 
         const runAssignments = assignmentsByRun.get(run.id) ?? [];
+
         const assignedOrders = runAssignments
-          .map(a => orderMap.get(a.order_id))
+          .map((a) => orderMap.get(a.order_id))
           .filter(Boolean);
 
         let totalKilos = 0;
         let totalSpaces = 0;
 
-        assignedOrders.forEach(order => {
-          totalKilos += order?.cargo_details?.total_kilos ?? 0;
-          totalSpaces += order?.cargo_details?.total_spaces ?? 0;
+        assignedOrders.forEach((o) => {
+          totalKilos += o?.cargo_details?.total_kilos ?? 0;
+          totalSpaces += o?.cargo_details?.total_spaces ?? 0;
         });
 
-        const isRigid = truck?.type_of_truck === 'rigid';
+        const isRigid = truck?.type_of_truck === "rigid";
         const hasCapacity = Boolean(isRigid || trailer);
 
         let maxPayload = null;
@@ -227,10 +250,10 @@ export const PlanItProvider = ({
 
         const driverName = driver
           ? `${driver.first_name} ${driver.last_name}`
-          : 'No Driver';
+          : "No Driver";
 
-        const truckPlate = truck?.registration_plate ?? 'No Truck';
-        const trailerPlate = trailer?.registration_plate ?? '';
+        const truckPlate = truck?.registration_plate ?? "No Truck";
+        const trailerPlate = trailer?.registration_plate ?? "";
 
         return {
           ...run,
@@ -252,6 +275,9 @@ export const PlanItProvider = ({
     orderMap,
   ]);
 
+  /* ------------------------------------------------------
+     ASSIGNMENTS HANDLING (drag/drop)
+  ------------------------------------------------------ */
   const assignmentsData = useMemo(
     () => ({
       initialAssignments,
@@ -271,28 +297,31 @@ export const PlanItProvider = ({
   } = useAssignments(assignmentsData);
 
   useEffect(() => {
-    if (error) {
-      showToast(error, 'error');
-    }
+    if (error) showToast(error, "error");
   }, [error, showToast]);
 
+  /* ------------------------------------------------------
+     ACTIVE RUN
+  ------------------------------------------------------ */
   const activeRun = useMemo(() => {
     if (!activeRunId) return null;
-    return enrichedRuns.find(r => r.id === activeRunId) ?? null;
+    return enrichedRuns.find((r) => r.id === activeRunId) ?? null;
   }, [activeRunId, enrichedRuns]);
 
   const ordersForActiveRun = useMemo(() => {
     if (!activeRun) return [];
-
     return assignments
-      .filter(a => a.run_id === activeRun.id)
-      .map(a => {
+      .filter((a) => a.run_id === activeRun.id)
+      .map((a) => {
         const order = orderMap.get(a.order_id);
         return order ? { ...order, assignmentId: a.id } : null;
       })
       .filter(Boolean);
   }, [activeRun, assignments, orderMap]);
 
+  /* ------------------------------------------------------
+     RUN FORM HANDLERS
+  ------------------------------------------------------ */
   const handleEditRun = useCallback((run) => {
     setEditingRun(run);
     setIsFormVisible(true);
@@ -311,8 +340,12 @@ export const PlanItProvider = ({
     [handleDeleteAssignment, triggerRefresh]
   );
 
+  /* ------------------------------------------------------
+     CONTEXT VALUE
+  ------------------------------------------------------ */
   const contextValue = useMemo(
     () => ({
+      // STATE
       selectedDate,
       activeRunId,
       editingRun,
@@ -327,6 +360,7 @@ export const PlanItProvider = ({
       isRefreshing,
       autoRefreshEnabled,
 
+      // SETTERS
       setSelectedDate,
       setActiveRunId,
       setEditingRun,
@@ -335,12 +369,21 @@ export const PlanItProvider = ({
       setContextMenu,
       setAutoRefreshEnabled,
 
+      // HANDLERS
       handleEditRun,
       handleAddNewRun,
       handleDeleteAssignment: handleDeleteAssignmentWithRefresh,
       handleDragEnd,
 
-      initialData: { drivers, trucks: effectiveTrucks, trailers: effectiveTrailers, zones, pallets },
+      // META
+      initialData: {
+        drivers,
+        trucks: effectiveTrucks,
+        trailers: effectiveTrailers,
+        zones,
+        pallets,
+      },
+
       triggerRefresh,
     }),
     [

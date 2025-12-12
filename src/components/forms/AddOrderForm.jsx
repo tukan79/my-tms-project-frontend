@@ -1,9 +1,18 @@
+// src/components/forms/AddOrderForm.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
+
 import { useToast } from "@/contexts/ToastContext.jsx";
 import { lookupPostcode } from "@/services/postcodeLookup.js";
 
-/** Debounce helper (stable) */
+import TextField from "./fields/TextField.jsx";
+import SelectField from "./fields/SelectField.jsx";
+import FormHeader from "./shared/FormHeader.jsx";
+import FormActions from "./shared/FormActions.jsx";
+
+/* ---------------------------------------------
+   Debounce Hook
+--------------------------------------------- */
 function useDebouncedCallback(callback, delay = 500) {
   return useCallback(
     (() => {
@@ -19,15 +28,14 @@ function useDebouncedCallback(callback, delay = 500) {
 
 export default function AddOrderForm({
   onSuccess,
+  onCancel = () => {},
   orderToEdit,
   clients: customers = [],
   surcharges: initialSurcharges = [],
 }) {
   const { showToast } = useToast();
-
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  /** Initial clean structure */
   const emptyForm = {
     order_number: "",
     reference: "",
@@ -67,7 +75,7 @@ export default function AddOrderForm({
     total_kilos: "",
     unit_code: "",
 
-    // Service & Surcharges
+    // Service
     service_code: "",
     surcharges_text: "",
     selected_surcharges: [],
@@ -88,14 +96,14 @@ export default function AddOrderForm({
 
   const [formData, setFormData] = useState(emptyForm);
 
-  /** Load order when editing */
+  /* Load existing order */
   useEffect(() => {
     if (orderToEdit) {
       setFormData((prev) => ({ ...prev, ...orderToEdit }));
     }
   }, [orderToEdit]);
 
-  /** Auto-copy calculated price */
+  /* Auto-fill final price */
   useEffect(() => {
     if (formData.calculated_price && !orderToEdit) {
       setFormData((prev) => ({
@@ -105,7 +113,7 @@ export default function AddOrderForm({
     }
   }, [formData.calculated_price, orderToEdit]);
 
-  /** CHANGE HANDLER */
+  /* Change handler */
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
@@ -114,7 +122,6 @@ export default function AddOrderForm({
       [name]: type === "checkbox" ? checked : value,
     }));
 
-    /** Trigger postcode lookup for these specific fields */
     if (name === "collection_postcode") {
       debouncedLookup("collection", value);
     }
@@ -123,28 +130,27 @@ export default function AddOrderForm({
     }
   };
 
-  /** LOOKUP — debounced version */
+  /* Debounced Postcode Lookup */
   const debouncedLookup = useDebouncedCallback(async (prefix, postcode) => {
     if (!postcode || postcode.length < 3) return;
-
     const info = await lookupPostcode(postcode);
     if (!info) return;
 
     setFormData((prev) => ({
       ...prev,
-      [`${prefix}_town`]: info.town || prev[`${prefix}_town`],
-      [`${prefix}_county`]: info.county || prev[`${prefix}_county`],
+      [`${prefix}_town`]: info.town ?? prev[`${prefix}_town`],
+      [`${prefix}_county`]: info.county ?? prev[`${prefix}_county`],
     }));
   }, 600);
 
-  /** SUBMIT HANDLER */
+  /* Submit handler */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      showToast(orderToEdit ? "Order updated!" : "Order added!", "success");
-      if (onSuccess) onSuccess();
+      showToast(orderToEdit ? "Order updated!" : "Order created!", "success");
+      onSuccess?.();
     } catch (err) {
       showToast(err?.response?.data?.error || "Failed to save order.", "error");
     } finally {
@@ -152,181 +158,105 @@ export default function AddOrderForm({
     }
   };
 
+  /* ----- UI START ----- */
+
   return (
-    <form onSubmit={handleSubmit} className="form-card">
-      <h2>{orderToEdit ? "Edit Order" : "Add New Order"}</h2>
+    <div className="flex justify-center w-full py-10 px-4">
+      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-10">
+        <FormHeader
+          title={orderToEdit ? "Edit Order" : "Add New Order"}
+          subtitle="Enter order details, collection, delivery and pricing"
+          onCancel={onCancel}
+        />
 
-      {/* ======================
-          BASIC DETAILS
-      ======================= */}
-      <div className="form-grid">
-        <div className="form-group">
-          <label>Consignment Number</label>
-          <input name="order_number" value={formData.order_number} onChange={handleChange} />
-        </div>
+        <form onSubmit={handleSubmit} noValidate className="space-y-10">
+          {/* BASIC + CUSTOMER */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h3 className="form-section-title">Basic Details</h3>
+              <TextField label="Consignment Number" name="order_number" value={formData.order_number} onChange={handleChange} />
+              <TextField label="Customer Reference" name="reference" value={formData.reference} onChange={handleChange} />
+              <TextField label="Customer Reference 2" name="reference2" value={formData.reference2} onChange={handleChange} />
+            </div>
 
-        <div className="form-group">
-          <label>Customer Reference</label>
-          <input name="reference" value={formData.reference} onChange={handleChange} />
-        </div>
+            <div className="space-y-4">
+              <h3 className="form-section-title">Customer</h3>
+              <TextField label="Consignment Type" name="consignment_type" value={formData.consignment_type} onChange={handleChange} />
+              <TextField label="Account Code" name="account_code" value={formData.account_code} onChange={handleChange} />
+              <SelectField
+                label="Customer"
+                name="customer_id"
+                value={formData.customer_id}
+                onChange={handleChange}
+                options={customers.map((c) => ({ value: c.id, label: c.name }))}
+              />
+            </div>
+          </div>
 
-        <div className="form-group">
-          <label>Customer Reference 2</label>
-          <input name="reference2" value={formData.reference2} onChange={handleChange} />
-        </div>
+          {/* COLLECTION + DELIVERY */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h3 className="form-section-title">Collection</h3>
+              <TextField label="Name" name="collection_name" value={formData.collection_name} onChange={handleChange} />
+              <TextField label="Address 1" name="collection_address1" value={formData.collection_address1} onChange={handleChange} />
+              <TextField label="Postcode" name="collection_postcode" value={formData.collection_postcode} onChange={handleChange} />
+              <TextField label="Town" name="collection_town" value={formData.collection_town} onChange={handleChange} />
+              <TextField label="County" name="collection_county" value={formData.collection_county} onChange={handleChange} />
+              <TextField label="Collection Date" type="date" name="collection_date" value={formData.collection_date} onChange={handleChange} />
+              <TextField label="Collection Time" type="time" name="collection_time" value={formData.collection_time} onChange={handleChange} />
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="form-section-title">Delivery</h3>
+              <TextField label="Name" name="delivery_name" value={formData.delivery_name} onChange={handleChange} />
+              <TextField label="Address 1" name="delivery_address1" value={formData.delivery_address1} onChange={handleChange} />
+              <TextField label="Postcode" name="delivery_postcode" value={formData.delivery_postcode} onChange={handleChange} />
+              <TextField label="Town" name="delivery_town" value={formData.delivery_town} onChange={handleChange} />
+              <TextField label="County" name="delivery_county" value={formData.delivery_county} onChange={handleChange} />
+              <TextField label="Delivery Date" type="date" name="delivery_date" value={formData.delivery_date} onChange={handleChange} />
+              <TextField label="Delivery Time" type="time" name="delivery_time" value={formData.delivery_time} onChange={handleChange} />
+            </div>
+          </div>
+
+          {/* LOAD + PRICING */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h3 className="form-section-title">Load Details</h3>
+              <TextField label="Total Spaces" type="number" name="total_spaces" value={formData.total_spaces} onChange={handleChange} />
+              <TextField label="Total Kilos" type="number" name="total_kilos" value={formData.total_kilos} onChange={handleChange} />
+              <TextField label="Unit Code" name="unit_code" value={formData.unit_code} onChange={handleChange} />
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="form-section-title">Service & Pricing</h3>
+              <TextField label="Service Code" name="service_code" value={formData.service_code} onChange={handleChange} />
+              <TextField label="Surcharges" name="surcharges_text" value={formData.surcharges_text} onChange={handleChange} />
+              <TextField
+                label="Final Price (£)"
+                type="number"
+                name="final_price"
+                value={formData.final_price}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <FormActions
+              onCancel={onCancel}
+              loading={isSubmitting}
+              submitLabel={orderToEdit ? "Save Changes" : "Create Order"}
+            />
+          </div>
+        </form>
       </div>
-
-      {/* ======================
-          CUSTOMER
-      ======================= */}
-      <h3>Customer</h3>
-      <div className="form-grid">
-        <div className="form-group">
-          <label>Consignment Type</label>
-          <input name="consignment_type" value={formData.consignment_type} onChange={handleChange} />
-        </div>
-
-        <div className="form-group">
-          <label>Account Code</label>
-          <input name="account_code" value={formData.account_code} onChange={handleChange} />
-        </div>
-
-        <div className="form-group">
-          <label>Customer</label>
-          <select name="customer_id" value={formData.customer_id} onChange={handleChange}>
-            <option value="">Select customer</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* ======================
-          COLLECTION
-      ======================= */}
-      <h3>Collection</h3>
-      <div className="form-grid">
-        <div className="form-group">
-          <label>Name</label>
-          <input name="collection_name" value={formData.collection_name} onChange={handleChange} />
-        </div>
-
-        <div className="form-group">
-          <label>Address 1</label>
-          <input name="collection_address1" value={formData.collection_address1} onChange={handleChange} />
-        </div>
-
-        <div className="form-group">
-          <label>Postcode</label>
-          <input
-            name="collection_postcode"
-            value={formData.collection_postcode}
-            onChange={handleChange}
-          />
-        </div>
-
-        <div className="form-group">
-          <label>Town</label>
-          <input name="collection_town" value={formData.collection_town} onChange={handleChange} />
-        </div>
-
-        <div className="form-group">
-          <label>County</label>
-          <input name="collection_county" value={formData.collection_county} onChange={handleChange} />
-        </div>
-      </div>
-
-      {/* ======================
-          DELIVERY
-      ======================= */}
-      <h3>Delivery</h3>
-      <div className="form-grid">
-        <div className="form-group">
-          <label>Name</label>
-          <input name="delivery_name" value={formData.delivery_name} onChange={handleChange} />
-        </div>
-
-        <div className="form-group">
-          <label>Address 1</label>
-          <input name="delivery_address1" value={formData.delivery_address1} onChange={handleChange} />
-        </div>
-
-        <div className="form-group">
-          <label>Postcode</label>
-          <input
-            name="delivery_postcode"
-            value={formData.delivery_postcode}
-            onChange={handleChange}
-          />
-        </div>
-
-        <div className="form-group">
-          <label>Town</label>
-          <input name="delivery_town" value={formData.delivery_town} onChange={handleChange} />
-        </div>
-
-        <div className="form-group">
-          <label>County</label>
-          <input name="delivery_county" value={formData.delivery_county} onChange={handleChange} />
-        </div>
-      </div>
-
-      {/* ======================
-          LOAD
-      ======================= */}
-      <h3>Load Details</h3>
-      <div className="form-grid">
-        <div className="form-group">
-          <label>Total Spaces</label>
-          <input type="number" name="total_spaces" value={formData.total_spaces} onChange={handleChange} />
-        </div>
-
-        <div className="form-group">
-          <label>Total Kilos</label>
-          <input type="number" name="total_kilos" value={formData.total_kilos} onChange={handleChange} />
-        </div>
-
-        <div className="form-group">
-          <label>Unit Code</label>
-          <input name="unit_code" value={formData.unit_code} onChange={handleChange} />
-        </div>
-      </div>
-
-      {/* ======================
-          SERVICE / SURCHARGES
-      ======================= */}
-      <h3>Service & Surcharges</h3>
-      <div className="form-grid">
-        <div className="form-group">
-          <label>Service Code</label>
-          <input name="service_code" value={formData.service_code} onChange={handleChange} />
-        </div>
-
-        <div className="form-group">
-          <label>Surcharges</label>
-          <input name="surcharges_text" value={formData.surcharges_text} onChange={handleChange} />
-        </div>
-      </div>
-
-      {/* ======================
-          PRICE
-      ======================= */}
-      <h3>Pricing</h3>
-      <div className="form-group">
-        <label>Final Price (£)</label>
-        <input type="number" name="final_price" value={formData.final_price} onChange={handleChange} />
-      </div>
-
-      <button type="submit" className="btn-primary" disabled={isSubmitting}>
-        {isSubmitting ? "Saving…" : orderToEdit ? "Update Order" : "Add Order"}
-      </button>
-    </form>
+    </div>
   );
 }
 
 AddOrderForm.propTypes = {
   onSuccess: PropTypes.func,
+  onCancel: PropTypes.func,
   orderToEdit: PropTypes.object,
   clients: PropTypes.array,
   surcharges: PropTypes.array,

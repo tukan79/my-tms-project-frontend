@@ -1,11 +1,18 @@
 // src/components/shared/DataTable.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { ArrowUp, ArrowDown, Edit, Trash2, RefreshCcw } from 'lucide-react';
+import {
+  ArrowUp,
+  ArrowDown,
+  Edit,
+  Trash2,
+  RefreshCcw,
+  Search,
+} from 'lucide-react';
+
 import SkeletonRow from '@/components/shared/SkeletonRow.jsx';
 import { useTableData } from '@/hooks/useTableData';
 
-// ✅ Poprawione pod Sonar – optional chaining
 const getNestedValue = (obj, path) => {
   try {
     return path?.split('.')?.reduce((acc, part) => acc?.[part], obj);
@@ -22,7 +29,7 @@ const DataTable = ({
   onDelete,
   title = '',
   customActions = [],
-  filterPlaceholder = 'Search...',
+  filterPlaceholder = 'Search…',
   initialSortKey,
   filterKeys = [],
   currentUser,
@@ -32,7 +39,6 @@ const DataTable = ({
   footerData = {},
   autoRefreshEnabled = false,
 }) => {
-  // ✅ Zawsze wywołuj hooki – bez warunków
   const safeItems = Array.isArray(items) ? items : [];
   const safeColumns = Array.isArray(columns) ? columns : [];
 
@@ -53,21 +59,26 @@ const DataTable = ({
     [sortedAndFilteredData]
   );
 
-  const hasActions = Boolean(
-    onEdit || onDelete || (Array.isArray(customActions) && customActions.length > 0)
-  );
+  const hasActions =
+    onEdit ||
+    onDelete ||
+    (Array.isArray(customActions) && customActions.length > 0);
 
   const refreshFn = typeof onRefresh === 'function' ? onRefresh : null;
 
-  // ✅ Debounce filtra
+  /* ---------------------------------------
+     Debounce search input
+  --------------------------------------- */
   useEffect(() => {
     const timer = setTimeout(() => {
       setFilterText(inputValue);
-    }, 300);
+    }, 250);
     return () => clearTimeout(timer);
-  }, [inputValue, setFilterText]);
+  }, [inputValue]);
 
-  // ✅ Auto refresh
+  /* ---------------------------------------
+     Auto-refresh (PlanIt compatibility)
+  --------------------------------------- */
   useEffect(() => {
     if (!autoRefreshEnabled || !refreshFn) return;
 
@@ -80,12 +91,14 @@ const DataTable = ({
 
   const getSortIcon = (key) => {
     if (sortConfig?.key !== key) return null;
-    return sortConfig?.direction === 'ascending'
-      ? <ArrowUp size={14} />
-      : <ArrowDown size={14} />;
+
+    return sortConfig?.direction === 'ascending' ? (
+      <ArrowUp size={14} />
+    ) : (
+      <ArrowDown size={14} />
+    );
   };
 
-  // ✅ Usunięty nested ternary
   const getAriaSort = (colKey) => {
     if (sortConfig?.key !== colKey) return 'none';
     return sortConfig?.direction === 'ascending'
@@ -93,20 +106,33 @@ const DataTable = ({
       : 'descending';
   };
 
+  /* ---------------------------------------
+     MAIN RENDER
+  --------------------------------------- */
   return (
     <div className="table-shell">
-      <div className="table-toolbar">
-        <h2>{title} ({safeSortedData.length})</h2>
 
-        <div className="table-actions">
-          <input
-            type="text"
-            aria-label="Search table"
-            placeholder={filterPlaceholder}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            className="filter-input"
-          />
+      {/* Header & Search */}
+      <div className="table-toolbar modern-toolbar">
+        <div>
+          <h2 className="table-title">
+            {title}
+            <span className="table-count">({safeSortedData.length})</span>
+          </h2>
+        </div>
+
+        <div className="table-actions modern-actions">
+          <div className="search-wrapper">
+            <Search size={16} className="search-icon" />
+            <input
+              type="text"
+              placeholder={filterPlaceholder}
+              aria-label="Search table"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              className="filter-input modern-input"
+            />
+          </div>
 
           {refreshFn && (
             <button
@@ -117,14 +143,18 @@ const DataTable = ({
               disabled={isLoading}
               aria-label="Refresh data"
             >
-              <RefreshCcw size={18} className={isLoading ? 'animate-spin' : ''} />
+              <RefreshCcw
+                size={18}
+                className={isLoading ? 'animate-spin' : ''}
+              />
             </button>
           )}
         </div>
       </div>
 
+      {/* Table */}
       <div className="table-wrapper">
-        <table className="data-table">
+        <table className="data-table modern-table">
           <thead>
             <tr>
               {safeColumns.map((col) => (
@@ -135,97 +165,101 @@ const DataTable = ({
                   {col.sortable ? (
                     <button
                       type="button"
-                      className="table-sort-button"
+                      className="table-sort-button modern-sort-button"
                       onClick={() => handleSort(col.key)}
                     >
-                      {col.icon}
+                      {col.icon && <span className="col-icon">{col.icon}</span>}
                       <span>{col.header}</span>
-                      {getSortIcon(col.key)}
+                      <span className="sort-icon">{getSortIcon(col.key)}</span>
                     </button>
                   ) : (
-                    <span>{col.header}</span>
+                    <span className="col-header">{col.header}</span>
                   )}
                 </th>
               ))}
-              {hasActions && <th>Actions</th>}
+
+              {hasActions && <th className="actions-header">Actions</th>}
             </tr>
           </thead>
 
           <tbody>
-            {isLoading && (
-              Array.from({ length: 10 }).map((_, i) => (
+            {isLoading &&
+              Array.from({ length: 8 }).map((_, i) => (
                 <SkeletonRow
-                  key={`skeleton-${safeColumns.length}-${loadingText}-${i}`}
+                  key={`loading-${i}`}
                   columns={safeColumns}
                   hasActions={hasActions}
                 />
-              ))
-            )}
+              ))}
 
-            {!isLoading && safeSortedData.length > 0 && safeSortedData.map((item) => {
-              const isCurrentUserRow = currentUser?.id === item.id;
+            {!isLoading &&
+              safeSortedData.map((item) => {
+                const isCurrentUserRow = currentUser?.id === item.id;
 
-              return (
-                <tr
-                  key={item.id ?? `row-${crypto.randomUUID()}`}
-                  onContextMenu={onContextMenu ? (e) => onContextMenu(e, item) : undefined}
-                  style={onContextMenu ? { cursor: 'context-menu' } : undefined}
-                >
-                  {safeColumns.map((col) => (
-                    <td key={`${item.id}-${col.key}`}>
-                      {col.render ? col.render(item) : getNestedValue(item, col.key)}
-                    </td>
-                  ))}
+                return (
+                  <tr
+                    key={item.id ?? crypto.randomUUID()}
+                    onContextMenu={
+                      onContextMenu ? (e) => onContextMenu(e, item) : undefined
+                    }
+                  >
+                    {safeColumns.map((col) => (
+                      <td key={`${item.id}-${col.key}`}>
+                        {col.render
+                          ? col.render(item)
+                          : getNestedValue(item, col.key)}
+                      </td>
+                    ))}
 
-                  {hasActions && (
-                    <td className="actions-cell">
-                      {isCurrentUserRow ? (
-                        <span className="text-muted">This is you</span>
-                      ) : (
-                        <>
-                          {onEdit && (
-                            <button
-                              type="button"
-                              onClick={() => onEdit(item)}
-                              className="btn-icon"
-                              title="Edit"
-                              aria-label="Edit item"
-                            >
-                              <Edit size={16} />
-                            </button>
-                          )}
+                    {hasActions && (
+                      <td className="actions-cell">
+                        {isCurrentUserRow ? (
+                          <span className="text-muted">This is you</span>
+                        ) : (
+                          <>
+                            {onEdit && (
+                              <button
+                                type="button"
+                                onClick={() => onEdit(item)}
+                                className="btn-icon"
+                                aria-label="Edit item"
+                                title="Edit"
+                              >
+                                <Edit size={16} />
+                              </button>
+                            )}
 
-                          {onDelete && (
-                            <button
-                              type="button"
-                              onClick={() => onDelete(item)}
-                              className="btn-icon btn-danger"
-                              title="Delete"
-                              aria-label="Delete item"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-                        </>
-                      )}
+                            {onDelete && (
+                              <button
+                                type="button"
+                                onClick={() => onDelete(item)}
+                                className="btn-icon btn-danger"
+                                aria-label="Delete item"
+                                title="Delete"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </>
+                        )}
 
-                      {(customActions ?? []).map((action) => (
-                        <button
-                          key={action.title}
-                          type="button"
-                          onClick={() => action.onClick(item)}
-                          className="btn-icon"
-                          title={action.title}
-                          aria-label={action.title}
-                        >
-                          {action.icon}
-                        </button>
-                      ))}
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
+                        {(customActions ?? []).map((action) => (
+                          <button
+                            key={action.title}
+                            type="button"
+                            onClick={() => action.onClick(item)}
+                            className="btn-icon"
+                            title={action.title}
+                            aria-label={action.title}
+                          >
+                            {action.icon}
+                          </button>
+                        ))}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
           </tbody>
 
           {footerData && (
@@ -233,7 +267,9 @@ const DataTable = ({
               <tr>
                 {safeColumns.map((col) => (
                   <td key={`footer-${col.key}`}>
-                    {footerData?.[col.key] ? <strong>{footerData[col.key]}</strong> : null}
+                    {footerData[col.key] ? (
+                      <strong>{footerData[col.key]}</strong>
+                    ) : null}
                   </td>
                 ))}
                 {hasActions && <td></td>}
@@ -243,10 +279,10 @@ const DataTable = ({
         </table>
 
         {!isLoading && safeSortedData.length === 0 && (
-          <p className="no-results-message" aria-live="polite">
+          <p className="no-results-message table-empty-state">
             {filterText
-              ? 'No results match the search criteria.'
-              : 'No data in the database.'}
+              ? 'No results match your search.'
+              : 'No records available.'}
           </p>
         )}
       </div>
@@ -256,15 +292,7 @@ const DataTable = ({
 
 DataTable.propTypes = {
   items: PropTypes.array,
-  columns: PropTypes.arrayOf(
-    PropTypes.shape({
-      key: PropTypes.string.isRequired,
-      header: PropTypes.string.isRequired,
-      sortable: PropTypes.bool,
-      render: PropTypes.func,
-      icon: PropTypes.node,
-    })
-  ),
+  columns: PropTypes.array,
   onEdit: PropTypes.func,
   onDelete: PropTypes.func,
   onRefresh: PropTypes.func,

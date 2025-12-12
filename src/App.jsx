@@ -17,9 +17,9 @@ import RegisterPage from "@/pages/RegisterPage.jsx";
 import AddOrderForm from "@/components/forms/AddOrderForm.jsx";
 import { broadcastRefreshAll } from "@/utils/broadcastUtils.js";
 
-// -------------------------------------------
-// ProtectedRoute — only for authenticated users
-// -------------------------------------------
+/* -------------------------------------------------------
+   PROTECTED ROUTE – users must be authenticated
+------------------------------------------------------- */
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -27,7 +27,9 @@ const ProtectedRoute = () => {
     return <div className="loading">Verifying authorization...</div>;
   }
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <DashboardProvider>
@@ -36,15 +38,15 @@ const ProtectedRoute = () => {
   );
 };
 
-// -------------------------------------------
-// Edit Order Popup Window
-// -------------------------------------------
+/* -------------------------------------------------------
+   EDIT ORDER — opens in a separate popup window
+------------------------------------------------------- */
 const EditOrderPopOut = () => {
   const [editData, setEditData] = React.useState(null);
 
   React.useEffect(() => {
-    const data = sessionStorage.getItem("editOrderData");
-    if (data) setEditData(JSON.parse(data));
+    const stored = sessionStorage.getItem("editOrderData");
+    if (stored) setEditData(JSON.parse(stored));
   }, []);
 
   const handleSuccess = () => {
@@ -52,7 +54,9 @@ const EditOrderPopOut = () => {
     window.close();
   };
 
-  if (!editData) return <div className="loading">Loading order data...</div>;
+  if (!editData) {
+    return <div className="loading">Loading order data...</div>;
+  }
 
   return (
     <AddOrderForm
@@ -63,18 +67,18 @@ const EditOrderPopOut = () => {
   );
 };
 
-// -------------------------------------------
-// PlanIt popout window
-// -------------------------------------------
+/* -------------------------------------------------------
+   PLAN-IT POPOUT — runs standalone without dashboard layout
+------------------------------------------------------- */
 const PopOutWindow = () => (
   <PopOutProvider>
     <PlanItPage isPopOut={true} />
   </PopOutProvider>
 );
 
-// -------------------------------------------
-// MAIN APP ROUTER
-// -------------------------------------------
+/* -------------------------------------------------------
+   MAIN APP ROUTER
+------------------------------------------------------- */
 export default function App() {
   return (
     <ErrorBoundary>
@@ -87,13 +91,12 @@ export default function App() {
         {/* ---------- PROTECTED ROUTES ---------- */}
         <Route element={<ProtectedRoute />}>
 
-          {/* Standalone popup windows (NOT dashboard layout) */}
+          {/* Standalone popouts */}
           <Route path="/planit/popout" element={<PopOutWindow />} />
           <Route path="/orders/:orderId/edit" element={<EditOrderPopOut />} />
 
-          {/* Dashboard routes (layout inside DashboardContent) */}
+          {/* Dashboard with all internal routed views */}
           <Route path="/*" element={<DashboardContent />} />
-
         </Route>
       </Routes>
     </ErrorBoundary>

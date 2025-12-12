@@ -1,355 +1,360 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useToast } from '@/contexts/ToastContext.jsx';
-import { Edit, Trash2, Plus, X, Download, Upload, ArrowUp, ArrowDown } from 'lucide-react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { Plus, Upload, Download, Edit, Trash2, X } from 'lucide-react';
+
 import api from '@/services/api.js';
 import DataImporter from './DataImporter.jsx';
+import { useToast } from '@/contexts/ToastContext.jsx';
 
-const splitParts = (value) => value?.match(/(\d+)|(\D+)/g) ?? [];
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
-const compareParts = (partsA, partsB, direction) => {
-  for (let i = 0; i < Math.min(partsA.length, partsB.length); i += 1) {
-    const partA = partsA[i];
-    const partB = partsB[i];
-    const numA = Number.parseInt(partA, 10);
-    const numB = Number.parseInt(partB, 10);
-
-    if (!Number.isNaN(numA) && !Number.isNaN(numB) && numA !== numB) {
-      return direction === 'ascending' ? numA - numB : numB - numA;
-    }
-
-    if (partA !== partB) {
-      return direction === 'ascending'
-        ? partA.localeCompare(partB)
-        : partB.localeCompare(partA);
-    }
+/* Utility functions for natural sorting */
+const splitParts = (v) => v?.match(/(\d+)|(\D+)/g) ?? [];
+const compareParts = (a, b) => {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    const pa = a[i], pb = b[i];
+    const na = Number(pa), nb = Number(pb);
+    if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+    if (pa !== pb) return pa.localeCompare(pb);
   }
-
-  return direction === 'ascending'
-    ? partsA.length - partsB.length
-    : partsB.length - partsA.length;
+  return a.length - b.length;
 };
 
-const PatternTag = ({ zone, pattern, index, onRemove }) => (
-  <Draggable key={`${zone.id}-${pattern}`} draggableId={`${zone.id}-${pattern}`} index={index}>
-    {(provided) => (
-      <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
-        <span className="tag draggable-tag">
-          {pattern}
-          <button type="button" onClick={() => onRemove(zone, pattern)} className="chip-close">
-            <X size={12} />
-          </button>
-        </span>
-      </div>
-    )}
-  </Draggable>
-);
-
-PatternTag.propTypes = {
-  zone: PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-  }).isRequired,
-  pattern: PropTypes.string.isRequired,
-  index: PropTypes.number.isRequired,
-  onRemove: PropTypes.func.isRequired,
-};
-
-const ZoneRow = ({ zone, onRemovePattern, onEdit, onDelete }) => (
-  <Droppable key={zone.id} droppableId={String(zone.id)}>
-    {(provided, snapshot) => (
-      <tbody ref={provided.innerRef} {...provided.droppableProps} style={{ backgroundColor: snapshot.isDraggingOver ? '#e6f7ff' : 'transparent' }} data-testid={`zone-row-${zone.id}`}>
-        <tr key={zone.id}>
-          <td style={{ width: '80px' }}>{zone.zoneName || zone.zone_name}</td>
-          <td style={{ width: '80px' }}>{(zone.isHomeZone || zone.is_home_zone) ? 'Yes' : 'No'}</td>
-          <td className="tag-cell">
-            <div className="tag-container">
-              {(zone.postcode_patterns || []).map((pattern, index) => (
-                <PatternTag key={`${zone.id}-${pattern}`} zone={zone} pattern={pattern} index={index} onRemove={onRemovePattern} />
-              ))}
-              {provided.placeholder}
-            </div>
-          </td>
-          <td className="actions-cell">
-            <button onClick={() => onEdit(zone)} className="btn-icon"><Edit size={16} /></button>
-            <button onClick={() => onDelete(zone.id)} className="btn-icon btn-danger" title="Delete Zone"><Trash2 size={16} /></button>
-          </td>
-        </tr>
-      </tbody>
-    )}
-  </Droppable>
-);
-
-ZoneRow.propTypes = {
-  zone: PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    zoneName: PropTypes.string,
-    zone_name: PropTypes.string, // fallback for snake_case
-    isHomeZone: PropTypes.bool,
-    is_home_zone: PropTypes.bool, // fallback for snake_case
-    postcode_patterns: PropTypes.arrayOf(PropTypes.string),
-  }).isRequired,
-  onRemovePattern: PropTypes.func.isRequired,
-  onEdit: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired,
-};
-
-const ZoneManager = ({ zones = [], onRefresh }) => {
+export default function ZoneManager({ zones = [], onRefresh }) {
   const { showToast } = useToast();
-  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  const [formOpen, setFormOpen] = useState(false);
   const [editingZone, setEditingZone] = useState(null);
   const [showImporter, setShowImporter] = useState(false);
-  const [formData, setFormData] = useState({ zone_name: '', postcode_patterns: '', is_home_zone: false });
-  
-  const [sortConfig, setSortConfig] = useState({ key: 'zone_name', direction: 'ascending' });
+  const [formData, setFormData] = useState({
+    zone_name: '',
+    postcode_patterns: '',
+    is_home_zone: false,
+  });
 
+  /* ------------------------ Sorting ------------------------ */
   const sortedZones = useMemo(() => {
-    // Sortowanie stref po nazwie (naturalne porównanie)
-    return [...zones].sort((a, b) => {
-      const partsA = splitParts(a.zoneName || a.zone_name);
-      const partsB = splitParts(b.zoneName || b.zone_name);
-      return compareParts(partsA, partsB, sortConfig.direction);
-    });
-  }, [zones, sortConfig]);
+    return [...zones].sort((a, b) =>
+      compareParts(
+        splitParts(a.zone_name || a.zoneName),
+        splitParts(b.zone_name || b.zoneName)
+      )
+    );
+  }, [zones]);
 
-  const handleSort = (key) => {
-    let direction = 'ascending';
-    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    }
-    setSortConfig({ key, direction });
-  };
-
+  /* ------------------------ Form Prefill ------------------------ */
   useEffect(() => {
     if (editingZone) {
       setFormData({
-        zone_name: editingZone.zoneName || editingZone.zone_name,
-        postcode_patterns: (editingZone.postcode_patterns || []).join(', '),
-        is_home_zone: editingZone.isHomeZone || editingZone.is_home_zone,
+        zone_name: editingZone.zone_name,
+        postcode_patterns: editingZone.postcode_patterns.join(', '),
+        is_home_zone: editingZone.is_home_zone,
       });
-      setIsFormOpen(true);
-    } else {
-      setFormData({ zone_name: '', postcode_patterns: '', is_home_zone: false });
+      setFormOpen(true);
     }
   }, [editingZone]);
 
-  const handleFormSubmit = async (e) => {
+  /* ------------------------ Save Zone ------------------------ */
+  const handleSave = async (e) => {
     e.preventDefault();
-    // Automatycznie dodajemy '%' do wzorców, jeśli użytkownik go nie wpisał.
-    // This makes data entry easier.
-    const patterns = formData.postcode_patterns.split(',').map(p => {
-      const trimmed = p.trim();
-      if (trimmed && !trimmed.endsWith('%')) {
-        return `${trimmed}%`;
-      }
-      return trimmed;
-    }).filter(Boolean);
 
-    // Usuwamy duplikaty, aby zapewnić czystość danych.
-    // We remove duplicates to ensure data cleanliness.
-    const uniquePatterns = [...new Set(patterns)];
-    const payload = { ...formData, postcode_patterns: uniquePatterns };
+    const patterns = formData.postcode_patterns
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .map((p) => (p.endsWith('%') ? p : p + '%'));
+
+    const unique = [...new Set(patterns)];
+    const payload = { ...formData, postcode_patterns: unique };
 
     try {
       if (editingZone) {
         await api.put(`/api/zones/${editingZone.id}`, payload);
-        showToast('Zone updated successfully!', 'success');
+        showToast('Zone updated!', 'success');
       } else {
-        await api.post('/api/zones', payload);
-        showToast('Zone created successfully!', 'success');
+        await api.post(`/api/zones`, payload);
+        showToast('Zone created!', 'success');
       }
-      setIsFormOpen(false);
+      setFormOpen(false);
       setEditingZone(null);
-      if (onRefresh) onRefresh(); // Odśwież dane po zapisie
-    } catch (error) {
-      console.error('Save zone failed', error);
-      showToast(error.response?.data?.error || 'Failed to save zone.', 'error');
+      onRefresh?.();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to save zone.', 'error');
     }
   };
 
-  const handleDelete = async (zoneId) => {
-    if (globalThis.confirm('Are you sure you want to delete this zone?')) {
+  /* ------------------------ Delete Zone ------------------------ */
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this zone?')) return;
     try {
-      await api.delete(`/api/zones/${zoneId}`);
-      showToast('Zone deleted successfully.', 'success');
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      showToast(error.response?.data?.error || 'Failed to delete zone.', 'error');
-    }
+      await api.delete(`/api/zones/${id}`);
+      showToast('Zone deleted.', 'success');
+      onRefresh?.();
+    } catch {
+      showToast('Failed to delete zone.', 'error');
     }
   };
 
-  const handleRemovePattern = async (zone, patternToRemove) => {
-    const updatedPatterns = zone.postcode_patterns.filter(p => p !== patternToRemove);
+  /* ------------------------ Remove Pattern ------------------------ */
+  const handleRemovePattern = async (zone, pattern) => {
+    const updated = zone.postcode_patterns.filter((p) => p !== pattern);
     try {
-      await api.put(`/api/zones/${zone.id}`, { postcode_patterns: updatedPatterns });
-      showToast(`Pattern '${patternToRemove}' removed from ${zone.zone_name}.`, 'success');
-      if (onRefresh) onRefresh(); // Odśwież dane po usunięciu wzorca
-    } catch (error) {
-      console.error('Remove pattern failed', error);
+      await api.put(`/api/zones/${zone.id}`, {
+        postcode_patterns: updated,
+      });
+      showToast(`Removed pattern '${pattern}'.`, 'success');
+      onRefresh?.();
+    } catch {
       showToast('Failed to remove pattern.', 'error');
     }
   };
 
-  const onDragEnd = async (result) => {
-    const { source, destination, draggableId } = result;
-
-    // Upuszczono poza obszarem docelowym
+  /* ------------------------ Drag & Drop ------------------------ */
+  const onDragEnd = async ({ source, destination, draggableId }) => {
     if (!destination) return;
-
-    // Upuszczono w tej samej strefie
     if (source.droppableId === destination.droppableId) return;
 
-    const sourceZoneId = Number.parseInt(source.droppableId, 10);
-    const destZoneId = Number.parseInt(destination.droppableId, 10);
-    const pattern = draggableId.split('-')[1];
+    const pattern = draggableId.split('--')[1];
+    const sourceId = Number(source.droppableId);
+    const destId = Number(destination.droppableId);
 
-    const sourceZone = sortedZones.find(z => z.id === sourceZoneId);
-    const destZone = sortedZones.find(z => z.id === destZoneId);
+    const src = sortedZones.find((z) => z.id === sourceId);
+    const dst = sortedZones.find((z) => z.id === destId);
 
-    if (!sourceZone || !destZone) return;
-
-    // Przygotowanie nowych list wzorców
-    const newSourcePatterns = sourceZone.postcode_patterns.filter(p => p !== pattern);
-    const newDestPatterns = [...(destZone.postcode_patterns || []), pattern];
+    const updatedSrc = src.postcode_patterns.filter((p) => p !== pattern);
+    const updatedDst = [...dst.postcode_patterns, pattern];
 
     try {
-      // Aktualizujemy obie strefy. Używamy Promise.all, aby wykonać operacje równolegle.
       await Promise.all([
-        api.put(`/api/zones/${sourceZone.id}`, { postcode_patterns: newSourcePatterns }),
-        api.put(`/api/zones/${destZone.id}`, { postcode_patterns: [...new Set(newDestPatterns)] })
+        api.put(`/api/zones/${src.id}`, {
+          postcode_patterns: updatedSrc,
+        }),
+        api.put(`/api/zones/${dst.id}`, {
+          postcode_patterns: [...new Set(updatedDst)],
+        }),
       ]);
-      showToast(`Moved '${pattern}' from ${sourceZone.zoneName || sourceZone.zone_name} to ${destZone.zoneName || destZone.zone_name}.`, 'success');
-      if (onRefresh) onRefresh(); // Odśwież dane po przeniesieniu
-    } catch (error) {
-      console.error('Move pattern failed', error);
+      showToast('Pattern moved!', 'success');
+      onRefresh?.();
+    } catch {
       showToast('Failed to move pattern.', 'error');
-      // W przypadku błędu, dane zostaną automatycznie odświeżone przez hook `useApiResource`, przywracając poprzedni stan.
     }
   };
 
+  /* ------------------------ Export ------------------------ */
   const handleExport = async () => {
     try {
-      // Teraz oczekujemy odpowiedzi JSON z potwierdzeniem
-      const response = await api.get('/api/zones/export');
-      showToast(response.data.message || 'Export successful!', 'success');
-    } catch (error) {
-      // Błąd będzie teraz w standardowym formacie JSON
-      const errorMessage = error.response?.data?.error || 'Failed to export zones.';
-      showToast(errorMessage, 'error');
+      const res = await api.get('/api/zones/export');
+      showToast(res.data?.message || 'Zones exported!', 'success');
+    } catch {
+      showToast('Export failed.', 'error');
     }
   };
 
+  /* ------------------------ Importer Config ------------------------ */
   const importerConfig = {
     title: 'Import Postcode Zones',
     apiEndpoint: '/api/zones/import',
-    postDataKey: 'zones', // Backend oczekuje obiektu { zones: [...] }
+    postDataKey: 'zones',
     dataMappingFn: (row) => ({
       zone_name: row.zone_name,
-      // Przekształcamy string "pattern1;pattern2" na tablicę ["pattern1", "pattern2"]
-      postcode_patterns: row.postcode_patterns 
-        ? row.postcode_patterns.split(';').map(p => p.trim()).filter(Boolean) 
+      postcode_patterns: row.postcode_patterns
+        ? row.postcode_patterns.split(';').map((p) => p.trim())
         : [],
-      is_home_zone: ['true', '1', 'yes'].includes(String(row.is_home_zone || '').toLowerCase()),
+      is_home_zone: ['true', '1', 'yes'].includes(String(row.is_home_zone).toLowerCase()),
     }),
     previewColumns: [
-      { key: 'zone_name', header: 'Zone Name' },
-      { key: 'postcode_patterns', header: 'Postcode Patterns (sample)' },
-      { key: 'is_home_zone', header: 'Home Zone', render: (item) => (item.is_home_zone ? 'Yes' : 'No') },
+      { key: 'zone_name', header: 'Zone' },
+      { key: 'postcode_patterns', header: 'Patterns' },
+      { key: 'is_home_zone', header: 'Home?', render: (i) => (i.is_home_zone ? 'Yes' : 'No') },
     ],
   };
 
-  const handleImportSuccess = () => {
-    setShowImporter(false);
-    if (onRefresh) onRefresh();
-    showToast('Zones imported successfully!', 'success');
-  };
-
   return (
-    <div className="data-table-container">
-      <h4>Postcode Zones</h4>
-      {!isFormOpen && (
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-          <button onClick={() => setIsFormOpen(true)} className="btn-primary">
-            <Plus size={16} /> Add New Zone
+    <div className="card">
+      <h3>Postcode Zones</h3>
+
+      {/* ACTION BAR */}
+      {!formOpen && !showImporter && (
+        <div className="zone-actions">
+          <button className="btn-primary" onClick={() => setFormOpen(true)}>
+            <Plus size={16} /> Add Zone
           </button>
-          <button onClick={handleExport} className="btn-secondary">
+          <button className="btn-secondary" onClick={handleExport}>
             <Download size={16} /> Export
           </button>
-          <button onClick={() => setShowImporter(true)} className="btn-secondary">
+          <button className="btn-secondary" onClick={() => setShowImporter(true)}>
             <Upload size={16} /> Import
           </button>
         </div>
       )}
 
+      {/* IMPORTER */}
       {showImporter && (
         <DataImporter
           {...importerConfig}
-          onSuccess={handleImportSuccess}
+          onSuccess={() => {
+            showToast('Zones imported!', 'success');
+            setShowImporter(false);
+            onRefresh?.();
+          }}
           onCancel={() => setShowImporter(false)}
         />
       )}
 
-      {isFormOpen && (
-        <form onSubmit={handleFormSubmit} className="form" style={{ marginBottom: '2rem', border: '1px solid #eee', padding: '1rem', borderRadius: '8px' }}>
-          <h5>{editingZone ? 'Edit Zone' : 'Add New Zone'}</h5>
+      {/* FORM */}
+      {formOpen && (
+        <form className="zone-form-card" onSubmit={handleSave}>
+          <h4>{editingZone ? 'Edit Zone' : 'Create Zone'}</h4>
+
           <div className="form-group">
-            <label htmlFor="zone-name">Zone Name</label>
-            <input id="zone-name" type="text" value={formData.zone_name} onChange={e => setFormData({...formData, zone_name: e.target.value})} required />
+            <label>Zone Name</label>
+            <input
+              type="text"
+              required
+              value={formData.zone_name}
+              onChange={(e) => setFormData({ ...formData, zone_name: e.target.value })}
+            />
           </div>
+
           <div className="form-group">
-            <label htmlFor="zone-patterns">Postcode Patterns (comma-separated, e.g., SW1, W1A, WC2)</label>
-            <textarea id="zone-patterns" value={formData.postcode_patterns} onChange={e => setFormData({...formData, postcode_patterns: e.target.value})} rows="3" />
+            <label>Postcode Patterns (comma-separated)</label>
+            <textarea
+              rows={3}
+              value={formData.postcode_patterns}
+              onChange={(e) =>
+                setFormData({ ...formData, postcode_patterns: e.target.value })
+              }
+            />
           </div>
-          <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}>
-            <input type="checkbox" id="is_home_zone" checked={formData.is_home_zone} onChange={e => setFormData({...formData, is_home_zone: e.target.checked})} />
-            <label htmlFor="is_home_zone" style={{ marginBottom: 0 }}>This is a home zone (for this depot)</label>
+
+          <div className="form-group checkbox">
+            <input
+              type="checkbox"
+              id="is_home_zone"
+              checked={formData.is_home_zone}
+              onChange={(e) =>
+                setFormData({ ...formData, is_home_zone: e.target.checked })
+              }
+            />
+            <label htmlFor="is_home_zone">Home Zone</label>
           </div>
+
           <div className="form-actions">
-            <button type="button" onClick={() => { setIsFormOpen(false); setEditingZone(null); }} className="btn-secondary">Cancel</button>
-            <button type="submit" className="btn-primary">Save Zone</button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setFormOpen(false);
+                setEditingZone(null);
+              }}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary">
+              Save
+            </button>
           </div>
         </form>
       )}
 
-      <div className="table-wrapper">
-        <DragDropContext onDragEnd={onDragEnd}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th onClick={() => handleSort('zone_name')} style={{ cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    Zone Name
-                    {sortConfig.key === 'zone_name' && (
-                      sortConfig.direction === 'ascending' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+      {/* TABLE */}
+      {!formOpen && !showImporter && (
+        <div className="table-wrapper">
+          <DragDropContext onDragEnd={onDragEnd}>
+            <table className="zone-table">
+              <thead>
+                <tr>
+                  <th>Zone</th>
+                  <th>Home</th>
+                  <th>Patterns</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedZones.map((zone) => (
+                  <Droppable key={zone.id} droppableId={String(zone.id)}>
+                    {(drop) => (
+                      <tr
+                        ref={drop.innerRef}
+                        {...drop.droppableProps}
+                        className={drop.isDraggingOver ? 'dropzone-highlight' : ''}
+                      >
+                        {/* ZONE NAME */}
+                        <td>{zone.zone_name}</td>
+
+                        {/* HOME BADGE */}
+                        <td>
+                          {zone.is_home_zone ? (
+                            <span className="boolean-badge boolean-yes">Yes</span>
+                          ) : (
+                            <span className="boolean-badge boolean-no">No</span>
+                          )}
+                        </td>
+
+                        {/* PATTERNS */}
+                        <td>
+                          <div className="zone-chip-container">
+                            {zone.postcode_patterns.map((p, idx) => (
+                              <Draggable
+                                key={zone.id + '--' + p}
+                                draggableId={zone.id + '--' + p}
+                                index={idx}
+                              >
+                                {(drag) => (
+                                  <div
+                                    ref={drag.innerRef}
+                                    {...drag.draggableProps}
+                                    {...drag.dragHandleProps}
+                                  >
+                                    <span className="zone-chip">
+                                      {p}
+                                      <button
+                                        className="close-btn"
+                                        type="button"
+                                        onClick={() => handleRemovePattern(zone, p)}
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    </span>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {drop.placeholder}
+                          </div>
+                        </td>
+
+                        {/* ACTIONS */}
+                        <td className="actions-cell">
+                          <button
+                            className="btn-icon"
+                            onClick={() => setEditingZone(zone)}
+                            title="Edit"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            className="btn-icon btn-danger"
+                            onClick={() => handleDelete(zone.id)}
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
                     )}
-                  </div>
-                </th>
-                <th>Home Zone?</th>
-                <th>Postcode Patterns</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            {sortedZones.map((zone) => (
-              <ZoneRow
-                key={zone.id}
-                zone={zone}
-                onRemovePattern={handleRemovePattern}
-                onEdit={setEditingZone}
-                onDelete={handleDelete}
-              />
-            ))}
-          </table>
-        </DragDropContext>
-      </div>
+                  </Droppable>
+                ))}
+              </tbody>
+            </table>
+          </DragDropContext>
+        </div>
+      )}
     </div>
   );
-};
+}
 
 ZoneManager.propTypes = {
   zones: PropTypes.array,
   onRefresh: PropTypes.func,
 };
-
-export default ZoneManager;
-// ostatnia zmiana (30.05.2024, 13:14:12)

@@ -20,6 +20,7 @@ const initialFormData = {
 
 const normalizeEditData = (itemToEdit) => {
   if (!itemToEdit) return null;
+
   return {
     zone_name: itemToEdit.zone_name ?? '',
     postcode_patterns: itemToEdit.postcode_patterns ?? '',
@@ -48,10 +49,11 @@ const AddZoneForm = ({ onSuccess, onCancel, itemToEdit }) => {
         `Zone ${isEditMode ? 'updated' : 'created'} successfully.`,
         'success'
       );
+
       onSuccess();
-    } catch (error) {
+    } catch (err) {
       const message =
-        error.response?.data?.error || 'Failed to save zone.';
+        err.response?.data?.error || 'Failed to save zone.';
       showToast(message, 'error');
       throw new Error(message);
     }
@@ -70,48 +72,91 @@ const AddZoneForm = ({ onSuccess, onCancel, itemToEdit }) => {
     itemToEdit: normalizedItem,
   });
 
-  const submitLabel = useMemo(() => {
-    if (loading) return 'Saving...';
-    return isEditMode ? 'Save Changes' : 'Add Zone';
-  }, [isEditMode, loading]);
+  const submitLabel = loading
+    ? 'Saving...'
+    : isEditMode
+    ? 'Save Changes'
+    : 'Add Zone';
 
   return (
-    <div className="card modal-center">
+    <div className="card modal-center form-card">
+
       <FormHeader
         title={isEditMode ? 'Edit Zone' : 'Add New Zone'}
         onCancel={onCancel}
       />
 
       <form onSubmit={handleSubmit} className="form" noValidate>
-        <TextField
-          label="Zone Name"
-          name="zone_name"
-          value={formData.zone_name}
-          onChange={handleChange}
-          error={errors.zone_name}
-          required
-        />
 
-        <TextField
-          label="Postcode Patterns"
-          name="postcode_patterns"
-          value={formData.postcode_patterns}
-          onChange={handleChange}
-          error={errors.postcode_patterns}
-          required
-        />
+        {/* GRID */}
+        <div className="form-grid-2col">
 
-        <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <input
-            id="is_home_zone"
-            type="checkbox"
-            name="is_home_zone"
-            checked={formData.is_home_zone}
+          <TextField
+            label="Zone Name"
+            name="zone_name"
+            required
+            value={formData.zone_name}
             onChange={handleChange}
+            error={errors.zone_name}
           />
-          <label htmlFor="is_home_zone" style={{ marginBottom: 0 }}>
-            Home Zone
-          </label>
+
+          <TextField
+            label="Postcode Patterns"
+            name="postcode_patterns"
+            required
+            placeholder="E.g. AB1%, AB2%, BT%, etc."
+            value={formData.postcode_patterns}
+            onChange={handleChange}
+            error={errors.postcode_patterns}
+          />
+
+          {/* TOGGLE - Modern Switch */}
+          <div className="form-group" style={{ marginTop: '0.25rem' }}>
+            <label style={{ fontWeight: 600, display: 'block' }}>
+              Home Zone
+            </label>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleChange({
+                  target: {
+                    name: 'is_home_zone',
+                    type: 'checkbox',
+                    checked: !formData.is_home_zone,
+                    value: !formData.is_home_zone,
+                  },
+                })
+              }
+              className="toggle-switch"
+              style={{
+                width: '46px',
+                height: '24px',
+                borderRadius: '999px',
+                background: formData.is_home_zone
+                  ? 'var(--primary)'
+                  : '#d0d4df',
+                position: 'relative',
+                transition: '0.2s',
+                cursor: 'pointer',
+              }}
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '2px',
+                  left: formData.is_home_zone ? '24px' : '2px',
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  background: '#fff',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                  transition: '0.2s',
+                }}
+              />
+            </button>
+          </div>
+
         </div>
 
         <FormActions

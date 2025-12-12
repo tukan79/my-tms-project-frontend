@@ -1,102 +1,152 @@
-//MainHeader.jsx
+// src/components/shared/MainHeader.jsx
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Plus, Upload, Download, RefreshCw } from 'lucide-react';
+import {
+  Plus,
+  Upload,
+  Download,
+  RefreshCw,
+} from 'lucide-react';
+
 import { useDashboard } from '@/contexts/DashboardContext.jsx';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { importerConfigs } from '@/config/importerConfig.jsx';
 
 const MainHeader = ({ viewConfig }) => {
   const { user } = useAuth();
+
   const {
     currentView,
     showForm,
-    importerConfig: activeImporterConfig, // Poprawiona destrukturyzacja
+    importerConfig: activeImporter,
     handleShowImporter,
+    handleHideImporter,
     handleCancelForm,
     setShowForm,
     setItemToEdit,
-    handleHideImporter, // Przywracamy tę funkcję, jest potrzebna dla przycisku "Add"
     handleGenericExport,
+
     isLoading,
     globalAutoRefresh,
     setGlobalAutoRefresh,
   } = useDashboard();
 
-  // Zabezpieczenie przed renderowaniem, gdy kluczowe dane nie są jeszcze dostępne
   if (!viewConfig || !currentView) {
-    return <header className="main-header"><div /><div className="main-header-actions" /></header>;
+    return (
+      <header className="main-header">
+        <div />
+        <div className="main-header-actions" />
+      </header>
+    );
   }
 
+  /* -------------------------------------------
+       VIEW LABELS
+  ------------------------------------------- */
   const viewNames = {
-    orders: 'order',
-    drivers: 'driver',
-    trucks: 'truck',
-    trailers: 'trailer',
-    runs: 'run',
-    users: 'user',
-    customers: 'customer',
-    zones: 'zone',
+    orders: 'Order',
+    drivers: 'Driver',
+    trucks: 'Truck',
+    trailers: 'Trailer',
+    runs: 'Run',
+    users: 'User',
+    customers: 'Customer',
+    zones: 'Zone',
     planit: 'PlanIt',
     finance: 'Finance',
     pricing: 'Pricing',
   };
 
   const getViewName = () => viewNames[currentView] || '';
-  const exportableViews = ['drivers', 'trucks', 'trailers', 'customers', 'users'];
-  
-  // Używamy czytelnych flag do zarządzania logiką warunkową - teraz z globalnej konfiguracji
-  const canImport = !!importerConfigs[currentView] && user?.role === 'admin';
-  const canExport = exportableViews.includes(currentView) && user?.role === 'admin';
-  const canAdd = viewConfig[currentView]?.FormComponent;
 
+  /* -------------------------------------------
+       PERMISSIONS
+  ------------------------------------------- */
+  const isAdmin = user?.role === 'admin';
+
+  const canImport = !!importerConfigs[currentView] && isAdmin;
+  const canExport = ['drivers', 'trucks', 'trailers', 'customers', 'users'].includes(currentView) && isAdmin;
+  const canAdd = Boolean(viewConfig[currentView]?.FormComponent);
+
+  /* -------------------------------------------
+       EVENT HANDLERS
+  ------------------------------------------- */
+  const handleAdd = () => {
+    if (showForm) {
+      handleCancelForm();
+      return;
+    }
+
+    setItemToEdit(null);
+    handleHideImporter();
+    setShowForm(true);
+  };
 
   return (
-    <header className="main-header">
-      <div />
-      <div className="main-header-actions">
-        {/* 🔁 Auto Refresh toggle */}
+    <header className="main-header modern-header">
+      <div className="main-header-left">
+        {/* Możesz dodać breadcrumb lub nazwę widoku */}
+      </div>
+
+      <div className="main-header-actions modern-actions">
+
+        {/* 🔁 Auto Refresh Toggle */}
         <button
+          type="button"
           onClick={() => setGlobalAutoRefresh(!globalAutoRefresh)}
-          className={`btn-icon ${globalAutoRefresh ? 'btn-success' : 'btn-secondary'}`}
+          className={`btn-icon modern-btn-toggle ${
+            globalAutoRefresh ? 'active' : ''
+          }`}
           title={`Auto refresh ${globalAutoRefresh ? 'ON' : 'OFF'}`}
+          disabled={isLoading}
         >
           <RefreshCw size={16} />
-          <span style={{ marginLeft: '0.5rem' }}>
+          <span className="toggle-label">
             {globalAutoRefresh ? 'Auto ON' : 'Auto OFF'}
           </span>
         </button>
 
+        {/* ⬆ Import */}
         {canImport && (
           <button
+            type="button"
+            className="btn-secondary modern-btn"
             onClick={() => handleShowImporter(importerConfigs[currentView])}
-            className="btn-secondary"
-            // Przycisk jest wyłączony, jeśli formularz jest otwarty lub importer jest już aktywny
-            disabled={isLoading || showForm || activeImporterConfig}
+            disabled={isLoading || showForm || activeImporter}
           >
-            <Upload size={16} /> Import from CSV
+            <Upload size={16} />
+            Import CSV
           </button>
         )}
+
+        {/* ⬇ Export */}
         {canExport && (
-          <button onClick={() => handleGenericExport(currentView)} className="btn-secondary" disabled={isLoading}>
-            <Download size={16} /> Export
-          </button>
-        )}
-        {canAdd && (
           <button
-            onClick={() => {
-              if (showForm) {
-                handleCancelForm();
-              } else {
-                setItemToEdit(null);
-                setShowForm(true);
-                handleHideImporter();
-              }
-            }}
-            className="btn-primary"
+            type="button"
+            className="btn-secondary modern-btn"
+            onClick={() => handleGenericExport(currentView)}
             disabled={isLoading}
           >
-            {showForm ? 'Cancel' : <><Plus size={16} /> Add {getViewName()}</>}
+            <Download size={16} />
+            Export
+          </button>
+        )}
+
+        {/* ➕ Add */}
+        {canAdd && (
+          <button
+            type="button"
+            className="btn-primary modern-btn"
+            onClick={handleAdd}
+            disabled={isLoading}
+          >
+            {showForm ? (
+              'Cancel'
+            ) : (
+              <>
+                <Plus size={16} /> Add {getViewName()}
+              </>
+            )}
           </button>
         )}
       </div>
@@ -104,13 +154,15 @@ const MainHeader = ({ viewConfig }) => {
   );
 };
 
-export default MainHeader;
-// ostatnia zmiana 05.11
-
 MainHeader.propTypes = {
   viewConfig: PropTypes.objectOf(
     PropTypes.shape({
-      FormComponent: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
+      FormComponent: PropTypes.oneOfType([
+        PropTypes.func,
+        PropTypes.object,
+      ]),
     })
   ).isRequired,
 };
+
+export default MainHeader;

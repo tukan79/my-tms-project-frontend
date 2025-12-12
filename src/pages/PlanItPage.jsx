@@ -1,161 +1,154 @@
-// PlanItPage.jsx
-import React, { useCallback } from 'react';
-import PropTypes from 'prop-types';
-import { DragDropContext } from '@hello-pangea/dnd';
-import PlanItOrders, { useHomeZone } from '@/components/shared/PlanItOrders.jsx';
-import PlanItRuns from '@/components/plan-it/PlanItRuns.jsx';
-import { usePopOut } from '@/contexts/PopOutContext.jsx'; // Ścieżka względna, więc bez zmian
-import AddRunForm from '@/components/forms/AddRunForm.jsx';
-import { PlanItProvider, usePlanIt } from '@/contexts/PlanItContext.jsx';
-import ActiveRunView from '@/components/plan-it/ActiveRunView.jsx';
+import React from "react";
+import PropTypes from "prop-types";
+import { DragDropContext } from "@hello-pangea/dnd";
+import { PlanItProvider, usePlanIt } from "@/contexts/PlanItContext.jsx";
 
-const PlanItPage = (props) => {
-  const popOutData = usePopOut();
-  
-  // POPRAWIONE: Poprawna logika destrukturyzacji
-  const isInPopOut = Boolean(popOutData);
-  const sourceData = isInPopOut ? popOutData : props;
-  
+import PlanItRuns from "@/components/plan-it/PlanItRuns.jsx";
+import PlanItOrders, { useHomeZone } from "@/components/plan-it/PlanItOrders.jsx";
+import PlanItActiveRun from "@/components/plan-it/PlanItActiveRun.jsx";
+
+const PlanItContent = () => {
   const {
-    isPopOut = isInPopOut,
-    ...restProps
-  } = sourceData;
-
-  const handlePopOut = useCallback((view) => {
-    // 1. Bezpieczniejsza serializacja: Jawnie wybieramy, co zapisać.
-    const serializableKeys = ['orders', 'runs', 'assignments', 'drivers', 'trucks', 'trailers', 'zones', 'pallets'];
-    const dataToStore = {};
-    serializableKeys.forEach(key => {
-      if (restProps[key]) {
-        dataToStore[key] = restProps[key];
-      }
-    });
-    
-    sessionStorage.setItem('popOutData', JSON.stringify(dataToStore));
-    window.open(`/planit/popout`, `PlanIt View`, 'width=1200,height=800,resizable=yes,scrollbars=yes');
-  }, [restProps]);
-
-  return (
-    <PlanItProvider initialData={restProps} {...restProps}>
-      <PlanItContent isPopOut={isPopOut} handlePopOut={handlePopOut} />
-    </PlanItProvider>
-  );
-};
-
-const PlanItContent = ({ isPopOut, handlePopOut }) => {
-  const {
-    selectedDate, activeRunId, editingRun, isFormVisible, selectedOrderIds, contextMenu, handleAddNewRun,
-    setSelectedDate, setActiveRunId, setIsFormVisible, handleSaveRun, handleBulkAssign, handleBulkDelete, setContextMenu, triggerRefresh, handleEditRun, 
-    enrichedRuns, availableOrders, activeRun, ordersForActiveRun, handleDragEnd, handleDeleteAssignment, handleDeleteRun, isLoadingRuns,
-    initialData: { drivers, trucks, trailers, zones }
+    selectedDate,
+    setSelectedDate,
+    enrichedRuns,
+    activeRun,
+    activeRunId,
+    setActiveRunId,
+    availableOrders,
+    ordersForActiveRun,
+    initialData,
+    autoRefreshEnabled,
+    setAutoRefreshEnabled,
+    isRefreshing,
+    triggerRefresh,
+    handleDragEnd,
   } = usePlanIt();
 
-  const homeZone = useHomeZone(zones || []);
-
-  React.useEffect(() => {
-    const handleClick = () => setContextMenu({ visible: false, x: 0, y: 0 });
-    globalThis.addEventListener('click', handleClick);
-    return () => globalThis.removeEventListener('click', handleClick);
-  }, [setContextMenu]);
-
-  const handleRunSelect = useCallback((runId) => {
-    setActiveRunId(currentId => (currentId === runId ? null : runId));
-  }, [setActiveRunId]);
-
-  const handleDeselectRun = useCallback(() => setActiveRunId(null), [setActiveRunId]);
-
-  // Zabezpieczenie: Jeśli kluczowe dane nie są jeszcze załadowane, wyświetl komunikat.
-  if (!drivers || !trucks || !trailers || !zones) {
-    return <div className="loading">Loading planning data...</div>;
-  }
+  const homeZone = useHomeZone(initialData?.zones ?? []);
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      {/* 3. Optymalizacja: Renderuj formularz tylko wtedy, gdy jest widoczny. */}
-      {isFormVisible && (
-        <>
-          <button
-            type="button"
-            className="modal-backdrop"
-            onClick={() => setIsFormVisible(false)}
-            aria-label="Close form"
-          />
-          <AddRunForm
-            itemToEdit={editingRun ?? null}
-            onSuccess={handleSaveRun}
-            onCancel={() => setIsFormVisible(false)}
-            // Zabezpieczenie przed przekazaniem `undefined`
-            drivers={drivers || []}
-            trucks={trucks || []}
-            trailers={trailers || []}
-      />
-    </>
-  )}
-      <div className="planit-container-resizable">
-        <div className="planit-grid">
-          <PlanItOrders 
-            orders={availableOrders} 
-            zones={zones || []}
-            homeZone={homeZone}
-            selectedDate={selectedDate}
-            onRefresh={triggerRefresh} // Przekazujemy funkcję odświeżającą
-            onPopOut={handlePopOut}
-          />
-          <div className="planit-column">
-            {contextMenu.visible && (
-              <div className="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
-                <button type="button" onClick={handleBulkAssign} disabled={!activeRunId} aria-label="Assign selected to active run">
-                  Assign to Active Run
-                </button>
-                {selectedOrderIds.length > 1 && (
-                  <button type="button" onClick={handleBulkDelete} className="btn-danger" aria-label={`Delete ${selectedOrderIds.length} orders`}>
-                    Delete {selectedOrderIds.length} Orders
-                  </button>
-                )}
-              </div>
-            )}
-            <PlanItRuns 
-              runs={enrichedRuns} 
-              onPopOut={handlePopOut} 
-              onDelete={handleDeleteRun}
-              handleAddNewRun={handleAddNewRun}
-              onEdit={handleEditRun}
-              selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
-              activeRunId={activeRunId}
-              isLoading={isLoadingRuns}
-              onRunSelect={handleRunSelect}
-            />
-            <ActiveRunView
-              run={activeRun}
-              assignedOrders={ordersForActiveRun || []}
-              onDeselect={handleDeselectRun}
-              onDeleteAssignment={handleDeleteAssignment}
-              homeZone={homeZone}
-              triggerRefresh={triggerRefresh}
-            />
+      <div className="flex flex-col gap-6 p-4 lg:p-6 max-w-screen-2xl mx-auto">
+
+        {/* HEADER PANEL */}
+        <header className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-800">PlanIt Dashboard</h1>
+            <p className="text-gray-500 text-sm">
+              Manage daily runs, assignments, and orders.
+            </p>
           </div>
+
+          <div className="flex items-center gap-4">
+            {/* DATE SELECTOR */}
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="rounded-lg border px-3 py-1.5 text-sm shadow-sm"
+            />
+
+            {/* REFRESH BUTTON */}
+            <button
+              onClick={triggerRefresh}
+              className="px-4 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            >
+              {isRefreshing ? "Refreshing..." : "Refresh"}
+            </button>
+
+            {/* AUTO REFRESH TOGGLE */}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={autoRefreshEnabled}
+                onChange={(e) => setAutoRefreshEnabled(e.target.checked)}
+              />
+              Auto Refresh
+            </label>
+          </div>
+        </header>
+
+        {/* MAIN LAYOUT */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+          {/* LEFT COLUMN — RUNS LIST */}
+          <section className="xl:col-span-1">
+            <PlanItRuns
+              runs={enrichedRuns}
+              activeRunId={activeRunId}
+              setActiveRunId={setActiveRunId}
+            />
+          </section>
+
+          {/* MIDDLE COLUMN — ACTIVE RUN DETAILS */}
+          <section className="xl:col-span-1">
+            <PlanItActiveRun
+              run={activeRun}
+              orders={ordersForActiveRun}
+            />
+          </section>
+
+          {/* RIGHT COLUMN — UNASSIGNED ORDERS */}
+          <section className="xl:col-span-1">
+            <PlanItOrders
+              orders={availableOrders}
+              homeZone={homeZone}
+              selectedDate={selectedDate}
+              onRefresh={triggerRefresh}
+            />
+          </section>
+
         </div>
       </div>
     </DragDropContext>
   );
 };
 
-PlanItContent.propTypes = {
-  isPopOut: PropTypes.bool,
-  handlePopOut: PropTypes.func,
-};
+export default function PlanItPage(props) {
+  const {
+    orders = [],
+    runs = [],
+    assignments = [],
+    drivers = [],
+    trucks = [],
+    trailers = [],
+    zones = [],
+    pallets = [],
+    surcharges = [],
+    runActions,
+    bulkAssignOrders,
+    onDeleteRequest,
+    onAssignmentCreated,
+    isPopOut = false,
+  } = props;
 
-export default PlanItPage;
+  const initialData = {
+    orders,
+    runs,
+    assignments,
+    drivers,
+    trucks,
+    trailers,
+    zones,
+    pallets,
+    surcharges,
+  };
+
+  return (
+    <PlanItProvider
+      initialData={initialData}
+      runActions={runActions}
+      onAssignmentCreated={onAssignmentCreated}
+      onDeleteRequest={onDeleteRequest}
+      bulkAssignOrders={bulkAssignOrders}
+    >
+      <PlanItContent isPopOut={isPopOut} />
+    </PlanItProvider>
+  );
+}
 
 PlanItPage.propTypes = {
-  isPopOut: PropTypes.bool,
-  handlePopOut: PropTypes.func,
-};
-
-PlanItPage.propTypes = {
-  isPopOut: PropTypes.bool,
-  handlePopOut: PropTypes.func,
   orders: PropTypes.array,
   runs: PropTypes.array,
   assignments: PropTypes.array,
@@ -163,5 +156,11 @@ PlanItPage.propTypes = {
   trucks: PropTypes.array,
   trailers: PropTypes.array,
   zones: PropTypes.array,
+  pallets: PropTypes.array,
+  surcharges: PropTypes.array,
+  runActions: PropTypes.object,
+  bulkAssignOrders: PropTypes.func,
+  onDeleteRequest: PropTypes.func,
+  onAssignmentCreated: PropTypes.func,
+  isPopOut: PropTypes.bool,
 };
-// ostatnia zmiana (30.05.2024, 13:14:12)

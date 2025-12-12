@@ -1,30 +1,36 @@
 // src/components/forms/AddCustomerForm.jsx
-import React from 'react';
-import PropTypes from 'prop-types';
-import { X } from 'lucide-react';
+import React, { useMemo } from "react";
+import PropTypes from "prop-types";
 
-import { useToast } from '@/contexts/ToastContext.jsx';
-import { useForm } from '@/hooks/useForm.js';
+import { useToast } from "@/contexts/ToastContext.jsx";
+import { useForm } from "@/hooks/useForm.js";
 
-import TextField from './fields/TextField.jsx';
-import { validateCustomer } from './validators/customerValidator.js';
-import { createCustomer, updateCustomer } from './services/customerService.js';
+import TextField from "./fields/TextField.jsx";
+import SelectField from "./fields/SelectField.jsx";
+import FormHeader from "./shared/FormHeader.jsx";
+import FormActions from "./shared/FormActions.jsx";
+
+import { validateCustomer } from "./validators/customerValidator.js";
+import {
+  createCustomer,
+  updateCustomer,
+} from "./services/customerService.js";
 
 const initialFormData = {
-  customer_code: '',
-  name: '',
-  address_line1: '',
-  address_line2: '',
-  address_line3: '',
-  address_line4: '',
-  postcode: '',
-  phone_number: '',
-  country_code: 'GB',
-  category: '',
-  currency: 'GBP',
-  vat_number: '',
-  payment_terms: '30',
-  status: 'active',
+  customer_code: "",
+  name: "",
+  address_line1: "",
+  address_line2: "",
+  address_line3: "",
+  address_line4: "",
+  postcode: "",
+  phone_number: "",
+  country_code: "GB",
+  category: "",
+  currency: "GBP",
+  vat_number: "",
+  payment_terms: "30",
+  status: "active",
   pod_on_portal: false,
   invoice_on_portal: false,
   handheld_status_on_portal: false,
@@ -36,7 +42,7 @@ const AddCustomerForm = ({ onSuccess, onCancel, itemToEdit }) => {
   const isEditMode = Boolean(itemToEdit);
   const { showToast } = useToast();
 
-  const performSubmit = async (formData) => {
+  const handleSave = async (formData) => {
     try {
       if (isEditMode) {
         await updateCustomer(itemToEdit.id, formData);
@@ -45,63 +51,68 @@ const AddCustomerForm = ({ onSuccess, onCancel, itemToEdit }) => {
       }
 
       showToast(
-        `Customer ${isEditMode ? 'updated' : 'added'} successfully!`,
-        'success'
+        isEditMode ? "Customer updated successfully!" : "Customer created successfully!",
+        "success"
       );
+
       onSuccess();
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.error || 'Unexpected error occurred.';
-      showToast(errorMessage, 'error');
-      throw new Error(errorMessage);
+      const msg = err?.response?.data?.error || "Unexpected error occurred.";
+      showToast(msg, "error");
+      throw new Error(msg);
     }
   };
 
-  const {
-    formData,
-    errors,
-    loading,
-    handleChange,
-    handleSubmit,
-  } = useForm({
+  const { formData, errors, loading, handleChange, handleSubmit } = useForm({
     initialState: initialFormData,
     validate: validateCustomer,
-    onSubmit: performSubmit,
+    onSubmit: handleSave,
     itemToEdit,
   });
 
+  const currencyOptions = useMemo(
+    () => [
+      { value: "GBP", label: "GBP (£)" },
+      { value: "EUR", label: "EUR (€)" },
+      { value: "USD", label: "USD ($)" },
+    ],
+    []
+  );
+
   return (
-    <div className="card">
-      <div className="form-header">
-        <h2>{isEditMode ? 'Edit Customer' : 'Add New Customer'}</h2>
-        <button type="button" onClick={onCancel} className="btn-icon">
-          <X size={20} />
-        </button>
-      </div>
+    <div className="card modal-center form-card">
+      <FormHeader
+        title={isEditMode ? "Edit Customer" : "Add New Customer"}
+        subtitle="Enter customer details and billing preferences"
+        onCancel={onCancel}
+      />
 
-      {errors.form && <div className="error-message">{errors.form}</div>}
+      {errors.form && <div className="error-banner">{errors.form}</div>}
 
-      <form onSubmit={handleSubmit} className="form">
-        <div className="form-grid">
-          <div className="form-column">
-            <h4>Main Details</h4>
+      <form onSubmit={handleSubmit} noValidate>
+
+        {/* GRID LAYOUT */}
+        <div className="form-grid-2col">
+          {/* LEFT SECTION */}
+          <div>
+            <h4 className="form-section-title">Main Details</h4>
 
             <TextField
               label="Customer Code"
               name="customer_code"
+              required
               value={formData.customer_code}
               onChange={handleChange}
               error={errors.customer_code}
-              required
             />
 
             <TextField
               label="Customer Name"
               name="name"
+              required
               value={formData.name}
               onChange={handleChange}
               error={errors.name}
-              required
             />
 
             <TextField
@@ -119,23 +130,25 @@ const AddCustomerForm = ({ onSuccess, onCancel, itemToEdit }) => {
             />
 
             <TextField
+              type="number"
               label="Payment Terms (days)"
               name="payment_terms"
-              type="number"
               value={formData.payment_terms}
               onChange={handleChange}
             />
 
-            <TextField
+            <SelectField
               label="Currency"
               name="currency"
               value={formData.currency}
               onChange={handleChange}
+              options={currencyOptions}
             />
           </div>
 
-          <div className="form-column">
-            <h4>Address & Contact</h4>
+          {/* RIGHT SECTION */}
+          <div>
+            <h4 className="form-section-title">Address & Contact</h4>
 
             <TextField
               label="Address Line 1"
@@ -181,27 +194,19 @@ const AddCustomerForm = ({ onSuccess, onCancel, itemToEdit }) => {
 
             <TextField
               label="Phone Number"
+              type="tel"
               name="phone_number"
               value={formData.phone_number}
-              type="tel"
               onChange={handleChange}
             />
           </div>
         </div>
 
-        <div className="form-actions">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="btn-secondary"
-            disabled={loading}
-          >
-            Cancel
-          </button>
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Saving...' : 'Save Customer'}
-          </button>
-        </div>
+        <FormActions
+          onCancel={onCancel}
+          loading={loading}
+          submitLabel={isEditMode ? "Save Changes" : "Add Customer"}
+        />
       </form>
     </div>
   );

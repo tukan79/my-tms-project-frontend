@@ -20,38 +20,43 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  // ---------------------------------------------------------------------
+  // STATE
+  // ---------------------------------------------------------------------
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // loading only during app startup
+  // Shown only during initial boot
   const [isLoading, setIsLoading] = useState(true);
 
-  // loading for login/register buttons
+  // Shown during login/register buttons
   const [loading, setLoading] = useState(false);
 
-  // prevent duplicate initialization immediately after login
+  // Prevents refresh loop right after manual login
   const [justLoggedIn, setJustLoggedIn] = useState(false);
 
   const { showToast } = useToast();
 
-  /* -------------------------------------------------------------
-   * LOGIN
-   * ------------------------------------------------------------- */
+  // ---------------------------------------------------------------------
+  // LOGIN
+  // ---------------------------------------------------------------------
   const login = useCallback(async (email, password) => {
     setLoading(true);
+
     try {
       const { data } = await api.post("/api/auth/login", { email, password });
+      const token = data?.accessToken;
 
-      if (data?.accessToken) {
-        localStorage.setItem("token", data.accessToken);
-        api.defaults.headers.common.Authorization = `Bearer ${data.accessToken}`;
+      if (token) {
+        localStorage.setItem("token", token);
+        api.defaults.headers.common.Authorization = `Bearer ${token}`;
       }
 
       setUser(data.user || null);
       setIsAuthenticated(true);
-
-      // skip initial session restore
       setJustLoggedIn(true);
+
+      return data.user;
     } catch (err) {
       console.error("Login error:", err);
       throw err;
@@ -60,12 +65,13 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  /* -------------------------------------------------------------
-   * REGISTER
-   * ------------------------------------------------------------- */
+  // ---------------------------------------------------------------------
+  // REGISTER
+  // ---------------------------------------------------------------------
   const register = useCallback(
     async (userData) => {
       setLoading(true);
+
       try {
         await api.post("/api/auth/register", userData);
         showToast("Registration successful! You can now log in.", "success");
@@ -79,14 +85,14 @@ export const AuthProvider = ({ children }) => {
     [showToast]
   );
 
-  /* -------------------------------------------------------------
-   * LOGOUT
-   * ------------------------------------------------------------- */
+  // ---------------------------------------------------------------------
+  // LOGOUT
+  // ---------------------------------------------------------------------
   const logout = useCallback(async () => {
     try {
       await api.post("/api/auth/logout");
-    } catch (e) {
-      console.warn("Logout API failed, clearing session anyway.");
+    } catch (err) {
+      console.warn("Logout API failed, clearing local session anyway.");
     }
 
     localStorage.removeItem("token");
@@ -94,13 +100,14 @@ export const AuthProvider = ({ children }) => {
 
     setUser(null);
     setIsAuthenticated(false);
+    setJustLoggedIn(false);
 
     showToast("You have been logged out.", "info");
   }, [showToast]);
 
-  /* -------------------------------------------------------------
-   * TOKENS: refresh event listeners
-   * ------------------------------------------------------------- */
+  // ---------------------------------------------------------------------
+  // TOKEN REFRESH EVENT LISTENERS
+  // ---------------------------------------------------------------------
   useEffect(() => {
     const onTokenRefreshed = (event) => {
       const token = event.detail?.accessToken;
@@ -111,7 +118,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     const onAuthError = () => {
-      console.warn("Token refresh failed — logging out.");
+      console.warn("❌ Token refresh failed — forcing logout.");
       logout();
     };
 
@@ -124,19 +131,20 @@ export const AuthProvider = ({ children }) => {
     };
   }, [logout]);
 
-  /* -------------------------------------------------------------
-   * REFRESH TOKEN HANDLER
-   * ------------------------------------------------------------- */
+  // ---------------------------------------------------------------------
+  // REFRESH TOKEN HANDLER
+  // ---------------------------------------------------------------------
   const refreshAndRetry = useCallback(async (signal) => {
     const resp = await api.post("/api/auth/refresh", {}, { signal });
-
     const token = resp?.data?.accessToken;
+
     if (!token) throw new Error("Refresh did not return a token");
 
     localStorage.setItem("token", token);
     api.defaults.headers.common.Authorization = `Bearer ${token}`;
 
     const me = await api.get("/api/auth/me", { signal });
+
     setUser(me.data);
     setIsAuthenticated(true);
 
@@ -145,9 +153,9 @@ export const AuthProvider = ({ children }) => {
     );
   }, []);
 
-  /* -------------------------------------------------------------
-   * INITIAL SESSION RESTORE
-   * ------------------------------------------------------------- */
+  // ---------------------------------------------------------------------
+  // INITIAL SESSION RESTORE
+  // ---------------------------------------------------------------------
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
@@ -160,7 +168,6 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      // attach token for first request
       api.defaults.headers.common.Authorization = `Bearer ${token}`;
 
       try {
@@ -182,7 +189,7 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(false);
     };
 
-    // skip session initialization immediately after manual login
+    // Do not fire init() again right after login
     if (!justLoggedIn) {
       init();
     } else {
@@ -192,9 +199,9 @@ export const AuthProvider = ({ children }) => {
     return () => controller.abort();
   }, [justLoggedIn, refreshAndRetry, logout]);
 
-  /* -------------------------------------------------------------
-   * PROVIDER VALUE
-   * ------------------------------------------------------------- */
+  // ---------------------------------------------------------------------
+  // PROVIDER VALUE
+  // ---------------------------------------------------------------------
   const providerValue = useMemo(
     () => ({
       user,
@@ -202,13 +209,16 @@ export const AuthProvider = ({ children }) => {
       isLoading,
       loading,
       login,
-      logout,
       register,
+      logout,
       setUser,
     }),
-    [user, isAuthenticated, isLoading, loading, login, logout, register]
+    [user, isAuthenticated, isLoading, loading, login, register, logout]
   );
 
+  // ---------------------------------------------------------------------
+  // RENDER
+  // ---------------------------------------------------------------------
   return (
     <AuthContext.Provider value={providerValue}>
       {isLoading ? (
