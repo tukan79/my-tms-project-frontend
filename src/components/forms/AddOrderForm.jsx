@@ -43,6 +43,7 @@ export default function AddOrderForm({
   const [availableCustomers, setAvailableCustomers] = useState(
     Array.isArray(customers) ? customers : []
   );
+  const [rateEntries, setRateEntries] = useState([]);
 
   const emptyForm = {
     order_number: "",
@@ -165,6 +166,42 @@ export default function AddOrderForm({
     };
   }, [availableCustomers.length]);
 
+  /* Fetch rate entries when a rate card is selected */
+  useEffect(() => {
+    const selectedCard = availableRateCards.find(
+      (r) =>
+        String(r.id) === String(formData.consignment_type) ||
+        r.name === formData.consignment_type
+    );
+
+    if (!selectedCard?.id) {
+      setRateEntries([]);
+      return;
+    }
+
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await api.get(`/api/rate-cards/${selectedCard.id}/entries`);
+        const entries =
+          Array.isArray(res.data?.entries) ? res.data.entries
+            : Array.isArray(res.data?.data) ? res.data.data
+              : Array.isArray(res.data) ? res.data
+                : [];
+        if (isMounted) {
+          setRateEntries(entries);
+        }
+      } catch (err) {
+        console.error("Failed to fetch rate entries", err);
+        if (isMounted) setRateEntries([]);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [formData.consignment_type, availableRateCards]);
+
   /* Auto-fill final price */
   useEffect(() => {
     if (formData.calculated_price && !orderToEdit) {
@@ -189,6 +226,15 @@ export default function AddOrderForm({
     }
     if (name === "delivery_postcode") {
       debouncedLookup("delivery", value);
+    }
+
+    if (name === "consignment_type") {
+      // reset dependent fields when rate card changes
+      setFormData((prev) => ({
+        ...prev,
+        unit_code: "",
+        service_code: "",
+      }));
     }
   };
 
@@ -350,11 +396,27 @@ export default function AddOrderForm({
               <h3 className="form-section-title">Load</h3>
               <TextField label="Full Quantity" type="number" name="full_q" value={formData.full_q} onChange={handleChange} />
               <TextField label="Half+ Quantity" type="number" name="half_plus_q" value={formData.half_plus_q} onChange={handleChange} />
-              <TextField label="Half Quantity" type="number" name="half_q" value={formData.half_q} onChange={handleChange} />
-              <TextField label="Micro Quantity" type="number" name="micro_q" value={formData.micro_q} onChange={handleChange} />
-              <TextField label="Total Spaces" type="number" name="total_spaces" value={formData.total_spaces} onChange={handleChange} />
-              <TextField label="Unit Code" name="unit_code" value={formData.unit_code} onChange={handleChange} />
-            </div>
+            <TextField label="Half Quantity" type="number" name="half_q" value={formData.half_q} onChange={handleChange} />
+            <TextField label="Micro Quantity" type="number" name="micro_q" value={formData.micro_q} onChange={handleChange} />
+            <TextField label="Total Spaces" type="number" name="total_spaces" value={formData.total_spaces} onChange={handleChange} />
+            <SelectField
+              label="Unit Code"
+              name="unit_code"
+              value={formData.unit_code}
+              onChange={handleChange}
+              options={
+                (rateEntries
+                  .map((entry) => entry.serviceLevel || entry.service || entry.unit_code || entry.unitCode)
+                  .filter(Boolean)
+                  .filter((v, idx, arr) => arr.indexOf(v) === idx) // unique
+                ).map((code) => ({
+                  value: code,
+                  label: code,
+                })) || []
+              }
+              placeholder="Select service code"
+            />
+          </div>
 
             {/* COL 5: SURCHARGES / INSTRUCTION / PRICING */}
             <div className="order-section order-panel">
