@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Routes, Route } from "react-router-dom";
+import { RefreshCw } from "lucide-react";
 
 import Sidebar from "./shared/Sidebar.jsx";
 import MainHeader from "./shared/MainHeader.jsx";
@@ -18,6 +19,8 @@ export default function DashboardContent() {
     modalState,
     handleCloseModal,
     viewConfig,
+    globalAutoRefresh,
+    setGlobalAutoRefresh,
   } = useDashboard();
 
   // -------------------------------------

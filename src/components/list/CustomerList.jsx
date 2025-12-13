@@ -19,42 +19,66 @@ const CustomerList = ({ items, onRefresh, onEdit, onAdd }) => {
 
   const customers = useMemo(() => (Array.isArray(items) ? items : []), [items]);
 
+  const getVal = useCallback((item, keys) => {
+    for (const key of keys) {
+      const v = item?.[key];
+      if (v !== undefined && v !== null && v !== '') return v;
+    }
+    return '';
+  }, []);
+
   /* -------------------------------
         TABLE COLUMNS — MODERNIZED
   -------------------------------- */
   const columns = useMemo(
     () => [
-      { key: "customer_code", header: "Code", sortable: true },
+      {
+        key: "customerCode",
+        header: "Code",
+        sortable: true,
+        render: (item) => getVal(item, ["customer_code", "customerCode"]) || "—",
+      },
       { key: "name", header: "Name", sortable: true },
-      { key: "postcode", header: "Postcode" },
-      { key: "phone_number", header: "Phone" },
+      {
+        key: "postcode",
+        header: "Postcode",
+        render: (item) => getVal(item, ["postcode"]),
+      },
+      {
+        key: "phoneNumber",
+        header: "Phone",
+        render: (item) => getVal(item, ["phone_number", "phoneNumber"]),
+      },
 
       {
         key: "status",
         header: "Status",
         render: (item) => {
+          const statusValue = getVal(item, ["status"]);
           const statusClass = {
             active: "status-active",
             inactive: "status-inactive",
-          }[item.status] || "status-unknown";
+          }[statusValue] || "status-unknown";
 
           return (
             <span className={`status ${statusClass}`}>
-              {item.status || "Unknown"}
+              {statusValue || "Unknown"}
             </span>
           );
         },
       },
 
       {
-        key: "created_at",
+        key: "createdAt",
         header: "Created",
         sortable: true,
-        render: (item) =>
-          item.created_at ? new Date(item.created_at).toLocaleDateString() : "—",
+        render: (item) => {
+          const created = getVal(item, ["created_at", "createdAt"]);
+          return created ? new Date(created).toLocaleDateString() : "—";
+        },
       },
     ],
-    []
+    [getVal]
   );
 
   /* -------------------------------
@@ -110,7 +134,14 @@ const CustomerList = ({ items, onRefresh, onEdit, onAdd }) => {
         onDelete={handleDelete}
         filterPlaceholder="Search customers…"
         initialSortKey="name"
-        filterKeys={["name", "customer_code", "postcode", "phone_number"]}
+        filterKeys={[
+          "name",
+          "customer_code",
+          "customerCode",
+          "postcode",
+          "phone_number",
+          "phoneNumber",
+        ]}
       />
     </div>
   );

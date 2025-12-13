@@ -44,6 +44,7 @@ export const generateViewConfig = ({
 
   const safeData = {
     orders: safe(data.orders),
+    rateCards: safe(data.rate_cards || data.rateCards),
     drivers: safe(data.drivers),
     trucks: safe(data.trucks),
     trailers: safe(data.trailers),
@@ -170,6 +171,7 @@ export const generateViewConfig = ({
       {
         customers: safeData.customers,
         surcharges: safeData.surcharges,
+        rateCards: safeData.rateCards,
       },
       [
         {

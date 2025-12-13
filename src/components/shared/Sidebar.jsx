@@ -97,7 +97,7 @@ const Sidebar = () => {
   return (
     <nav className="
       sidebar 
-      w-64 flex-shrink-0 h-screen 
+      flex-shrink-0 h-screen 
       bg-white dark:bg-gray-900 
       border-r border-gray-200 dark:border-gray-800 
       flex flex-col shadow-sm
@@ -134,22 +134,6 @@ const Sidebar = () => {
         >
           <LogOut size={20} />
         </button>
-      </div>
-
-      {/* --------------------------------------------------
-          AUTO REFRESH TOGGLE
-      -------------------------------------------------- */}
-      <div className="flex items-center gap-3 px-4 py-3 text-sm">
-        <RefreshCw size={16} className="text-gray-500 dark:text-gray-300" />
-
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={globalAutoRefresh}
-            onChange={(e) => setGlobalAutoRefresh(e.target.checked)}
-          />
-          <span>Auto Refresh</span>
-        </label>
       </div>
 
       {/* --------------------------------------------------

@@ -42,6 +42,38 @@ const AddCustomerForm = ({ onSuccess, onCancel, itemToEdit }) => {
   const isEditMode = Boolean(itemToEdit);
   const { showToast } = useToast();
 
+  const normalizedItemToEdit = useMemo(() => {
+    if (!itemToEdit) return null;
+    return {
+      ...itemToEdit,
+      customer_code: itemToEdit.customer_code ?? itemToEdit.customerCode ?? "",
+      address_line1: itemToEdit.address_line1 ?? itemToEdit.addressLine1 ?? "",
+      address_line2: itemToEdit.address_line2 ?? itemToEdit.addressLine2 ?? "",
+      address_line3: itemToEdit.address_line3 ?? itemToEdit.addressLine3 ?? "",
+      address_line4: itemToEdit.address_line4 ?? itemToEdit.addressLine4 ?? "",
+      postcode: itemToEdit.postcode ?? itemToEdit.postCode ?? "",
+      phone_number: itemToEdit.phone_number ?? itemToEdit.phoneNumber ?? "",
+      country_code: itemToEdit.country_code ?? itemToEdit.countryCode ?? "GB",
+      vat_number: itemToEdit.vat_number ?? itemToEdit.vatNumber ?? "",
+      payment_terms: itemToEdit.payment_terms ?? itemToEdit.paymentTerms ?? "",
+      pod_on_portal: itemToEdit.pod_on_portal ?? itemToEdit.podOnPortal ?? false,
+      invoice_on_portal:
+        itemToEdit.invoice_on_portal ?? itemToEdit.invoiceOnPortal ?? false,
+      handheld_status_on_portal:
+        itemToEdit.handheld_status_on_portal ??
+        itemToEdit.handheldStatusOnPortal ??
+        false,
+      eta_status_on_portal:
+        itemToEdit.eta_status_on_portal ??
+        itemToEdit.etaStatusOnPortal ??
+        false,
+      general_status_on_portal:
+        itemToEdit.general_status_on_portal ??
+        itemToEdit.generalStatusOnPortal ??
+        false,
+    };
+  }, [itemToEdit]);
+
   const handleSave = async (formData) => {
     try {
       if (isEditMode) {
@@ -67,7 +99,7 @@ const AddCustomerForm = ({ onSuccess, onCancel, itemToEdit }) => {
     initialState: initialFormData,
     validate: validateCustomer,
     onSubmit: handleSave,
-    itemToEdit,
+    itemToEdit: normalizedItemToEdit,
   });
 
   const currencyOptions = useMemo(

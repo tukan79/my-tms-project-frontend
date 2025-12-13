@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 
 import { useToast } from "@/contexts/ToastContext.jsx";
 import { lookupPostcode } from "@/services/postcodeLookup.js";
+import api from "@/services/api.js";
 
 import TextField from "./fields/TextField.jsx";
 import SelectField from "./fields/SelectField.jsx";
@@ -32,9 +33,16 @@ export default function AddOrderForm({
   orderToEdit,
   clients: customers = [],
   surcharges: initialSurcharges = [],
+  rateCards = [],
 }) {
   const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availableRateCards, setAvailableRateCards] = useState(
+    Array.isArray(rateCards) ? rateCards : []
+  );
+  const [availableCustomers, setAvailableCustomers] = useState(
+    Array.isArray(customers) ? customers : []
+  );
 
   const emptyForm = {
     order_number: "",
@@ -71,6 +79,10 @@ export default function AddOrderForm({
     delivery_note: "",
 
     // Load
+    full_q: "",
+    half_plus_q: "",
+    half_q: "",
+    micro_q: "",
     total_spaces: "",
     total_kilos: "",
     unit_code: "",
@@ -79,6 +91,8 @@ export default function AddOrderForm({
     service_code: "",
     surcharges_text: "",
     selected_surcharges: [],
+    collection_instruction: "",
+    delivery_instruction: "",
 
     // Pricing
     price: "",
@@ -102,6 +116,54 @@ export default function AddOrderForm({
       setFormData((prev) => ({ ...prev, ...orderToEdit }));
     }
   }, [orderToEdit]);
+
+  /* Fetch rate cards if not provided */
+  useEffect(() => {
+    if (availableRateCards.length > 0) return;
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await api.get("/api/rate-cards");
+        const data = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.rateCards)
+            ? res.data.rateCards
+            : Array.isArray(res.data?.data)
+              ? res.data.data
+              : [];
+        if (isMounted) setAvailableRateCards(data);
+      } catch (err) {
+        console.error("Failed to fetch rate cards", err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [availableRateCards.length]);
+
+  /* Fetch customers if not provided */
+  useEffect(() => {
+    if (availableCustomers.length > 0) return;
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await api.get("/api/customers");
+        const data = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.customers)
+            ? res.data.customers
+            : Array.isArray(res.data?.data)
+              ? res.data.data
+              : [];
+        if (isMounted) setAvailableCustomers(data);
+      } catch (err) {
+        console.error("Failed to fetch customers", err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [availableCustomers.length]);
 
   /* Auto-fill final price */
   useEffect(() => {
@@ -127,6 +189,26 @@ export default function AddOrderForm({
     }
     if (name === "delivery_postcode") {
       debouncedLookup("delivery", value);
+    }
+  };
+
+  const handleAccountCodeChange = (e) => {
+    const { value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      account_code: value,
+    }));
+
+    const matchedCustomer = availableCustomers.find(
+      (c) =>
+        c.customer_code === value ||
+        c.customerCode === value
+    );
+    if (matchedCustomer?.id) {
+      setFormData((prev) => ({
+        ...prev,
+        customer_id: matchedCustomer.id,
+      }));
     }
   };
 
@@ -161,44 +243,88 @@ export default function AddOrderForm({
   /* ----- UI START ----- */
 
   return (
-    <div className="flex justify-center w-full py-10 px-4">
-      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-10">
+    <div className="flex justify-center w-full py-8 px-4">
+      <div className="form-card w-full">
         <FormHeader
           title={orderToEdit ? "Edit Order" : "Add New Order"}
           subtitle="Enter order details, collection, delivery and pricing"
           onCancel={onCancel}
         />
 
-        <form onSubmit={handleSubmit} noValidate className="space-y-10">
-          {/* BASIC + CUSTOMER */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <h3 className="form-section-title">Basic Details</h3>
-              <TextField label="Consignment Number" name="order_number" value={formData.order_number} onChange={handleChange} />
-              <TextField label="Customer Reference" name="reference" value={formData.reference} onChange={handleChange} />
-              <TextField label="Customer Reference 2" name="reference2" value={formData.reference2} onChange={handleChange} />
-            </div>
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="basic-row">
+            <h3 className="form-section-title basic-row-title">Basic Details</h3>
+            <TextField
+              label="Consignment Number"
+              name="order_number"
+              value={formData.order_number}
+              onChange={handleChange}
+            />
+            <TextField
+              label="Customer Reference"
+              name="reference"
+              value={formData.reference}
+              onChange={handleChange}
+            />
+            <TextField
+              label="Customer Reference 2"
+              name="reference2"
+              value={formData.reference2}
+              onChange={handleChange}
+            />
+          </div>
 
-            <div className="space-y-4">
+          <div className="create-order-grid">
+            {/* COL 1: CUSTOMER */}
+            <div className="order-section order-panel">
               <h3 className="form-section-title">Customer</h3>
-              <TextField label="Consignment Type" name="consignment_type" value={formData.consignment_type} onChange={handleChange} />
-              <TextField label="Account Code" name="account_code" value={formData.account_code} onChange={handleChange} />
+              <SelectField
+                label="Consignment Type"
+                name="consignment_type"
+                value={formData.consignment_type}
+                onChange={handleChange}
+                options={availableRateCards.map((r) => ({
+                  value: r.name || r.id,
+                  label: r.name || `Rate Card ${r.id}`,
+                }))}
+                placeholder="Select rate card"
+              />
+              <TextField
+                label="Account Code"
+                name="account_code"
+                value={formData.account_code}
+                onChange={handleAccountCodeChange}
+                list="account-codes"
+                placeholder="Start typing e.g. TES001"
+              />
+              <datalist id="account-codes">
+                {availableCustomers.map((c) => {
+                  const code = c.customer_code || c.customerCode;
+                  return (
+                    <option key={c.id ?? code} value={code}>
+                      {code}
+                    </option>
+                  );
+                })}
+              </datalist>
               <SelectField
                 label="Customer"
                 name="customer_id"
                 value={formData.customer_id}
                 onChange={handleChange}
-                options={customers.map((c) => ({ value: c.id, label: c.name }))}
+                options={availableCustomers.map((c) => ({
+                  value: c.id,
+                  label: c.name || c.customerCode || c.customer_code,
+                }))}
               />
             </div>
-          </div>
 
-          {/* COLLECTION + DELIVERY */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
+            {/* COL 2: COLLECTION */}
+            <div className="order-section order-panel">
               <h3 className="form-section-title">Collection</h3>
               <TextField label="Name" name="collection_name" value={formData.collection_name} onChange={handleChange} />
               <TextField label="Address 1" name="collection_address1" value={formData.collection_address1} onChange={handleChange} />
+              <TextField label="Address 2" name="collection_address2" value={formData.collection_address2} onChange={handleChange} />
               <TextField label="Postcode" name="collection_postcode" value={formData.collection_postcode} onChange={handleChange} />
               <TextField label="Town" name="collection_town" value={formData.collection_town} onChange={handleChange} />
               <TextField label="County" name="collection_county" value={formData.collection_county} onChange={handleChange} />
@@ -206,31 +332,57 @@ export default function AddOrderForm({
               <TextField label="Collection Time" type="time" name="collection_time" value={formData.collection_time} onChange={handleChange} />
             </div>
 
-            <div className="space-y-4">
+            {/* COL 3: DELIVERY */}
+            <div className="order-section order-panel">
               <h3 className="form-section-title">Delivery</h3>
               <TextField label="Name" name="delivery_name" value={formData.delivery_name} onChange={handleChange} />
               <TextField label="Address 1" name="delivery_address1" value={formData.delivery_address1} onChange={handleChange} />
+              <TextField label="Address 2" name="delivery_address2" value={formData.delivery_address2} onChange={handleChange} />
               <TextField label="Postcode" name="delivery_postcode" value={formData.delivery_postcode} onChange={handleChange} />
               <TextField label="Town" name="delivery_town" value={formData.delivery_town} onChange={handleChange} />
               <TextField label="County" name="delivery_county" value={formData.delivery_county} onChange={handleChange} />
               <TextField label="Delivery Date" type="date" name="delivery_date" value={formData.delivery_date} onChange={handleChange} />
               <TextField label="Delivery Time" type="time" name="delivery_time" value={formData.delivery_time} onChange={handleChange} />
             </div>
-          </div>
 
-          {/* LOAD + PRICING */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <h3 className="form-section-title">Load Details</h3>
+            {/* COL 4: LOAD */}
+            <div className="order-section order-panel">
+              <h3 className="form-section-title">Load</h3>
+              <TextField label="Full Quantity" type="number" name="full_q" value={formData.full_q} onChange={handleChange} />
+              <TextField label="Half+ Quantity" type="number" name="half_plus_q" value={formData.half_plus_q} onChange={handleChange} />
+              <TextField label="Half Quantity" type="number" name="half_q" value={formData.half_q} onChange={handleChange} />
+              <TextField label="Micro Quantity" type="number" name="micro_q" value={formData.micro_q} onChange={handleChange} />
               <TextField label="Total Spaces" type="number" name="total_spaces" value={formData.total_spaces} onChange={handleChange} />
-              <TextField label="Total Kilos" type="number" name="total_kilos" value={formData.total_kilos} onChange={handleChange} />
               <TextField label="Unit Code" name="unit_code" value={formData.unit_code} onChange={handleChange} />
             </div>
 
-            <div className="space-y-4">
-              <h3 className="form-section-title">Service & Pricing</h3>
-              <TextField label="Service Code" name="service_code" value={formData.service_code} onChange={handleChange} />
+            {/* COL 5: SURCHARGES / INSTRUCTION / PRICING */}
+            <div className="order-section order-panel">
+              <h3 className="form-section-title">Surcharges</h3>
               <TextField label="Surcharges" name="surcharges_text" value={formData.surcharges_text} onChange={handleChange} />
+
+              <h3 className="form-section-title">Instructions</h3>
+              <label className="modern-label" htmlFor="collection_instruction">Collection Instruction</label>
+              <textarea
+                id="collection_instruction"
+                name="collection_instruction"
+                value={formData.collection_instruction}
+                onChange={handleChange}
+                className="modern-input"
+                rows="2"
+              />
+              <label className="modern-label" htmlFor="delivery_instruction">Delivery Instruction</label>
+              <textarea
+                id="delivery_instruction"
+                name="delivery_instruction"
+                value={formData.delivery_instruction}
+                onChange={handleChange}
+                className="modern-input"
+                rows="2"
+              />
+
+              <h3 className="form-section-title">Pricing</h3>
+              <TextField label="Service Code" name="service_code" value={formData.service_code} onChange={handleChange} />
               <TextField
                 label="Final Price (£)"
                 type="number"
@@ -260,4 +412,5 @@ AddOrderForm.propTypes = {
   orderToEdit: PropTypes.object,
   clients: PropTypes.array,
   surcharges: PropTypes.array,
+  rateCards: PropTypes.array,
 };

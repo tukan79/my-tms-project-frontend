@@ -94,7 +94,42 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
       const response = await api.get(
         `/api/rate-cards/${selectedRateCardId}/entries`
       );
-      setRateEntries(Array.isArray(response.data) ? response.data : []);
+      const raw = response.data;
+      const entriesArray = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.entries)
+          ? raw.entries
+          : Array.isArray(raw?.data)
+            ? raw.data
+            : [];
+
+      const normalize = (entry) => ({
+        ...entry,
+        rate_type: entry.rate_type ?? entry.rateType,
+        service_level: entry.service_level ?? entry.serviceLevel,
+        zone_id: entry.zone_id ?? entry.zoneId ?? entry.zone_id ?? entry.zoneId,
+        zone_name:
+          entry.zone_name ??
+          entry.zoneName ??
+          entry.zone?.zoneName ??
+          entry.zone?.zone_name,
+        price_micro: entry.price_micro ?? entry.priceMicro,
+        price_quarter: entry.price_quarter ?? entry.priceQuarter,
+        price_half: entry.price_half ?? entry.priceHalf,
+        price_half_plus: entry.price_half_plus ?? entry.priceHalfPlus,
+        price_full_1: entry.price_full_1 ?? entry.priceFull1,
+        price_full_2: entry.price_full_2 ?? entry.priceFull2,
+        price_full_3: entry.price_full_3 ?? entry.priceFull3,
+        price_full_4: entry.price_full_4 ?? entry.priceFull4,
+        price_full_5: entry.price_full_5 ?? entry.priceFull5,
+        price_full_6: entry.price_full_6 ?? entry.priceFull6,
+        price_full_7: entry.price_full_7 ?? entry.priceFull7,
+        price_full_8: entry.price_full_8 ?? entry.priceFull8,
+        price_full_9: entry.price_full_9 ?? entry.priceFull9,
+        price_full_10: entry.price_full_10 ?? entry.priceFull10,
+      });
+
+      setRateEntries(entriesArray.map(normalize));
     } catch (error) {
       const errorMessage =
         error?.response?.data?.error ||
@@ -262,6 +297,27 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
         error?.response?.data?.error || 'Failed to add rate entry.';
       showToast(errorMessage, 'error');
       console.error(error);
+    }
+  };
+
+  const handleDeleteAllRateEntries = async () => {
+    if (!selectedRateCardId) {
+      showToast('Select a rate card first.', 'warning');
+      return;
+    }
+
+    const confirmed = confirmAction(
+      'Delete ALL rate entries for this rate card? This cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/api/rate-cards/${selectedRateCardId}/entries`);
+      setRateEntries([]);
+      showToast('All rate entries deleted.', 'success');
+    } catch (error) {
+      console.error('Delete all rate entries failed', error);
+      showToast('Failed to delete rate entries.', 'error');
     }
   };
 
@@ -524,7 +580,7 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
 
           {/* RIGHT: RATE ENTRIES */}
           <div
-            className="card"
+            className="card rate-table-shell"
             style={{ display: 'flex', flexDirection: 'column' }}
           >
             {/* ADD FORM */}
@@ -538,17 +594,34 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
 
             {/* IMPORTER */}
             {showImporter && (
-              <DataImporter
-                title="Import Rate Entries"
-                apiEndpoint={`/api/rate-cards/${selectedRateCardId}/entries/import`}
-                postDataKey="entries"
-                // surowe wiersze – walidacja po stronie backendu
-                dataMappingFn={(row) => row}
-                previewColumns={[
-                  { key: 'rate_type', header: 'Rate Type' },
-                  { key: 'zone_name', header: 'Zone Name' },
-                  { key: 'service_level', header: 'Service Level' },
-                ]}
+            <DataImporter
+              title="Import Rate Entries"
+              apiEndpoint={`/api/rate-cards/${selectedRateCardId}/entries/import`}
+              postDataKey="entries"
+              dataMappingFn={(row) => ({
+                rate_type: row['Rate Type'] ?? row.rate_type,
+                zone_name: row['Zone Name'] ?? row.zone_name,
+                service_level: row['Service Level'] ?? row.service_level,
+                price_micro: row['Price Micro'] ?? row.price_micro,
+                price_quarter: row['Price Quarter'] ?? row.price_quarter,
+                price_half: row['Price Half'] ?? row.price_half,
+                price_half_plus: row['Price Half Plus'] ?? row.price_half_plus,
+                price_full_1: row['Price Full 1'] ?? row.price_full_1,
+                price_full_2: row['Price Full 2'] ?? row.price_full_2,
+                price_full_3: row['Price Full 3'] ?? row.price_full_3,
+                price_full_4: row['Price Full 4'] ?? row.price_full_4,
+                price_full_5: row['Price Full 5'] ?? row.price_full_5,
+                price_full_6: row['Price Full 6'] ?? row.price_full_6,
+                price_full_7: row['Price Full 7'] ?? row.price_full_7,
+                price_full_8: row['Price Full 8'] ?? row.price_full_8,
+                price_full_9: row['Price Full 9'] ?? row.price_full_9,
+                price_full_10: row['Price Full 10'] ?? row.price_full_10,
+              })}
+              previewColumns={[
+                { key: 'rate_type', header: 'Rate Type' },
+                { key: 'zone_name', header: 'Zone Name' },
+                { key: 'service_level', header: 'Service Level' },
+              ]}
                 onSuccess={handleImportSuccess}
                 onCancel={() => setShowImporter(false)}
               />
@@ -586,6 +659,14 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
                       <Upload size={16} /> Import
                     </button>
                     <button
+                      onClick={handleDeleteAllRateEntries}
+                      className="btn-danger"
+                      title="Delete all rate entries"
+                      disabled={!rateEntries.length}
+                    >
+                      <Trash2 size={16} /> Delete all
+                    </button>
+                    <button
                       onClick={() => setShowAddForm(true)}
                       className="btn-primary"
                     >
@@ -595,7 +676,7 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
                 </div>
 
                 <div
-                  className="table-wrapper"
+                  className="table-wrapper rate-table-scroll"
                   style={{ marginTop: '1rem' }}
                 >
                   <table className="data-table">
@@ -638,7 +719,10 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
                         rateEntries.map((entry) => {
                           const zoneName =
                             zones.find((z) => z.id === entry.zone_id)
-                              ?.zone_name || 'N/A';
+                              ?.zone_name ||
+                            entry.zone_name ||
+                            entry.zone?.zoneName ||
+                            'N/A';
                           const isEditing =
                             editingEntry?.id === entry.id;
 
