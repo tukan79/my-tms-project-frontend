@@ -44,6 +44,9 @@ export default function AddOrderForm({
     Array.isArray(customers) ? customers : []
   );
   const [rateEntries, setRateEntries] = useState([]);
+  const [surchargeTypes, setSurchargeTypes] = useState(
+    Array.isArray(initialSurcharges) ? initialSurcharges : []
+  );
 
   const emptyForm = {
     order_number: "",
@@ -201,6 +204,30 @@ export default function AddOrderForm({
       isMounted = false;
     };
   }, [formData.consignment_type, availableRateCards]);
+
+  /* Fetch surcharge types if not provided */
+  useEffect(() => {
+    if (surchargeTypes.length > 0) return;
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await api.get("/api/surcharge-types");
+        const data = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.surchargeTypes)
+            ? res.data.surchargeTypes
+            : Array.isArray(res.data?.data)
+              ? res.data.data
+              : [];
+        if (isMounted) setSurchargeTypes(data);
+      } catch (err) {
+        console.error("Failed to fetch surcharge types", err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [surchargeTypes.length]);
 
   /* Auto-fill final price */
   useEffect(() => {
@@ -420,8 +447,18 @@ export default function AddOrderForm({
 
             {/* COL 5: SURCHARGES / INSTRUCTION / PRICING */}
             <div className="order-section order-panel">
-              <h3 className="form-section-title">Surcharges</h3>
-              <TextField label="Surcharges" name="surcharges_text" value={formData.surcharges_text} onChange={handleChange} />
+            <h3 className="form-section-title">Surcharges</h3>
+            <SelectField
+              label="Surcharge"
+              name="surcharges_text"
+              value={formData.surcharges_text}
+              onChange={handleChange}
+              options={(surchargeTypes || []).map((s) => ({
+                value: s.name || s.code || s.id,
+                label: s.name || s.code || `Surcharge ${s.id}`,
+              }))}
+              placeholder="Select surcharge"
+            />
 
               <h3 className="form-section-title">Instructions</h3>
               <label className="modern-label" htmlFor="collection_instruction">Collection Instruction</label>
