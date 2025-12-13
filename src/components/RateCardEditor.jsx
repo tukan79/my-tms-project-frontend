@@ -60,9 +60,14 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
       setIsLoading(true);
       try {
         const response = await api.get('/api/rate-cards');
-        const data = Array.isArray(response.data)
-          ? response.data
-          : response.data?.data || [];
+        const raw = response.data;
+        const data = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.data)
+            ? raw.data
+            : Array.isArray(raw?.rateCards)
+              ? raw.rateCards
+              : [];
         setRateCards(data);
       } catch (error) {
         console.error('Fetch rate cards failed', error);
@@ -164,6 +169,32 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
     } catch (error) {
       console.error('Create rate card failed', error);
       showToast('Failed to create rate card.', 'error');
+    }
+  };
+
+  const handleDeleteRateCard = async () => {
+    if (!selectedRateCardId) {
+      showToast('Select a rate card first.', 'warning');
+      return;
+    }
+
+    const confirmed = confirmAction(
+      'Delete this rate card? This will remove all its entries and assignments.'
+    );
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/api/rate-cards/${selectedRateCardId}`);
+      setRateCards((prev) => prev.filter((rc) => rc.id !== selectedRateCardId));
+      setSelectedRateCardId('');
+      setRateEntries([]);
+      setAssignedCustomers([]);
+      setShowAddForm(false);
+      setShowImporter(false);
+      showToast('Rate card deleted.', 'success');
+    } catch (error) {
+      console.error('Delete rate card failed', error);
+      showToast('Failed to delete rate card.', 'error');
     }
   };
 
@@ -406,6 +437,16 @@ const RateCardEditor = ({ customers = [], zones = [] }) => {
           style={{ alignSelf: 'flex-end' }}
         >
           <Plus size={16} /> New Rate Card
+        </button>
+
+        <button
+          onClick={handleDeleteRateCard}
+          className="btn-danger"
+          style={{ alignSelf: 'flex-end' }}
+          disabled={!selectedRateCardId}
+          title="Delete selected rate card"
+        >
+          <Trash2 size={16} /> Delete
         </button>
       </div>
 
